@@ -65,9 +65,14 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
      不改变上面的布局规则（左右两栏比例、分组顺序与空行、置顶/置底与可伸缩空隙）。 -->
 <style>
 :root{
-  --md-primary:#1976D2;            /* Material Blue 700 */
-  --md-primary-dark:#0D47A1;
+  /* 单一色相族：品牌红（标题条 #D71600）；动作按钮用同族更深/更浅的色调，
+     不再引入第二个强调色（原来是 Material Blue 700，与红色标题条争抢注意力）。 */
+  --md-primary:#C0110B;            /* filled 主按钮 */
+  --md-primary-dark:#8F0B06;       /* 主按钮悬停 */
   --md-on-primary:#FFFFFF;
+  --md-secondary-container:#FFDAD6;/* tonal 次按钮底（M3 red 90） */
+  --md-on-secondary-container:#8C1D18;
+  --md-secondary-hover:#FFC9C3;
   --md-surface:#FFFFFF;
   --md-background:#F5F5F5;         /* Grey 100 */
   --md-on-surface:rgba(0,0,0,.87);
@@ -75,8 +80,8 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
   --md-on-surface-disabled:rgba(0,0,0,.38);
   --md-outline:rgba(0,0,0,.12);
   --md-outline-strong:rgba(0,0,0,.24);
-  --md-hover:rgba(25,118,210,.06);
-  --md-pressed:rgba(25,118,210,.12);
+  --md-hover:rgba(192,17,11,.06);
+  --md-pressed:rgba(192,17,11,.12);
   --md-radius:8px;                 /* 卡片 8dp */
   --md-radius-control:4px;         /* 控件 4dp */
   --md-elev-1:0 1px 2px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.06);
@@ -115,8 +120,11 @@ button:active:not(:disabled){background:var(--md-pressed)}
 button:focus-visible{outline:2px solid var(--md-primary);outline-offset:1px}
 button:disabled{color:var(--md-on-surface-disabled);background:transparent}
 /* 主要动作＝filled button；次要动作＝outlined button（与原按钮一一对应，不新增控件） */
-#btn-consolidate,#btn-export{background:var(--md-primary);color:var(--md-on-primary);box-shadow:var(--md-elev-1)}
-#btn-consolidate:hover:not(:disabled),#btn-export:hover:not(:disabled){background:var(--md-primary-dark)}
+#btn-consolidate,#btn-export{min-height:36px;padding:0 16px;border-radius:var(--md-radius-control);display:inline-flex;align-items:center;gap:8px}
+#btn-consolidate{background:var(--md-primary);color:var(--md-on-primary);box-shadow:var(--md-elev-1)}
+#btn-export{background:var(--md-secondary-container);color:var(--md-on-secondary-container);box-shadow:none}
+#btn-consolidate:hover:not(:disabled){background:var(--md-primary-dark)}
+#btn-export:hover:not(:disabled){background:var(--md-secondary-hover);color:var(--md-on-secondary-container)}
 .group .actions button[data-action="import"]{border:1px solid var(--md-outline-strong)}
 /* Material icon button（M3 extra-small：32dp 容器 + 20dp 图标 + 圆形状态层）。
    三个图标按钮（导入 / 数据回顾 / 清空导入数据）共用这套口径；语义色与布局不变。 */
@@ -126,7 +134,7 @@ button:disabled{color:var(--md-on-surface-disabled);background:transparent}
   color:var(--md-on-surface-medium)
 }
 .icon-btn svg{width:20px;height:20px;fill:currentColor;display:block}
-.icon-btn:hover:not(:disabled){background:rgba(25,118,210,.08);color:var(--md-primary)}
+.icon-btn:hover:not(:disabled){background:rgba(192,17,11,.08);color:var(--md-primary)}
 .icon-btn:active:not(:disabled){background:var(--md-pressed)}
 .icon-btn:focus-visible{outline:2px solid var(--md-primary);outline-offset:1px;border-radius:50%}
 .icon-btn:disabled{color:var(--md-on-surface-disabled)}
