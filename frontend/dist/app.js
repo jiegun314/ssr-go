@@ -232,7 +232,7 @@ document.addEventListener("click", async (event) => {
 async function openAbout() {
   const about = await call("About");
   if (!about || !about.version) return;
-  document.getElementById("about-name").textContent = about.name || "SingleSourceReady";
+  // 名称与说明段是固定文案（与 ui/forms/about_dialog.ui 一致），这里只写版本与 tooltip
   const version = document.getElementById("about-version");
   version.textContent = about.version;
   version.title = about.detail || "";
