@@ -32,8 +32,10 @@
 | `internal/paths`（§4.3 路径基准） | 已实现 |
 | `internal/config`（R24 配置整体校验） | 已实现 + 单测（setting / import / consolidation / log columns 四份配置全量校验） |
 | `internal/store`（R8/R9/R22/R23/R25 的 SQL 层） | 已实现 + 单测（通用仓库、来源表导入策略、启动清理、80 列操作日志与按身份幂等写入） |
+| `internal/excelio`（读取侧） | 已实现（只读第一个工作表、单元格一律按文本、尾部空行裁剪） |
+| `internal/importer`（R2–R8） | 已实现 + 单测，**导入阶段 golden diff 通过**（Go 暂存表与 Python 现状逐格一致） |
 | `cmd/ssr-core` 子命令骨架（8 个子命令） | 骨架（除 `version` 外均为占位） |
-| `internal/importer` / `consolidation` / `changedetect` / `excelio` | 待做 |
+| `internal/consolidation` / `changedetect` / `excelio`（导出侧） | 待做 |
 | Wails 界面 | 待做 |
 
 依赖：`gopkg.in/yaml.v3`（配置解析）、`modernc.org/sqlite`（纯 Go SQLite，`CGO_ENABLED=0`）。
