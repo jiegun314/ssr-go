@@ -9,6 +9,8 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	_ "modernc.org/sqlite" // 纯 Go 驱动，CGO_ENABLED=0 也能构建
@@ -37,6 +39,13 @@ type Repository struct {
 
 // Open 打开（必要时创建）一个 SQLite 文件。
 func Open(path string) (*Repository, error) {
+	// 数据库文件在文件系统里，它所在的目录必须先存在（Python 版的
+	// OperationLogRepository.ensure_table 也做同一件事）。
+	if directory := filepath.Dir(path); directory != "" && directory != "." {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			return nil, fmt.Errorf("Failed to open database %s: %w", path, err)
+		}
+	}
 	handle, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open database %s: %w", path, err)
