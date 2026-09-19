@@ -112,8 +112,23 @@ button:disabled{color:var(--md-on-surface-disabled);background:transparent}
 /* 主要动作＝filled button；次要动作＝outlined button（与原按钮一一对应，不新增控件） */
 #btn-consolidate,#btn-export{background:var(--md-primary);color:var(--md-on-primary);box-shadow:var(--md-elev-1)}
 #btn-consolidate:hover:not(:disabled),#btn-export:hover:not(:disabled){background:var(--md-primary-dark)}
-#btn-review-log,#btn-clean{border:1px solid var(--md-outline-strong)}
+#btn-review-log{border:1px solid var(--md-outline-strong)}
 .group .actions button[data-action="import"]{border:1px solid var(--md-outline-strong)}
+/* Material icon button（M3 extra-small：32dp 容器 + 20dp 图标 + 圆形状态层）。
+   三个图标按钮（导入 / 数据回顾 / 清空导入数据）共用这套口径；语义色与布局不变。 */
+.icon-btn{
+  width:32px;height:32px;min-height:32px;padding:0;border:none;background:transparent;
+  border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  color:var(--md-on-surface-medium)
+}
+.icon-btn svg{width:20px;height:20px;fill:currentColor;display:block}
+.icon-btn:hover:not(:disabled){background:rgba(25,118,210,.08);color:var(--md-primary)}
+.icon-btn:active:not(:disabled){background:var(--md-pressed)}
+.icon-btn:focus-visible{outline:2px solid var(--md-primary);outline-offset:1px;border-radius:50%}
+.icon-btn:disabled{color:var(--md-on-surface-disabled)}
+/* 清空按钮原是 outlined 文本按钮，改成 icon button 后不要边框 */
+#btn-clean{border:none;color:var(--md-on-surface-medium)}
+#btn-clean:hover:not(:disabled){color:#B3261E;background:rgba(179,38,30,.08)}
 /* 日期输入＝Material 描边文本域 */
 input[type=date]{font:inherit;font-size:13px;padding:6px 8px;min-height:34px;background:var(--md-surface);
   color:var(--md-on-surface);border:1px solid var(--md-outline-strong);border-radius:var(--md-radius-control)}
