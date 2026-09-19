@@ -15,8 +15,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/jeffreyzhou-bmx/ssr-go/internal/buildinfo"
-	"github.com/jeffreyzhou-bmx/ssr-go/internal/paths"
+	"github.com/jiegun314/ssr-go/internal/buildinfo"
+	"github.com/jiegun314/ssr-go/internal/paths"
 )
 
 const usageText = `ssr-core —— SSR(SingleSource Ready) 无界面命令行
