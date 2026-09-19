@@ -8,11 +8,9 @@ export function ClearImportedData():Promise<main.ClearResult>;
 
 export function Consolidate():Promise<main.ConsolidateResult>;
 
-export function Export(arg1:string,arg2:string):Promise<main.ExportResult>;
+export function Export():Promise<main.ExportResult>;
 
-export function ExportReviewData(arg1:string,arg2:string):Promise<main.ExportResult>;
-
-export function ImportSource(arg1:string,arg2:string):Promise<main.ImportResult>;
+export function ImportSource(arg1:string):Promise<main.ImportResult>;
 
 export function ImportState(arg1:string):Promise<main.ImportState>;
 
@@ -22,14 +20,8 @@ export function OpenSourceFromDialog():Promise<void>;
 
 export function Quit():Promise<void>;
 
-export function ReviewLog(arg1:string,arg2:string,arg3:number,arg4:number):Promise<main.ReviewResult>;
+export function ReviewLog(arg1:string,arg2:string):Promise<main.ReviewResult>;
 
-export function ReviewSource(arg1:string,arg2:number,arg3:number):Promise<main.ReviewResult>;
-
-export function SelectExportTarget():Promise<main.ExportTarget>;
-
-export function SelectImportFile(arg1:string):Promise<string>;
-
-export function SelectReviewExportTarget(arg1:string):Promise<main.ExportTarget>;
+export function ReviewSource(arg1:string):Promise<main.ReviewResult>;
 
 export function ShowAbout():Promise<void>;

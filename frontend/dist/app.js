@@ -287,6 +287,14 @@ document.addEventListener("click", async (event) => {
       setLog(result.log);
       if (result.failed) return showModal(result.title, result.message);
       renderTable("result-table", result.columns, result.rows, result.statuses);
+      // 汇总摘要前置到工具条：Ready / Incomplete / Duplicate / Conflict 计数
+      const counts = {};
+      for (const status of result.statuses || []) {
+        counts[status] = (counts[status] || 0) + 1;
+      }
+      document.getElementById("consolidation-summary").textContent =
+        `Ready ${counts.Ready || 0} · Incomplete ${counts.Incomplete || 0} · ` +
+        `Duplicate ${counts.Duplicate || 0} · Conflict ${counts.Conflict || 0}`;
       break;
     }
     case "btn-export": {
