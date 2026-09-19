@@ -86,6 +86,7 @@ async function call(method, ...args) {
 
 // 长任务的载入文案：导入 / 整合 / 回顾三条沿用原界面状态栏的原文（§6.2）。
 const BUSY_TEXT = {
+  SelectImportFile: "正在打开文件夹",
   ImportSource: "正在导入 Excel 数据...",
   Consolidate: "正在整合数据...",
   ReviewSource: "正在加载已导入数据...",
@@ -211,7 +212,11 @@ document.addEventListener("click", async (event) => {
   const source = button.dataset.source;
   switch (button.dataset.action || button.id) {
     case "import": {
-      const result = await call("ImportSource", source);
+      // 第一步：打开文件对话框（载入图层显示「正在打开文件夹」）
+      const filePath = await call("SelectImportFile", source);
+      if (typeof filePath !== "string" || filePath === "") break; // 取消或失败：什么都不做
+      // 第二步：真正导入（载入图层显示「正在导入 Excel 数据...」）
+      const result = await call("ImportSource", source, filePath);
       applyImportStates(result.state ? { ...state.imports, [source]: result.state } : state.imports);
       setLog(result.log);
       showModal(result.title, result.message);

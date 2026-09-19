@@ -47,16 +47,33 @@ type ImportResult struct {
 	Failed   bool        `json:"failed"`
 }
 
-// ImportSource 导入一份来源：先弹「Select Excel File」，再按 R2–R8 导入（§5.2）。
-func (app *App) ImportSource(source string) ImportResult {
+// SelectImportFile 打开「Select Excel File」对话框并返回用户选中的文件（取消返回空串）。
+//
+// 与导入分成两步，是为了让载入图层能显示准确的阶段：打开对话框时是「正在打开文件夹」，
+// 选中文件真正开始导入时才是「正在导入 Excel 数据...」。取消不算失败（§5.2）。
+func (app *App) SelectImportFile(source string) string {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.importer == nil {
+		return ""
+	}
+	path, err := app.selectFile()
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
+// ImportSource 导入一份来源：filePath 为空时什么都不做（用户取消）否则按 R2–R8 导入（§5.2）。
+func (app *App) ImportSource(source string, filePath string) ImportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
 		return ImportResult{Source: source, Failed: true, Title: "Error", Message: err.Error()}
 	}
 	defer app.endOperation()
-	path, err := app.selectFile()
-	if err != nil || path == "" {
+	path := filePath
+	if path == "" {
 		// 用户取消文件对话框不算失败：状态与标签都不变（§5.2）
 		return ImportResult{Source: source, State: app.importStates[source], Log: app.logText()}
 	}
