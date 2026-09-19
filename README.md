@@ -49,11 +49,17 @@ go run ./cmd/ssr-core snapshot --config <工作区>/config \
 ```
 
 用 Python 侧 `ssr_go/baseline/` 作对照物时，以下文件**逐字节一致**：
-四个 `来源表_*.tsv`、`整合结果.tsv`、`计数断言.json`、`导出文件_逐格.tsv`、`操作日志.json`。
+四个 `来源表_*.tsv`、`整合结果.tsv`、`计数断言.json`、`导出文件_逐格.tsv`、`操作日志.json`、
+`幂等路径.json`、`变更路径.json`、`拒绝路径.json`、`拒绝路径.txt`（共 12 个）。
 
 唯一有意不同的文件是 `导出文件_部件清单.tsv`：openpyxl 会丢 24 个部件（`docMetadata/LabelInfo.xml`
 敏感度标签、两张 png、drawings、printerSettings、customXml），excelize 全部保留 ——
 这就是验收口径②（模板保真）的落地证据，见 AGENTS.md §10.1 #2。
+
+`snapshot` 覆盖三条路径：幂等（再整合一次全部 Duplicate、不新增日志、无可导出行）、
+变更（改字段 → `{列名} changed`、改医保编码 → 同一身份换描述）、拒绝
+（`invalid-conditions/` 的 UDI 文件被拒，行号 13/14 与命中条件逐字记录，暂存表不受影响）。
+`--input` 指向 `valid/` 目录，命令会自动在同一父目录下找 `invalid-conditions/`。
 
 > 说明：一次 `snapshot` 会导入 → 整合 → 导出 → 记日志，所以在同一份数据库上重跑会得到
 > 「全部 Duplicate、无可导出行」。要比对请用干净工作区（与 Python 快照脚本同口径）。

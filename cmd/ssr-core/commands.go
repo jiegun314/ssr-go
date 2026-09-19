@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -352,6 +353,193 @@ func runSnapshotCommand(
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
+
+	// 4. 幂等路径：同一份结果再整合一次（R17/R22）
+	logRowsBefore, err := logRowCount(space.Log)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	second, err := space.Service.Consolidate()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	logRowsAfter, err := logRowCount(space.Log)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	var exportError *string
+	if _, err := space.Service.ExportConsolidationResult("", time.Now()); err != nil {
+		message := err.Error()
+		exportError = &message
+	}
+	secondCounts := statusCounts(second)
+	if err := writeJSON(filepath.Join(outDir, "幂等路径.json"), idempotencySnapshot{
+		StatusCountsAfterSecondConsolidation: statusCountsJSON{
+			Ready:      secondCounts[consolidation.StatusReady],
+			Incomplete: secondCounts[consolidation.StatusIncomplete],
+			Duplicate:  secondCounts[consolidation.StatusDuplicate],
+			Conflict:   secondCounts[consolidation.StatusConflict],
+		},
+		LogRowsAfterFirstExport:         logRowsBefore,
+		LogRowsAfterSecondConsolidation: logRowsAfter,
+		ExportErrorMessage:              exportError,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+
+	// 5. 变更路径：改一个字段 → 保持 Ready 且带描述；改医保编码 → 同一身份、描述换一条
+	firstIdentity := outcome.Rows[0].Key
+	originalName, err := readCell(
+		space.Repository, "ra_input_staging", "material_code", "000MAT-001", "product_name")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	if err := setCellWhere(
+		space.Repository, "ra_input_staging", "material_code", "000MAT-001",
+		"product_name", "Changed device"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	changed, err := space.Service.Consolidate()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	changedRow, err := findRow(changed, firstIdentity)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	if err := setCellWhere(
+		space.Repository, "ra_input_staging", "material_code", "000MAT-001",
+		"product_name", originalName); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	restored, err := space.Service.Consolidate()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	if err := setCellWhere(
+		space.Repository, "medical_insurance_code", "material_code", "000MAT-001",
+		"medical_insurance_code", "000INS-999"); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	insurance, err := space.Service.Consolidate()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	insuranceRow, err := findRow(insurance, firstIdentity)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	if err := writeJSON(filepath.Join(outDir, "变更路径.json"), changePathSnapshot{
+		FieldChange: fieldChangeSnapshot{
+			Source:            "ra_input_staging.product_name",
+			Identity:          firstIdentity,
+			Status:            changedRow["status"],
+			ChangeDescription: changedRow["Change Description"],
+			ChangedData:       emptyIfNil(changed.ChangedData),
+		},
+		InsuranceCodeChange: insuranceChangeSnapshot{
+			Source:               "medical_insurance_code.medical_insurance_code",
+			Identity:             firstIdentity,
+			ResultRowsBefore:     len(restored.Rows),
+			ResultRowsAfter:      len(insurance.Rows),
+			Status:               insuranceRow["status"],
+			MedicalInsuranceCode: insuranceRow["Medical Insurance Code"],
+			ChangeDescription:    insuranceRow["Change Description"],
+		},
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+
+	// 6. 拒绝路径：invalid-conditions 的 UDI 文件被拒，且暂存表不受影响（R7）
+	invalidPath := filepath.Join(
+		filepath.Dir(inputDir), "invalid-conditions", "global_udi_input.xlsx")
+	rowsBefore, err := space.Repository.CountTableRows("global_udi_input_staging")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	_, importErr := space.Importer.Import("global_udi_input", invalidPath)
+	rejection, isRejection := importErr.(*importer.MissingRowValuesError)
+	if importErr == nil || !isRejection {
+		fmt.Fprintf(os.Stderr, "%v 没有被拒绝：%v\n", invalidPath, importErr)
+		return 1
+	}
+	rowsAfter, err := space.Repository.CountTableRows("global_udi_input_staging")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	violations := make([]violationJSON, 0, len(rejection.Violations))
+	for _, violation := range rejection.Violations {
+		violations = append(violations, violationJSON{
+			RowNumber:   violation.RowNumber,
+			ChineseName: violation.ChineseName,
+			DBField:     violation.DBField,
+			Condition:   violation.Condition,
+		})
+	}
+	if err := writeJSON(filepath.Join(outDir, "拒绝路径.json"), rejectionSnapshot{
+		File:                  "data/input/sample/invalid-conditions/global_udi_input.xlsx",
+		Exception:             "MissingConditionalValuesError",
+		Summary:               rejection.Summary(),
+		Violations:            violations,
+		Message:               rejection.Error(),
+		SourceTableRowsBefore: rowsBefore,
+		SourceTableRowsAfter:  rowsAfter,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	if err := os.WriteFile(
+		filepath.Join(outDir, "拒绝路径.txt"),
+		[]byte(rejection.Error()+"\n"), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+
+	// 7. 清单：本仓库的溯源信息（与 Python 的清单字段不同，比对时可忽略）
+	files, err := snapshotFiles(outDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	if err := writeJSON(filepath.Join(outDir, "清单.json"), manifestSnapshot{
+		Snapshot:              "go",
+		Rows:                  len(outcome.Rows),
+		Files:                 files,
+		ConfigSHA256:          map[string]string{},
+		ExportFileNamePattern: "<模板名>-<YYYYmmdd_HHMMSS>.xlsx",
+		LogTimePlaceholder:    "<log_time>",
+		ResultIdentityMissing: "000MAT-006::MISSING",
+		StatusCounts: statusCountsJSON{
+			Ready:      counts[consolidation.StatusReady],
+			Incomplete: counts[consolidation.StatusIncomplete],
+			Duplicate:  counts[consolidation.StatusDuplicate],
+			Conflict:   counts[consolidation.StatusConflict],
+		},
+		Go: goRuntimeVersion(),
+		Differs: []string{
+			"导出文件_部件清单.tsv：excelize 保留全部模板部件（口径②），openpyxl 会丢 24 个",
+		},
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+
 	fmt.Fprintf(stdout,
 		"整合：%d 行（Ready %d / Incomplete %d / Duplicate %d / Conflict %d）；导出 %d 行，缺列 %d\n",
 		len(outcome.Rows), counts[consolidation.StatusReady],
@@ -379,6 +567,69 @@ type countsAssertion struct {
 	ChangedData             []string         `json:"changed_data"`
 	ConflictData            []string         `json:"conflict_data"`
 	ResultIdentitiesInOrder []string         `json:"result_identities_in_order"`
+}
+
+// 幂等路径：同一份结果再整合一次会全部变成 Duplicate、不新增日志、也没有可导出行。
+type idempotencySnapshot struct {
+	StatusCountsAfterSecondConsolidation statusCountsJSON `json:"status_counts_after_second_consolidation"`
+	LogRowsAfterFirstExport              int              `json:"log_rows_after_first_export"`
+	LogRowsAfterSecondConsolidation      int              `json:"log_rows_after_second_consolidation"`
+	ExportErrorMessage                   *string          `json:"export_error_message"`
+}
+
+type fieldChangeSnapshot struct {
+	Source            string   `json:"source"`
+	Identity          string   `json:"identity"`
+	Status            string   `json:"status"`
+	ChangeDescription string   `json:"change_description"`
+	ChangedData       []string `json:"changed_data"`
+}
+
+type insuranceChangeSnapshot struct {
+	Source               string `json:"source"`
+	Identity             string `json:"identity"`
+	ResultRowsBefore     int    `json:"result_rows_before"`
+	ResultRowsAfter      int    `json:"result_rows_after"`
+	Status               string `json:"status"`
+	MedicalInsuranceCode string `json:"medical_insurance_code"`
+	ChangeDescription    string `json:"change_description"`
+}
+
+type changePathSnapshot struct {
+	FieldChange         fieldChangeSnapshot     `json:"field_change"`
+	InsuranceCodeChange insuranceChangeSnapshot `json:"insurance_code_change"`
+}
+
+// 拒绝路径：invalid-conditions 的 UDI 文件必须被拒，且暂存表不受影响（R7）。
+type violationJSON struct {
+	RowNumber   int    `json:"row_number"`
+	ChineseName string `json:"chinese_name"`
+	DBField     string `json:"db_field"`
+	Condition   string `json:"condition,omitempty"`
+}
+
+type rejectionSnapshot struct {
+	File                  string          `json:"file"`
+	Exception             string          `json:"exception"`
+	Summary               string          `json:"summary"`
+	Violations            []violationJSON `json:"violations"`
+	Message               string          `json:"message"`
+	SourceTableRowsBefore int             `json:"source_table_rows_before"`
+	SourceTableRowsAfter  int             `json:"source_table_rows_after"`
+}
+
+type manifestSnapshot struct {
+	Snapshot              string            `json:"snapshot"`
+	Rows                  int               `json:"rows"`
+	Files                 []string          `json:"files"`
+	ConfigSHA256          map[string]string `json:"config_sha256"`
+	TemplateSHA256        string            `json:"template_sha256"`
+	ExportFileNamePattern string            `json:"export_file_name_pattern"`
+	LogTimePlaceholder    string            `json:"log_time_placeholder"`
+	ResultIdentityMissing string            `json:"result_identity_missing"`
+	StatusCounts          statusCountsJSON  `json:"status_counts"`
+	Go                    string            `json:"go"`
+	Differs               []string          `json:"differs_from_python_baseline"`
 }
 
 // --- 输出工具 ---
@@ -589,4 +840,89 @@ func sizeText(size int, present bool) string {
 		return ""
 	}
 	return strconv.Itoa(size)
+}
+
+func logRowCount(log *store.OperationLog) (int, error) {
+	return log.Repository.CountTableRows(log.TableName)
+}
+
+// findRow 在整合结果里按 result_identity 找一行。
+func findRow(outcome consolidation.Outcome, identity string) (store.Row, error) {
+	for _, row := range outcome.Rows {
+		if row.Key == identity {
+			return row.Values, nil
+		}
+	}
+	return nil, fmt.Errorf("结果里没有 %s", identity)
+}
+
+// readCell 读一张来源表里某个键对应的一个单元格。
+func readCell(
+	repository *store.Repository,
+	tableName string,
+	matchColumn string,
+	matchValue string,
+	column string,
+) (string, error) {
+	rows, err := repository.Rows(tableName)
+	if err != nil {
+		return "", err
+	}
+	for _, row := range rows {
+		if row[matchColumn] == matchValue {
+			return row[column], nil
+		}
+	}
+	return "", fmt.Errorf("表 %s 里没有 %s=%s", tableName, matchColumn, matchValue)
+}
+
+// setCellWhere 改一张来源表里匹配到的行的一个单元格（列顺序不变）。
+func setCellWhere(
+	repository *store.Repository,
+	tableName string,
+	matchColumn string,
+	matchValue string,
+	column string,
+	value string,
+) error {
+	columns, err := repository.TableColumns(tableName)
+	if err != nil {
+		return err
+	}
+	rows, err := repository.Rows(tableName)
+	if err != nil {
+		return err
+	}
+	found := false
+	for index := range rows {
+		if rows[index][matchColumn] == matchValue {
+			rows[index][column] = value
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("表 %s 里没有 %s=%s", tableName, matchColumn, matchValue)
+	}
+	return repository.WriteRows(tableName, columns, rows, store.WriteReplace)
+}
+
+// snapshotFiles 列出快照目录里的文件（相对路径，排序）。
+func snapshotFiles(outDir string) ([]string, error) {
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		return nil, err
+	}
+	files := []string{}
+	for _, entry := range entries {
+		if entry.IsDir() || entry.Name() == "清单.json" {
+			continue
+		}
+		files = append(files, entry.Name())
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+func goRuntimeVersion() string {
+	return runtime.Version()
 }
