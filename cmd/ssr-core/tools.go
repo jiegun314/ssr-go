@@ -11,6 +11,7 @@ import (
 
 	"github.com/jiegun314/ssr-go/internal/config"
 	"github.com/jiegun314/ssr-go/internal/excelio"
+	"github.com/jiegun314/ssr-go/internal/sample"
 	"github.com/jiegun314/ssr-go/internal/store"
 )
 
@@ -266,6 +267,40 @@ func runPrepareDBFlags(arguments []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintf(stdout, "Prepared release database: %s\n", databasePath)
+	return 0
+}
+
+func runGenSampleFlags(arguments []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("gensample", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	configDir := flags.String("config", "", "配置目录（默认取 UDI_CONFIG_DIR）")
+	output := flags.String("output", "data/input/sample", "样本输出目录")
+	rows := flags.Int("rows", sample.DefaultRows, "产品代码数量")
+	if err := flags.Parse(arguments); err != nil {
+		return 2
+	}
+	if *rows < 1 {
+		fmt.Fprintln(stderr, "至少需要 1 行")
+		return 2
+	}
+	loader, err := config.NewLoader(*configDir)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 1
+	}
+	outputRoot := *output
+	if !filepath.IsAbs(outputRoot) {
+		outputRoot = filepath.Join(loader.Resolver.ProjectRoot, outputRoot)
+	}
+	invalidPath, firstOffendingRow, err := sample.WriteSampleSets(outputRoot, loader, *rows)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "样本数据目录：%s\n", outputRoot)
+	fmt.Fprintf(stdout, "  valid/               %d 个产品代码（另有 1 个只有 RA/医保/产品类别 的产品代码）\n", *rows)
+	fmt.Fprintf(stdout, "  invalid-conditions/  条件必填被拒，UDI 文件从第 %d 行开始\n", firstOffendingRow)
+	fmt.Fprintf(stdout, "  被拒文件：%s\n", invalidPath)
 	return 0
 }
 

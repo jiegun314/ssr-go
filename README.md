@@ -38,8 +38,11 @@
 | `internal/changedetect`（R17/R18） | 已实现（身份命中判定、按存储真实列比较、auto/source 两种描述模式） |
 | `internal/consolidation`（R11–R16/R19） | 已实现 + 单测，**整合阶段 golden diff 通过**（9 行结果逐格一致） |
 | `internal/excelio` 导出侧（R20/R21 + 模板保真） | 已实现 + 单测（按文本写值、模板部件全保留、缺列上报、无 Ready 行时报原文） |
-| `cmd/ssr-core` | `version` / `import` / `consolidate` / `export` / `snapshot` / `genlogcolumns`（含 `--check`）/ `preparedb` 已实现；`alignlogcolumns` / `gensample` 待做 |
+| `cmd/ssr-core` | `version` / `import` / `consolidate` / `export` / `snapshot` / `genlogcolumns`（含 `--check`）/ `gensample` / `preparedb` 已实现；`alignlogcolumns` 待做 |
 | Wails 界面 | 待做 |
+
+`gensample` 让 Go 侧**不再依赖 Python 生成样本**：用 Go 生成的 `valid/` 与
+`invalid-conditions/` 跑完整链路，12 个行为快照仍与 Python baseline 逐字节一致。
 
 `config/` 与 Python 仓库**逐字节一致**（含生成物的注释），所以 `genlogcolumns` 生成出来的
 `config/log_columns.yaml` 与 Python 版生成物完全相同；`genlogcolumns --check` 可直接当

@@ -43,7 +43,7 @@ func TestVersionReportsAVersionString(t *testing.T) {
 
 func TestAPortedSubcommandSaysItIsNotImplementedYet(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"gensample"}, &stdout, &stderr); code != 2 {
+	if code := run([]string{"alignlogcolumns"}, &stdout, &stderr); code != 2 {
 		t.Fatalf("尚未移植的子命令应返回 2，得到 %d", code)
 	}
 	if !strings.Contains(stderr.String(), "尚未实现") {

@@ -111,7 +111,7 @@ func runImportFlags(arguments []string, stdout, stderr io.Writer) int {
 	if err := flags.Parse(arguments); err != nil {
 		return 2
 	}
-	return runImportCommand(*configDir, *source, *file, stdout)
+	return runImportCommand(*configDir, *source, *file, stdout, stderr)
 }
 
 func runConsolidateFlags(arguments []string, stdout, stderr io.Writer) int {
@@ -121,7 +121,7 @@ func runConsolidateFlags(arguments []string, stdout, stderr io.Writer) int {
 	if err := flags.Parse(arguments); err != nil {
 		return 2
 	}
-	return runConsolidateCommand(*configDir, stdout)
+	return runConsolidateCommand(*configDir, stdout, stderr)
 }
 
 func runExportFlags(arguments []string, stdout, stderr io.Writer) int {
@@ -132,7 +132,7 @@ func runExportFlags(arguments []string, stdout, stderr io.Writer) int {
 	if err := flags.Parse(arguments); err != nil {
 		return 2
 	}
-	return runExportCommand(*configDir, *fileName, stdout)
+	return runExportCommand(*configDir, *fileName, stdout, stderr)
 }
 
 func runSnapshotFlags(arguments []string, stdout, stderr io.Writer) int {
@@ -144,23 +144,23 @@ func runSnapshotFlags(arguments []string, stdout, stderr io.Writer) int {
 	if err := flags.Parse(arguments); err != nil {
 		return 2
 	}
-	return runSnapshotCommand(*configDir, *inputDir, *outDir, stdout)
+	return runSnapshotCommand(*configDir, *inputDir, *outDir, stdout, stderr)
 }
 
-func runImportCommand(configDir string, source string, file string, stdout io.Writer) int {
+func runImportCommand(configDir string, source string, file string, stdout, stderr io.Writer) int {
 	if source == "" || file == "" {
-		fmt.Fprintln(os.Stderr, "用法：ssr-core import --source <来源键> --file <Excel 路径>")
+		fmt.Fprintln(stderr, "用法：ssr-core import --source <来源键> --file <Excel 路径>")
 		return 2
 	}
 	space, err := openWorkspace(configDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	defer space.Close()
 	result, err := space.Importer.Import(source, file)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	fmt.Fprintf(stdout, "%s imported successfully. Rows imported: %d\n",
@@ -168,16 +168,16 @@ func runImportCommand(configDir string, source string, file string, stdout io.Wr
 	return 0
 }
 
-func runConsolidateCommand(configDir string, stdout io.Writer) int {
+func runConsolidateCommand(configDir string, stdout, stderr io.Writer) int {
 	space, err := openWorkspace(configDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	defer space.Close()
 	outcome, err := space.Service.Consolidate()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	counts := statusCounts(outcome)
@@ -190,21 +190,21 @@ func runConsolidateCommand(configDir string, stdout io.Writer) int {
 	return 0
 }
 
-func runExportCommand(configDir string, fileName string, stdout io.Writer) int {
+func runExportCommand(configDir string, fileName string, stdout, stderr io.Writer) int {
 	space, err := openWorkspace(configDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	defer space.Close()
 	now := time.Now()
 	result, err := space.Service.ExportConsolidationResult(fileName, now)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := space.Service.RecordConsolidationResult(now); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	fmt.Fprintf(stdout, "Consolidation result exported successfully to %s\n", result.FilePath)
@@ -227,20 +227,15 @@ func statusCounts(outcome consolidation.Outcome) map[string]int {
 
 // --- snapshot：产出与 Python 侧 baseline 逐格可比的行为快照 ---
 
-func runSnapshotCommand(
-	configDir string,
-	inputDir string,
-	outDir string,
-	stdout io.Writer,
-) int {
+func runSnapshotCommand(configDir string, inputDir string, outDir string, stdout, stderr io.Writer) int {
 	space, err := openWorkspace(configDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	defer space.Close()
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 
@@ -248,7 +243,7 @@ func runSnapshotCommand(
 	for _, sourceName := range space.Importer.Order {
 		path := filepath.Join(inputDir, sourceName+".xlsx")
 		if _, err := space.Importer.Import(sourceName, path); err != nil {
-			fmt.Fprintf(os.Stderr, "导入 %s 失败：%v\n", sourceName, err)
+			fmt.Fprintf(stderr, "导入 %s 失败：%v\n", sourceName, err)
 			return 1
 		}
 		rule := space.Importer.Rules[sourceName]
@@ -258,7 +253,7 @@ func runSnapshotCommand(
 		}
 		rows, err := space.Repository.Rows(rule.TargetTable)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
+			fmt.Fprintf(stderr, "%v\n", err)
 			return 1
 		}
 		cells := make([][]string, 0, len(rows))
@@ -270,7 +265,7 @@ func runSnapshotCommand(
 			cells = append(cells, values)
 		}
 		if err := writeTSV(filepath.Join(outDir, "来源表_"+sourceName+".tsv"), columns, cells); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
+			fmt.Fprintf(stderr, "%v\n", err)
 			return 1
 		}
 		fmt.Fprintf(stdout, "来源表_%s.tsv：%d 行\n", sourceName, len(cells))
@@ -279,7 +274,7 @@ func runSnapshotCommand(
 	// 2. 整合 → 整合结果.tsv + 计数断言.json
 	outcome, err := space.Service.Consolidate()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	resultColumns := append([]string{"status"}, space.Service.Config.FieldNames...)
@@ -295,7 +290,7 @@ func runSnapshotCommand(
 		identities = append(identities, row.Key)
 	}
 	if err := writeTSV(filepath.Join(outDir, "整合结果.tsv"), resultColumns, resultRows); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	counts := statusCounts(outcome)
@@ -314,14 +309,14 @@ func runSnapshotCommand(
 		ResultIdentitiesInOrder: identities,
 	}
 	if err := writeJSON(filepath.Join(outDir, "计数断言.json"), assertion); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 
 	// 3. 导出 → 逐格 dump + 部件清单；随后记录导出结果 → 操作日志
 	exportResult, err := space.Service.ExportConsolidationResult("", time.Now())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := dumpExportCells(
@@ -330,7 +325,7 @@ func runSnapshotCommand(
 		space.Service.Config.DataStartRow,
 		filepath.Join(outDir, "导出文件_逐格.tsv"),
 	); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := dumpZipParts(
@@ -338,36 +333,36 @@ func runSnapshotCommand(
 		exportResult.FilePath,
 		filepath.Join(outDir, "导出文件_部件清单.tsv"),
 	); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	now := time.Now()
 	if err := space.Service.RecordConsolidationResult(now); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := dumpOperationLog(
 		space.Log,
 		filepath.Join(outDir, "操作日志.json"),
 	); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 
 	// 4. 幂等路径：同一份结果再整合一次（R17/R22）
 	logRowsBefore, err := logRowCount(space.Log)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	second, err := space.Service.Consolidate()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	logRowsAfter, err := logRowCount(space.Log)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	var exportError *string
@@ -387,7 +382,7 @@ func runSnapshotCommand(
 		LogRowsAfterSecondConsolidation: logRowsAfter,
 		ExportErrorMessage:              exportError,
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 
@@ -396,50 +391,50 @@ func runSnapshotCommand(
 	originalName, err := readCell(
 		space.Repository, "ra_input_staging", "material_code", "000MAT-001", "product_name")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := setCellWhere(
 		space.Repository, "ra_input_staging", "material_code", "000MAT-001",
 		"product_name", "Changed device"); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	changed, err := space.Service.Consolidate()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	changedRow, err := findRow(changed, firstIdentity)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := setCellWhere(
 		space.Repository, "ra_input_staging", "material_code", "000MAT-001",
 		"product_name", originalName); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	restored, err := space.Service.Consolidate()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := setCellWhere(
 		space.Repository, "medical_insurance_code", "material_code", "000MAT-001",
 		"medical_insurance_code", "000INS-999"); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	insurance, err := space.Service.Consolidate()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	insuranceRow, err := findRow(insurance, firstIdentity)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := writeJSON(filepath.Join(outDir, "变更路径.json"), changePathSnapshot{
@@ -460,7 +455,7 @@ func runSnapshotCommand(
 			ChangeDescription:    insuranceRow["Change Description"],
 		},
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 
@@ -469,18 +464,18 @@ func runSnapshotCommand(
 		filepath.Dir(inputDir), "invalid-conditions", "global_udi_input.xlsx")
 	rowsBefore, err := space.Repository.CountTableRows("global_udi_input_staging")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	_, importErr := space.Importer.Import("global_udi_input", invalidPath)
 	rejection, isRejection := importErr.(*importer.MissingRowValuesError)
 	if importErr == nil || !isRejection {
-		fmt.Fprintf(os.Stderr, "%v 没有被拒绝：%v\n", invalidPath, importErr)
+		fmt.Fprintf(stderr, "%v 没有被拒绝：%v\n", invalidPath, importErr)
 		return 1
 	}
 	rowsAfter, err := space.Repository.CountTableRows("global_udi_input_staging")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	violations := make([]violationJSON, 0, len(rejection.Violations))
@@ -501,20 +496,20 @@ func runSnapshotCommand(
 		SourceTableRowsBefore: rowsBefore,
 		SourceTableRowsAfter:  rowsAfter,
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := os.WriteFile(
 		filepath.Join(outDir, "拒绝路径.txt"),
 		[]byte(rejection.Error()+"\n"), 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 
 	// 7. 清单：本仓库的溯源信息（与 Python 的清单字段不同，比对时可忽略）
 	files, err := snapshotFiles(outDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := writeJSON(filepath.Join(outDir, "清单.json"), manifestSnapshot{
@@ -536,7 +531,7 @@ func runSnapshotCommand(
 			"导出文件_部件清单.tsv：excelize 保留全部模板部件（口径②），openpyxl 会丢 24 个",
 		},
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 
