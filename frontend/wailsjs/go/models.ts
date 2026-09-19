@@ -64,6 +64,20 @@ export namespace main {
 	        this.path = source["path"];
 	    }
 	}
+	export class ExportTarget {
+	    defaultName: string;
+	    target: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExportTarget(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.defaultName = source["defaultName"];
+	        this.target = source["target"];
+	    }
+	}
 	export class ImportState {
 	    source: string;
 	    state: string;
@@ -138,6 +152,10 @@ export namespace main {
 	    failed: boolean;
 	    columns: string[];
 	    rows: string[][];
+	    total: number;
+	    page: number;
+	    pageSize: number;
+	    pageCount: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ReviewResult(source);
@@ -151,6 +169,10 @@ export namespace main {
 	        this.failed = source["failed"];
 	        this.columns = source["columns"];
 	        this.rows = source["rows"];
+	        this.total = source["total"];
+	        this.page = source["page"];
+	        this.pageSize = source["pageSize"];
+	        this.pageCount = source["pageCount"];
 	    }
 	}
 	export class State {
