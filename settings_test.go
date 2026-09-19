@@ -119,25 +119,14 @@ func TestSettingsHTMLCarriesAnIndentForEveryDepth(t *testing.T) {
 // 缩进基准由渲染器写到元素上，CSS 只负责消费 —— 不能再出现"按层级写死的
 // padding-left 清单"（那正是深层内容顶头的原因）。
 func TestSettingsStylesConsumeTheIndentVariable(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("frontend", "dist", "index.html"))
-	if err != nil {
-		t.Fatalf("读界面文件失败：%v", err)
-	}
-	style := string(raw)
+	style := readFrontendStyles(t)
 
 	for _, rule := range []string{
 		".settings-body .md-h{",
 		".settings-body .md-kv{",
 		".settings-body .md-list{",
 	} {
-		start := strings.Index(style, rule)
-		if start < 0 {
-			t.Fatalf("样式里找不到规则 %s", rule)
-		}
-		body := style[start:]
-		if end := strings.Index(body, "}"); end >= 0 {
-			body = body[:end]
-		}
+		body := styleRule(t, style, rule)
 		if !strings.Contains(body, "var(--md-indent") {
 			t.Errorf("%s 没有消费缩进变量：%s", rule, body)
 		}
@@ -150,4 +139,70 @@ func TestSettingsStylesConsumeTheIndentVariable(t *testing.T) {
 	if matched, _ := regexp.MatchString(`\.md-d\d+\{padding-left`, style); matched {
 		t.Error("样式里还有按层级写死的 padding-left 清单")
 	}
+}
+
+// TestSettingsColorsStayThreeToned 固定颜色层级：参数设定里只允许三种颜色 ——
+// 一级标题＝品牌红、二级标题＝正文黑、其余内容（键名、键值对的值、列表项）
+// ＝一种正文灰。回归点：键值对的值 .md-v 与列表项 li 曾经没有跟随灰色，
+// 结果同一份配置里"键是灰的、值/列表是黑的"。
+func TestSettingsColorsStayThreeToned(t *testing.T) {
+	style := readFrontendStyles(t)
+
+	gray := "color:var(--md-on-surface-medium)"
+	black := "color:var(--md-on-surface)"
+
+	if body := styleRule(t, style, ".settings-body{"); !strings.Contains(body, gray) {
+		t.Errorf("参数设定的基准色不是正文灰：%s", body)
+	}
+	// 一级、二级标题各自覆盖基准色，保留红色与黑色
+	if body := styleRule(t, style, ".settings-body h3.md-h{"); !strings.Contains(body, "color:var(--md-primary)") {
+		t.Errorf("一级标题不是品牌红：%s", body)
+	}
+	if body := styleRule(t, style, ".settings-body h4.md-h{"); !strings.Contains(body, black) {
+		t.Errorf("二级标题不是正文黑：%s", body)
+	}
+	// 三级及更深的标题、键值对的值都不能再自己指定黑色（否则会脱离正文灰）
+	for _, rule := range []string{".settings-body .md-h{", ".settings-body .md-v{"} {
+		body := styleRule(t, style, rule)
+		if strings.Contains(body, black) {
+			t.Errorf("%s 不应指定正文黑，应跟随基准灰：%s", rule, body)
+		}
+	}
+	// 列表项自己不设颜色，跟随 .settings-body 的基准灰
+	if body := styleRule(t, style, ".settings-body .md-list{"); strings.Contains(body, "color:") {
+		t.Errorf("列表不应单独指定颜色，应跟随基准灰：%s", body)
+	}
+}
+
+// readFrontendStyles 取出界面文件里所有 <style> 块的内容。
+// 界面有两块样式表（组件规则 + 颜色变量），少了任何一块都量不出真实颜色。
+func readFrontendStyles(t *testing.T) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("frontend", "dist", "index.html"))
+	if err != nil {
+		t.Fatalf("读界面文件失败：%v", err)
+	}
+	blocks := regexp.MustCompile(`(?s)<style>(.*?)</style>`).FindAllStringSubmatch(string(raw), -1)
+	if len(blocks) == 0 {
+		t.Fatal("界面文件里找不到 <style> 块")
+	}
+	parts := make([]string, 0, len(blocks))
+	for _, block := range blocks {
+		parts = append(parts, block[1])
+	}
+	return strings.Join(parts, "\n")
+}
+
+// styleRule 返回某条规则的声明体（选择器到第一个 } 之间的内容）。
+func styleRule(t *testing.T, style, selector string) string {
+	t.Helper()
+	start := strings.Index(style, selector)
+	if start < 0 {
+		t.Fatalf("样式里找不到规则 %s", selector)
+	}
+	body := style[start+len(selector):]
+	if end := strings.Index(body, "}"); end >= 0 {
+		body = body[:end]
+	}
+	return body
 }
