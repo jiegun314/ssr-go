@@ -13,6 +13,7 @@ import (
 	"github.com/jiegun314/ssr-go/internal/config"
 	"github.com/jiegun314/ssr-go/internal/consolidation"
 	"github.com/jiegun314/ssr-go/internal/importer"
+	"github.com/jiegun314/ssr-go/internal/paths"
 	"github.com/jiegun314/ssr-go/internal/store"
 )
 
@@ -31,6 +32,9 @@ type App struct {
 	logLines []string
 	// notices 是启动期告警（图标、任务栏身份），由 main.go 传进来（R27）。
 	notices []string
+	// startupError 是启动失败的原因：界面在用户点按钮时把它原样报出来，
+	// 否则现场只会看到一句「配置未加载」，无从排查。
+	startupError string
 	// importStates 记录每个来源这一次会话的导入状态（用于状态标签与圆点）。
 	importStates map[string]ImportState
 	// cleanedTables 是本次启动真的被清理删掉的表（界面据此决定报不报存量）（§5.1）。
@@ -75,41 +79,41 @@ func (app *App) startup(ctx context.Context) {
 	}
 	loader, err := config.NewLoader("")
 	if err != nil {
-		app.appendLog("Configuration error: " + err.Error())
+		app.fail("Configuration error: " + err.Error())
 		return
 	}
 	if err := loader.ValidateAll(); err != nil {
-		app.appendLog("Configuration error: " + err.Error())
+		app.fail("Configuration error: " + err.Error())
 		return
 	}
 	setting, err := loader.LoadSetting()
 	if err != nil {
-		app.appendLog("Configuration error: " + err.Error())
+		app.fail("Configuration error: " + err.Error())
 		return
 	}
 	database, _ := setting["database"].(map[string]any)
 	repository, err := store.Open(loader.ResolvePath(text(database["path"])))
 	if err != nil {
-		app.appendLog("Database error: " + err.Error())
+		app.fail("Database error: " + err.Error())
 		return
 	}
 	app.loader = loader
 	app.repo = repository
 	app.importer, err = importer.NewImporter(loader, repository)
 	if err != nil {
-		app.appendLog("Configuration error: " + err.Error())
+		app.fail("Configuration error: " + err.Error())
 		return
 	}
 	configValue, err := consolidation.LoadConfig(loader)
 	if err != nil {
-		app.appendLog("Configuration error: " + err.Error())
+		app.fail("Configuration error: " + err.Error())
 		return
 	}
 	tables, _ := setting["tables"].(map[string]any)
 	operationLog, _ := tables["operation_log"].(map[string]any)
 	logColumns, err := loader.LoadLogColumns()
 	if err != nil {
-		app.appendLog("Configuration error: " + err.Error())
+		app.fail("Configuration error: " + err.Error())
 		return
 	}
 	app.log, err = store.OpenOperationLog(repository, store.OperationLogOptions{
@@ -119,7 +123,7 @@ func (app *App) startup(ctx context.Context) {
 		LogColumns:     logColumns,
 	})
 	if err != nil {
-		app.appendLog("Database error: " + err.Error())
+		app.fail("Database error: " + err.Error())
 		return
 	}
 	app.service = &consolidation.Service{
@@ -134,7 +138,7 @@ func (app *App) startup(ctx context.Context) {
 func (app *App) cleanupOnStartup(setting map[string]any) {
 	cleanup, err := app.loader.LoadCleanupOnStartup()
 	if err != nil {
-		app.appendLog("Configuration error: " + err.Error())
+		app.fail("Configuration error: " + err.Error())
 		return
 	}
 	if !cleanup {
@@ -196,7 +200,17 @@ func (app *App) ImportState(source string) ImportState {
 
 func (app *App) appendLog(message string) {
 	stamp := time.Now().Format("2006-01-02 15:04:05")
-	app.logLines = append(app.logLines, stamp+" - "+message)
+	line := stamp + " - " + message
+	app.logLines = append(app.logLines, line)
+	// 同时打印到 stdout：发布构建没有控制台窗口，但现场从终端启动时这是唯一的线索
+	// （R27 对启动告警也是这个口径）。
+	fmt.Println(line)
+}
+
+// fail 记录启动失败：写进操作日志，并留下面向用户的说明。
+func (app *App) fail(message string) {
+	app.startupError = message
+	app.appendLog(message)
 }
 
 func (app *App) logText() string {
@@ -231,7 +245,17 @@ func (app *App) beginOperation() error {
 		return fmt.Errorf("另一个操作正在进行，请稍候")
 	}
 	if app.importer == nil {
-		return fmt.Errorf("配置未加载")
+		configDir := ""
+		if resolver, err := paths.New(""); err == nil {
+			configDir = resolver.ConfigDir
+		}
+		if app.startupError != "" {
+			return fmt.Errorf("%s\n（期望的配置目录：%s）", app.startupError, configDir)
+		}
+		return fmt.Errorf(
+			"配置未加载：找不到配置目录 %s。\n"+
+				"请把 config/ 与 SingleSourceReady.app 放在同一层目录后再启动"+
+				"（直接双击 .app 时它同级那层就是项目根）。", configDir)
 	}
 	app.busy = true
 	return nil
