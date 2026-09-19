@@ -56,8 +56,15 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		return 0
 	case "version":
 		return runVersion(arguments[1:], stdout, stderr)
-	case "import", "consolidate", "export", "snapshot",
-		"genlogcolumns", "alignlogcolumns", "gensample", "preparedb":
+	case "import":
+		return runImportFlags(arguments[1:], stdout, stderr)
+	case "consolidate":
+		return runConsolidateFlags(arguments[1:], stdout, stderr)
+	case "export":
+		return runExportFlags(arguments[1:], stdout, stderr)
+	case "snapshot":
+		return runSnapshotFlags(arguments[1:], stdout, stderr)
+	case "genlogcolumns", "alignlogcolumns", "gensample", "preparedb":
 		return runNotImplemented(arguments[0], arguments[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "未知子命令：%s\n\n%s", arguments[0], usageText)

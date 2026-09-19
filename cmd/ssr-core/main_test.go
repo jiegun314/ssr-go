@@ -43,8 +43,8 @@ func TestVersionReportsAVersionString(t *testing.T) {
 
 func TestAPortedSubcommandSaysItIsNotImplementedYet(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	if code := run([]string{"snapshot"}, &stdout, &stderr); code != 2 {
-		t.Fatalf("骨架阶段的子命令应返回 2，得到 %d", code)
+	if code := run([]string{"genlogcolumns"}, &stdout, &stderr); code != 2 {
+		t.Fatalf("尚未移植的子命令应返回 2，得到 %d", code)
 	}
 	if !strings.Contains(stderr.String(), "尚未实现") {
 		t.Errorf("应明确说明尚未实现：%q", stderr.String())

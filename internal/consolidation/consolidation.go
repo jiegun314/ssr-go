@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jiegun314/ssr-go/internal/changedetect"
 	"github.com/jiegun314/ssr-go/internal/config"
+	"github.com/jiegun314/ssr-go/internal/excelio"
 	"github.com/jiegun314/ssr-go/internal/rules"
 	"github.com/jiegun314/ssr-go/internal/store"
 	"github.com/jiegun314/ssr-go/internal/validation"
@@ -44,6 +46,13 @@ type Config struct {
 
 	UserDefinedData map[string]any
 	TargetTable     string
+
+	// 导出模板与导出目录（setting.yaml 的 export_template / folder.export）。
+	TemplatePath string
+	SheetName    string
+	HeaderRow    int
+	DataStartRow int
+	ExportFolder string
 
 	IdentityFields []string
 	ChangeRule     *changedetect.Rule
@@ -103,6 +112,8 @@ func LoadConfig(loader *config.Loader) (*Config, error) {
 	tables, _ := setting["tables"].(map[string]any)
 	consolidationTable, _ := tables["consolidation_result"].(map[string]any)
 	targetTable, _ := consolidationTable["name"].(string)
+	exportTemplate, _ := setting["export_template"].(map[string]any)
+	folders, _ := setting["folder"].(map[string]any)
 
 	configValue := &Config{
 		FieldNames:           consolidation.Keys("target_dataset", "fields"),
@@ -118,6 +129,11 @@ func LoadConfig(loader *config.Loader) (*Config, error) {
 		EmptyValues:          emptyValues,
 		UserDefinedData:      userDefinedData,
 		TargetTable:          targetTable,
+		TemplatePath:         loader.ResolvePath(textOf(exportTemplate["path"])),
+		SheetName:            textOf(exportTemplate["sheet_name"]),
+		HeaderRow:            intOf(exportTemplate["header_row"]),
+		DataStartRow:         intOf(exportTemplate["data_start_row"]),
+		ExportFolder:         loader.ResolvePath(textOf(folders["export"])),
 		IdentityFields:       identityFields,
 		ChangeRule:           changeRule,
 	}
@@ -723,6 +739,101 @@ func markIncomplete(
 
 // --- 小工具（对应 Python 版的 dict/list 处理） ---
 
+// Template 是本次运行使用的导出模板（导出目录里会留下带时间戳的副本）。
+func (service *Service) Template() excelio.Template {
+	return excelio.Template{
+		Path:         service.Config.TemplatePath,
+		SheetName:    service.Config.SheetName,
+		HeaderRow:    service.Config.HeaderRow,
+		DataStartRow: service.Config.DataStartRow,
+		ExportFolder: service.Config.ExportFolder,
+	}
+}
+
+// DefaultExportFileName 是保存对话框要预填的文件名（= 导出目录里那份副本的名字）。
+func (service *Service) DefaultExportFileName(now time.Time) string {
+	return excelio.BuildExportFileName(service.Config.TemplatePath, now)
+}
+
+// ReadyRows 读回 consolidation_staging 里的 Ready 行（顺序即结果行顺序）。
+func (service *Service) ReadyRows() ([]store.Row, error) {
+	rows, err := service.Repository.Rows(service.Config.TargetTable)
+	if err != nil {
+		return nil, err
+	}
+	ready := []store.Row{}
+	for _, row := range rows {
+		if row["status"] == StatusReady {
+			ready = append(ready, row)
+		}
+	}
+	return ready, nil
+}
+
+// ExportConsolidationResult 把 Ready 行写进模板副本（R20/R21）。
+//
+// 没有可导出的行时报 Python 版那句原文，调用方据此提示用户 —— 此时**不写日志**。
+func (service *Service) ExportConsolidationResult(
+	fileName string,
+	now time.Time,
+) (excelio.ExportResult, error) {
+	ready, err := service.ReadyRows()
+	if err != nil {
+		return excelio.ExportResult{}, err
+	}
+	if len(ready) == 0 {
+		return excelio.ExportResult{}, fmt.Errorf(
+			"No data to export, please check the consolidation result.")
+	}
+	rows := make([]map[string]string, 0, len(ready))
+	for _, row := range ready {
+		record := map[string]string{}
+		for _, field := range service.Config.FieldNames {
+			if value, present := row[field]; present {
+				record[field] = value
+			}
+		}
+		rows = append(rows, record)
+	}
+	result, err := excelio.Export(service.Template(), rows, fileName, now)
+	if err != nil {
+		return excelio.ExportResult{}, err
+	}
+	return result, nil
+}
+
+// RecordConsolidationResult 把 Ready 行写进操作日志（R22）。
+//
+// 只在导出成功后调用；同一身份且各列值一致的历史记录不会重复写入。
+func (service *Service) RecordConsolidationResult(now time.Time) error {
+	if service.Log == nil {
+		return nil
+	}
+	ready, err := service.ReadyRows()
+	if err != nil {
+		return fmt.Errorf("Failed to record consolidation result: %w", err)
+	}
+	records := make([]store.OperationLogRecord, 0, len(ready))
+	for _, row := range ready {
+		records = append(records, store.OperationLogRecord{
+			Key:    row[service.Config.BaseKeyField],
+			Values: row,
+		})
+	}
+	remaining, err := service.Log.DropUnchangedRecords(records, service.Config.BaseKeyField)
+	if err != nil {
+		return fmt.Errorf("Failed to record consolidation result: %w", err)
+	}
+	if len(remaining) == 0 {
+		return nil
+	}
+	service.Log.Now = func() string { return now.Format(store.TimeFormat) }
+	if err := service.Log.AppendRecords(remaining, service.Config.BaseKeyField); err != nil {
+		return fmt.Errorf("Failed to record consolidation result: %w", err)
+	}
+	return nil
+}
+
 func mappingAt(document map[string]any, key string) (map[string]any, error) {
 	value, present := document[key]
 	if !present {
@@ -738,6 +849,14 @@ func mappingAt(document map[string]any, key string) (map[string]any, error) {
 func textOf(value any) string {
 	text, _ := value.(string)
 	return text
+}
+
+func intOf(value any) int {
+	number, ok := value.(int)
+	if !ok {
+		return 0
+	}
+	return number
 }
 
 // stringsOf 把「字符串或字符串列表」统一成切片（配置里两种写法都有）。

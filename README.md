@@ -37,9 +37,26 @@
 | `internal/validation`（R10） | 已实现（四张来源表的存在性与非空检查、缺表/空表文案） |
 | `internal/changedetect`（R17/R18） | 已实现（身份命中判定、按存储真实列比较、auto/source 两种描述模式） |
 | `internal/consolidation`（R11–R16/R19） | 已实现 + 单测，**整合阶段 golden diff 通过**（9 行结果逐格一致） |
-| `cmd/ssr-core` 子命令骨架（8 个子命令） | 骨架（除 `version` 外均为占位） |
-| `internal/excelio` 导出侧（R20/R21 + 模板保真） | 待做 |
+| `internal/excelio` 导出侧（R20/R21 + 模板保真） | 已实现 + 单测（按文本写值、模板部件全保留、缺列上报、无 Ready 行时报原文） |
+| `cmd/ssr-core` | `version` / `import` / `consolidate` / `export` / `snapshot` 已实现；`genlogcolumns` / `alignlogcolumns` / `gensample` / `preparedb` 待做 |
 | Wails 界面 | 待做 |
+
+### 与 Python 现状的逐格比对（数据口径①）
+
+```bash
+go run ./cmd/ssr-core snapshot --config <工作区>/config \
+    --input <工作区>/data/input/sample/valid --out baseline-go
+```
+
+用 Python 侧 `ssr_go/baseline/` 作对照物时，以下文件**逐字节一致**：
+四个 `来源表_*.tsv`、`整合结果.tsv`、`计数断言.json`、`导出文件_逐格.tsv`、`操作日志.json`。
+
+唯一有意不同的文件是 `导出文件_部件清单.tsv`：openpyxl 会丢 24 个部件（`docMetadata/LabelInfo.xml`
+敏感度标签、两张 png、drawings、printerSettings、customXml），excelize 全部保留 ——
+这就是验收口径②（模板保真）的落地证据，见 AGENTS.md §10.1 #2。
+
+> 说明：一次 `snapshot` 会导入 → 整合 → 导出 → 记日志，所以在同一份数据库上重跑会得到
+> 「全部 Duplicate、无可导出行」。要比对请用干净工作区（与 Python 快照脚本同口径）。
 
 依赖：`gopkg.in/yaml.v3`（配置解析）、`modernc.org/sqlite`（纯 Go SQLite，`CGO_ENABLED=0`）。
 后续步骤会加入 `github.com/xuri/excelize/v2`。
