@@ -66,7 +66,7 @@ func (resolver Resolver) ConfigFile(name string) string {
 // 模板放在 **.app 同级**目录（现场改配置不用重新打包），所以要往上退三层回到 .app 的父目录。
 func baseDirectory() string {
 	executable, err := os.Executable()
-	if err == nil && !strings.HasPrefix(executable, os.TempDir()) {
+	if err == nil && !insideTempDirectory(executable) {
 		if directory, ok := bundleParent(executable); ok {
 			return directory
 		}
@@ -77,6 +77,23 @@ func baseDirectory() string {
 		return "."
 	}
 	return workingDirectory
+}
+
+// insideTempDirectory 判断可执行文件是否在系统临时目录里（`go run` 的情形）。
+//
+// 必须先解析符号链接：macOS 上 os.TempDir() 通常是 /var/folders/...，而
+// os.Executable() 返回的是同一个目录的 /private/var/folders/... 写法，
+// 直接做前缀比较会漏判（漏判的后果是把项目根算到临时目录，配置与 git 都找不到）。
+func insideTempDirectory(executable string) bool {
+	resolvedExecutable, err := filepath.EvalSymlinks(executable)
+	if err != nil {
+		resolvedExecutable = executable
+	}
+	resolvedTemp, err := filepath.EvalSymlinks(os.TempDir())
+	if err != nil {
+		resolvedTemp = os.TempDir()
+	}
+	return strings.HasPrefix(resolvedExecutable, resolvedTemp)
 }
 
 // bundleParent 判断可执行文件是否在 macOS 应用包里（.../X.app/Contents/MacOS/Y），
