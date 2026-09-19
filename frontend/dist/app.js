@@ -50,6 +50,40 @@ function renderConsolidationSummary(counts) {
   strip.innerHTML = markup;
 }
 
+// 参数设定（菜单「设置 → 参数设定」）：四份 YAML 分成四个页签，
+// 内容由 Go 侧渲染成 Markdown 风格的结构化 HTML。
+let settingsTabsCache = [];
+
+function renderSettingsTab(index) {
+  const tab = settingsTabsCache[index];
+  if (!tab) return;
+  for (const button of document.querySelectorAll("#settings-tabs button")) {
+    button.setAttribute("aria-selected", String(Number(button.dataset.index) === index));
+  }
+  document.getElementById("settings-note").textContent =
+    `${tab.title}（${tab.path}）${tab.note ? " · " + tab.note : ""}`;
+  document.getElementById("settings-body").innerHTML = tab.html || "";
+}
+
+async function openSettings() {
+  const tabs = await call("ConfigurationDocument");
+  if (!Array.isArray(tabs) || tabs.length === 0) {
+    showModal("Error", "无法读取配置文件");
+    return;
+  }
+  settingsTabsCache = tabs;
+  const container = document.getElementById("settings-tabs");
+  container.innerHTML = tabs
+    .map((tab, index) =>
+      `<button type="button" role="tab" data-index="${index}" aria-selected="false">${tab.title}</button>`)
+    .join("");
+  for (const button of container.querySelectorAll("button")) {
+    button.addEventListener("click", () => renderSettingsTab(Number(button.dataset.index)));
+  }
+  renderSettingsTab(0);
+  document.getElementById("settings").showModal();
+}
+
 async function openReviewPage(page) {
   const result = review.kind === "log"
     ? await call("ReviewLog", review.start, review.end, page, REVIEW_PAGE_SIZE)
@@ -369,6 +403,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // 菜单「关于」由 Go 侧发事件（runtime.EventsEmit("show-about")）
   if (window.runtime && window.runtime.EventsOn) {
     window.runtime.EventsOn("show-about", () => openAbout());
+    // 菜单「设置 → 参数设定」
+    window.runtime.EventsOn("show-settings", () => openSettings());
   }
 });
 

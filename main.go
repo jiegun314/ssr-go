@@ -66,7 +66,10 @@ func buildMenu(application *App) *menu.Menu {
 	file.AddText("退出", nil, func(*menu.CallbackData) {
 		application.Quit()
 	})
-	root.AddSubmenu("设置")
+	settings := root.AddSubmenu("设置")
+	settings.AddText("参数设定", nil, func(*menu.CallbackData) {
+		application.ShowSettings()
+	})
 	about := root.AddSubmenu("关于")
 	about.AddText("关于", nil, func(*menu.CallbackData) {
 		application.ShowAbout()

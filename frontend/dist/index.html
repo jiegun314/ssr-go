@@ -107,6 +107,25 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 /* 操作日志卡片：可收缩（flex:0 1 auto）但有下限；内层文本框占满可用高度 */
 .log-section{flex:0 1 auto;min-height:96px}
 .log-section>.body{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+
+/* 参数设定窗口：Material 页签 + Markdown 风格内容排版 */
+#settings{max-width:min(80vw,900px)}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--md-outline);margin-bottom:8px}
+.tabs button{min-height:40px;padding:0 16px;border-radius:0;color:var(--md-on-surface-medium);
+  border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--md-primary);border-bottom-color:var(--md-primary);font-weight:500}
+.settings-note{padding:0 24px 8px;font-size:12px;color:var(--md-on-surface-medium)}
+.settings-body{max-height:56vh;overflow:auto;padding:0 24px 8px}
+.settings-body .md-h{margin:12px 0 4px;font-size:13px;font-weight:500;color:var(--md-on-surface)}
+.settings-body h3.md-h{font-size:14px;color:var(--md-primary)}
+.settings-body .md-kv{display:flex;gap:12px;padding:2px 0 2px 8px;font-size:12px;line-height:18px}
+.settings-body .md-k{flex:0 0 auto;min-width:180px;color:var(--md-on-surface-medium)}
+.settings-body .md-v{flex:1 1 auto;word-break:break-word;
+  font-family:ui-monospace,Menlo,monospace;color:var(--md-on-surface)}
+.settings-body .md-list{margin:2px 0 6px;padding-left:24px;font-size:12px;line-height:18px}
+.settings-body .md-list li{margin:2px 0}
+.settings-body .md-item-block{list-style:none;margin-left:-16px}
+.settings-body .empty{color:var(--md-on-surface-medium)}
 </style>
 <!-- Material Design 主题层：只覆盖视觉（颜色/字体/圆角/阴影/控件外观），
      不改变上面的布局规则（左右两栏比例、分组顺序与空行、置顶/置底与可伸缩空隙）。 -->
@@ -286,6 +305,15 @@ dialog .tblwrap{margin:0 24px 8px}
     <div class="loading-text" id="loading-text"></div>
   </div>
 </div>
+
+<!-- 参数设定：四个 YAML 文件四个页签，内容按 Markdown 风格渲染 -->
+<dialog id="settings">
+  <h3>参数设定</h3>
+  <div class="tabs" id="settings-tabs" role="tablist"></div>
+  <div class="settings-note" id="settings-note"></div>
+  <div class="settings-body" id="settings-body"></div>
+  <form method="dialog"><button>关闭</button></form>
+</dialog>
 
 <dialog id="modal"><h3 id="modal-title"></h3><p id="modal-text"></p><form method="dialog"><button>确定</button></form></dialog>
 <dialog id="review">
