@@ -21,7 +21,7 @@ wails build                       # 桌面产物：build/bin/SingleSourceReady.a
 发布构建（没有交叉编译，见 AGENTS.md §7.6）：每个平台各自原生构建 —— macOS
 `wails build -platform darwin/universal`、Windows `wails build -platform windows/amd64`。
 仓库里的 CI（`.github/workflows/release.yml`）覆盖 **macOS 与 Windows** 两个 runner：
-推送 `v*` tag 时构建、校验版本前置条件并上传 `release/*.zip`。
+推送 `v*` tag 时构建、校验版本前置条件、上传 `release/*.zip` 并在 GitHub 上创建/更新 Release（资产 = 两个平台的压缩包）。
 
 ## 使用
 
@@ -47,7 +47,7 @@ UDI团队信息 / RA信息 / 医保代码信息 / 产品类别，每组有状态
 | `alignlogcolumns [--database <db>] [--no-backup]` | 把旧库的 `operation_log` 对齐到当前列（先备份、失败回滚） |
 | `gensample [--rows N] [--output <目录>]` | 生成本地样本 Excel（`valid/`、`invalid-conditions/`） |
 | `preparedb --output-root <目录>` | 生成发布包用的空数据库（只含空的 `operation_log`） |
-| `release [--out release] [--skip-build] [--allow-dirty] [--no-zip]` | 发布构建：版本守卫 → `wails build`（注入版本）→ 组装发布目录 → 打 `SingleSourceReady-<版本>-<日期>.zip` |
+| `release [--out release] [--skip-build] [--allow-dirty] [--no-zip]` | 发布构建：版本守卫 → `wails build`（注入版本）→ 组装发布目录 → 打 `SingleSourceReady-<版本>-<日期>-<平台>.zip`（平台 = macos / windows） |
 
 所有子命令都接受 `--config <目录>`，等价于环境变量 `UDI_CONFIG_DIR`（见下）。
 

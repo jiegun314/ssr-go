@@ -53,9 +53,20 @@ func releaseVersion(projectRoot string, allowDirty bool, buildDate string) (buil
 		buildinfo.NormalizeGitDescribe(describe), commit, buildDate, buildinfo.SourceGit), nil
 }
 
-// releaseArtifactName 是压缩包名：SingleSourceReady-<版本>-<构建日期>.zip（R26）。
+// releaseArtifactName 是压缩包名：SingleSourceReady-<版本>-<构建日期>-<平台>.zip。
+//
+// 平台后缀是必须的：macOS 与 Windows 流水线会产出同名压缩包，Release 资产不允许重名。
 func releaseArtifactName(info buildinfo.BuildInfo) string {
-	return fmt.Sprintf("%s-%s-%s.zip", releaseDirName, info.ArtifactVersion(), info.ArtifactDate())
+	return fmt.Sprintf("%s-%s-%s-%s.zip",
+		releaseDirName, info.ArtifactVersion(), info.ArtifactDate(), platformName())
+}
+
+// platformName 是产物名里的平台标识（darwin → macos，其余用 GOOS）。
+func platformName() string {
+	if runtime.GOOS == "darwin" {
+		return "macos"
+	}
+	return runtime.GOOS
 }
 
 func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
