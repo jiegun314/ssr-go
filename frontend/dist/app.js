@@ -72,19 +72,37 @@ async function call(method, ...args) {
   if (!app || typeof app[method] !== "function") {
     return { failed: true, title: "Error", message: "后端绑定不可用（请通过 wails build 的产物运行）" };
   }
-  setBusy(true);
+  setBusy(true, method);
+  // 等两帧：确保载入图层先绘制出来，再开始调用后端（不然窗口会先"假死"一下）
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   try {
     return await app[method](...args);
   } catch (error) {
     return { failed: true, title: "Error", message: String(error) };
   } finally {
-    setBusy(false);
+    setBusy(false, method);
   }
 }
 
-function setBusy(busy) {
+// 长任务的载入文案：导入 / 整合 / 回顾三条沿用原界面状态栏的原文（§6.2）。
+const BUSY_TEXT = {
+  ImportSource: "正在导入 Excel 数据...",
+  Consolidate: "正在整合数据...",
+  ReviewSource: "正在加载已导入数据...",
+  ReviewLog: "正在加载已导入数据...",
+  Export: "正在导出文件...",
+  ExportReviewData: "正在导出文件...",
+  ClearImportedData: "正在清空导入数据...",
+};
+
+function setBusy(busy, method) {
   state.busy = busy;
   document.body.classList.toggle("busy", busy);
+  const layer = document.getElementById("loading");
+  const text = document.getElementById("loading-text");
+  if (!layer) return;
+  layer.hidden = !busy;
+  if (busy && text) text.textContent = BUSY_TEXT[method] || "正在处理...";
 }
 
 function showModal(title, message) {

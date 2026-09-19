@@ -66,6 +66,27 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 #egg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9}
 #egg img{max-width:60%;border-radius:6px;background:#fff}
 .busy{opacity:.65;pointer-events:none}
+
+/* 载入图层（Material）：全窗口 scrim + 居中卡片 + M3 不定量圆形进度指示器。
+   长任务（导入 / 整合 / 回顾）期间显示，结束后消失。 */
+.loading-layer{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.32)}
+.loading-layer[hidden]{display:none}
+.loading-card{display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 32px;
+  min-width:220px;background:var(--md-surface);border-radius:16px;box-shadow:var(--md-elev-dialog)}
+.md-progress{width:48px;height:48px;animation:md-rotate 1.4s linear infinite}
+.md-progress .track{stroke:rgba(179,38,30,.12);fill:none;stroke-width:4}
+.md-progress .indicator{stroke:var(--md-primary);fill:none;stroke-width:4;stroke-linecap:round;
+  stroke-dasharray:1 126;stroke-dashoffset:0;transform-origin:50% 50%;transform:rotate(-90deg);
+  animation:md-dash 1.4s ease-in-out infinite}
+.loading-text{font-size:13px;line-height:20px;color:var(--md-on-surface-medium)}
+@keyframes md-rotate{to{transform:rotate(360deg)}}
+@keyframes md-dash{
+  0%{stroke-dasharray:1 126;stroke-dashoffset:0}
+  50%{stroke-dasharray:90 126;stroke-dashoffset:-35}
+  100%{stroke-dasharray:90 126;stroke-dashoffset:-124}
+}
+@media (prefers-reduced-motion: reduce){.md-progress{animation-duration:4s}}
 </style>
 <!-- Material Design 主题层：只覆盖视觉（颜色/字体/圆角/阴影/控件外观），
      不改变上面的布局规则（左右两栏比例、分组顺序与空行、置顶/置底与可伸缩空隙）。 -->
@@ -235,6 +256,17 @@ dialog .tblwrap{margin:0 24px 8px}
     <h2>操作日志</h2>
     <div class="body"><textarea id="log" readonly></textarea></div>
   </section>
+</div>
+
+<!-- 载入图层：长任务期间覆盖整个窗口 -->
+<div id="loading" class="loading-layer" hidden>
+  <div class="loading-card">
+    <svg class="md-progress" viewBox="0 0 48 48" role="progressbar" aria-label="正在载入">
+      <circle class="track" cx="24" cy="24" r="20"></circle>
+      <circle class="indicator" cx="24" cy="24" r="20"></circle>
+    </svg>
+    <div class="loading-text" id="loading-text"></div>
+  </div>
 </div>
 
 <dialog id="modal"><h3 id="modal-title"></h3><p id="modal-text"></p><form method="dialog"><button>确定</button></form></dialog>
