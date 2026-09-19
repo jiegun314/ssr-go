@@ -184,6 +184,33 @@ func (repository *Repository) Rows(tableName string) ([]Row, error) {
 	return results, rows.Err()
 }
 
+// KeyedTable 是按某个字段收口后的表：Keys 保留**第一次出现**的顺序，
+// 重复键时最后一行的值胜出（与 Python 的 dict 语义一致：位置取首次插入，值取最后一次赋值）。
+type KeyedTable struct {
+	Keys []string
+	Rows map[string]Row
+}
+
+// KeyedTable 按某个字段收口整张表，顺序即表里的行顺序。
+func (repository *Repository) KeyedTable(tableName string, indexField string) (*KeyedTable, error) {
+	rows, err := repository.Rows(tableName)
+	if err != nil {
+		return nil, err
+	}
+	table := &KeyedTable{Keys: []string{}, Rows: map[string]Row{}}
+	for position, row := range rows {
+		key := fmt.Sprint(position)
+		if indexField != "" {
+			key = row[indexField]
+		}
+		if _, seen := table.Rows[key]; !seen {
+			table.Keys = append(table.Keys, key)
+		}
+		table.Rows[key] = row
+	}
+	return table, nil
+}
+
 // KeyedRows 按某个字段把行收成「键 → 行」，重复键时后出现的行胜出。
 //
 // 这与 Python 版 `get_table_data(table, index_field)` 一致：一对一来源按
