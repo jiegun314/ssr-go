@@ -151,8 +151,14 @@ dialog p{margin:0;padding:0 24px 12px;color:var(--md-on-surface-medium);white-sp
 dialog form{display:flex;justify-content:flex-end;gap:8px;padding:8px 16px 16px}
 dialog form button{color:var(--md-primary);font-weight:500}
 dialog .tblwrap{margin:0 24px 8px}
-#about-icon{border-radius:8px}
-#egg{backdrop-filter:blur(2px)}
+/* 关于窗口：图标 + 名称 + 一行版本号（commit 与构建时间在版本号的 tooltip 里），
+   小对话框、固定内容 —— 与 Qt 版的 AboutWindow 一致 */
+.about{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 32px 8px;text-align:center}
+.about img{width:64px;height:64px;border-radius:8px;cursor:pointer}
+.about .name{font-size:16px;font-weight:500;line-height:24px}
+.about .version{color:var(--md-on-surface-medium);font-size:12px;line-height:18px}
+/* 彩蛋窗口：标题 🐶Puppy Approved!🐾 + 图片 */
+#egg-dialog img{display:block;max-width:min(60vw,560px);max-height:60vh;margin:0 24px 8px;border-radius:8px}
 </style>
 </head>
 <body>
@@ -211,7 +217,24 @@ dialog .tblwrap{margin:0 24px 8px}
 <dialog id="modal"><h3 id="modal-title"></h3><p id="modal-text"></p><form method="dialog"><button>确定</button></form></dialog>
 <dialog id="review"><h3 id="review-title"></h3><div class="tblwrap" style="max-height:420px"><table id="review-table"></table></div><form method="dialog"><button>关闭</button></form></dialog>
 
-<div id="egg"><img src="easter_egg.png" alt="🐶Puppy Approved!🐾" /></div>
+<!-- 关于窗口（菜单「关于」打开）。图标上 5 秒内连点 8 次进入彩蛋。 -->
+<dialog id="about">
+  <h3>About</h3>
+  <div class="about">
+    <img id="about-icon" src="logo.png" alt="SingleSourceReady" title="关于" />
+    <div class="name" id="about-name">SingleSourceReady</div>
+    <div class="version" id="about-version"></div>
+  </div>
+  <form method="dialog"><button>确定</button></form>
+</dialog>
+
+<!-- 彩蛋窗口（原版是独立窗口，标题就是下面这行） -->
+<dialog id="egg-dialog">
+  <h3>🐶Puppy Approved!🐾</h3>
+  <img src="easter_egg.png" alt="🐶Puppy Approved!🐾" />
+  <form method="dialog"><button>关闭</button></form>
+</dialog>
+
 <script src="app.js"></script>
 </body>
 </html>

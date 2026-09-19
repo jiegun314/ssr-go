@@ -228,34 +228,38 @@ document.addEventListener("click", async (event) => {
   }
 });
 
-// 关于窗口的 8 连击彩蛋（§6.4，必须保留）：5 秒内点 8 次图标就放彩蛋图。
-let clickTimes = [];
+// 关于窗口（§6.4）：图标 + 名称 + 一行「Version: x.y.z」，commit 与构建时间放在 tooltip 里。
+async function openAbout() {
+  const about = await call("About");
+  if (!about || !about.version) return;
+  document.getElementById("about-name").textContent = about.name || "SingleSourceReady";
+  const version = document.getElementById("about-version");
+  version.textContent = about.version;
+  version.title = about.detail || "";
+  document.getElementById("about").showModal();
+}
+
+// 彩蛋：在关于窗口的图标上 5 秒内连点 8 次（原版行为，必须保留）。
+let aboutClicks = [];
+const EASTER_EGG_CLICKS = 8;
+const EASTER_EGG_WINDOW_MS = 5000;
+
 document.addEventListener("DOMContentLoaded", () => {
-  const icon = document.createElement("img");
-  icon.id = "about-icon";
-  icon.src = "logo.png";
-  icon.alt = "SingleSourceReady";
-  icon.title = "关于";
-  icon.addEventListener("click", async () => {
+  defaultRange();
+  document.getElementById("about-icon").addEventListener("click", () => {
     const now = Date.now();
-    clickTimes = clickTimes.filter((time) => now - time < 5000);
-    clickTimes.push(now);
-    if (clickTimes.length >= 8) {
-      clickTimes = [];
-      document.getElementById("egg").style.display = "flex";
-      return;
-    }
-    const about = await call("About");
-    if (typeof about === "object" && about.version) {
-      showModal("About", `${about.name}\n${about.version}\n${about.detail}`);
+    aboutClicks = aboutClicks.filter((time) => now - time < EASTER_EGG_WINDOW_MS);
+    aboutClicks.push(now);
+    if (aboutClicks.length >= EASTER_EGG_CLICKS) {
+      aboutClicks = [];
+      document.getElementById("about").close();
+      document.getElementById("egg-dialog").showModal();
     }
   });
-  document.querySelector(".wrap").prepend(icon);
-  defaultRange();
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") document.getElementById("egg").style.display = "none";
+  // 菜单「关于」由 Go 侧发事件（runtime.EventsEmit("show-about")）
+  if (window.runtime && window.runtime.EventsOn) {
+    window.runtime.EventsOn("show-about", () => openAbout());
+  }
 });
 
 (async () => {
