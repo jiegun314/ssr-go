@@ -8,10 +8,16 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;font:13px "Helvetica Neue",Arial,"PingFang SC",sans-serif;background:#F0F0F0;color:#1A1A1A}
-/* 两栏：左＝数据导入 + 记录导出，右＝数据整合 + 整合结果（大表格），底部整宽＝操作日志 */
+/* 布局照搬 ui/forms/main_window.ui：
+   frmDataHandling 内是左右两列 —— 左列 frmRawDataImport（内容固定，尽量窄）+
+   verticalSpacerImportArea（可伸缩） + frmRecordExport（置底）；
+   右列 frmDataConsolidation（按钮行 + 会随窗口扩大的结果表）；
+   底部整宽是 gboxOperaitonLog（操作日志）。 */
 .app{display:flex;flex-direction:column;height:100%;padding:8px 10px}
 .columns{display:flex;gap:8px;flex:1 1 auto;min-height:0}
-.left{flex:0 0 46%;display:flex;flex-direction:column;gap:8px;min-width:0}
+/* 左列按内容宽度（压缩到最小），右列吃掉所有剩余空间 */
+.left{flex:0 0 auto;width:340px;min-width:300px;max-width:45%;display:flex;flex-direction:column;min-height:0}
+.left>.spacer{flex:1 1 auto;min-height:12px}
 .right{flex:1 1 auto;display:flex;flex-direction:column;gap:8px;min-width:0}
 section{border:1px solid #C9C9C9;border-radius:4px;background:#FAFAFA;display:flex;flex-direction:column;min-height:0}
 section>h2{margin:0;padding:6px 8px;font-size:13px;font-weight:600;border-bottom:1px solid #DCDCDC;background:#F2F2F2}
@@ -19,6 +25,8 @@ section>.body{padding:8px;overflow:auto;min-height:0}
 .grow{flex:1 1 auto;min-height:0}
 .grow>.body{flex:1 1 auto;display:flex;flex-direction:column}
 .group{border:1px solid #DDD;border-radius:3px;background:#FFF;margin-bottom:8px}
+/* 原界面在「医保代码信息」与下面三组之间有一个 horizontalSpacer：留一个空行 */
+.group-gap{height:10px}
 .title-row{display:flex;align-items:center;padding:6px 8px 0}
 .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
 .dot.empty{background:transparent;border:1px solid #B7C0CC}
@@ -36,7 +44,12 @@ th,td{border:1px solid #D6D6D6;padding:2px 5px;text-align:left;white-space:nowra
 th{background:#EFEFEF;position:sticky;top:0;z-index:1}
 td.MISSING{font-weight:700}
 .tblwrap{flex:1 1 auto;min-height:180px;overflow:auto;border:1px solid #D6D6D6;background:#FFF}
+.dates{display:flex;flex-direction:column;gap:4px}
 .range{display:flex;gap:8px;align-items:center}
+/* 记录导出：日期竖排（起始 / 结束），回顾按钮在右侧居中 —— 与 .ui 里的
+   dtLogExportStartDate / label_7 / dtLogExportEndDate + verticalSpacer + btnLogExport 一致 */
+.range .dates{flex:0 0 auto}
+.range .spacer{flex:1 1 auto}
 input[type=date]{font:inherit;padding:2px 4px}
 textarea#log{width:100%;height:96px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;resize:none}
 #about-icon{width:40px;height:40px;cursor:pointer;float:right}
@@ -50,18 +63,22 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 <div class="app">
   <div class="columns">
     <div class="left">
-      <section>
+      <section style="flex:0 0 auto">
         <h2>数据导入</h2>
         <div class="body">
           <div id="import-area"></div>
         </div>
       </section>
-      <section>
+      <div class="spacer"></div>
+      <section style="flex:0 0 auto">
         <h2>记录导出</h2>
         <div class="body">
           <div class="range">
-            <label>起始 <input type="date" id="start-date" /></label>
-            <label>结束 <input type="date" id="end-date" /></label>
+            <div class="dates">
+              <input type="date" id="start-date" />
+              <input type="date" id="end-date" />
+            </div>
+            <span class="spacer"></span>
             <button id="btn-review-log">回顾</button>
           </div>
         </div>

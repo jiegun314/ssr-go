@@ -4,13 +4,18 @@
 // 状态标签 + 「…」回顾按钮）、右下角「清空导入数据」、整合结果表（按状态着色、MISSING 加粗）、
 // 记录导出、操作日志。
 
-// 四个来源：内部键、界面标题（§6.1：界面写「医保代码信息」，配置写「医保编码信息」）。
+// 四个来源的顺序与标题照搬原界面（ui/forms/main_window.ui 的布局顺序）：
+// 医保代码信息在最上，与下面三个之间有一个空行（原设计里是 horizontalSpacer），
+// 然后是产品类别、UDI团队信息、RA信息。界面写「医保代码信息」，配置里是「医保编码信息」。
 const SOURCES = [
-  { key: "global_udi_input", title: "UDI团队信息" },
-  { key: "ra_input", title: "RA信息" },
   { key: "medical_insurance_code", title: "医保代码信息" },
   { key: "product_category", title: "产品类别" },
+  { key: "global_udi_input", title: "UDI团队信息" },
+  { key: "ra_input", title: "RA信息" },
 ];
+
+// 第一个分组之后插一个空行（对应原界面的 horizontalSpacer）。
+const GROUP_GAP_AFTER = 1;
 
 const STATUS_COLOURS = {
   Ready: "#DFF6DD",
@@ -53,7 +58,7 @@ function showModal(title, message) {
 function renderImports() {
   const area = document.getElementById("import-area");
   area.innerHTML = "";
-  for (const source of SOURCES) {
+  SOURCES.forEach((source, index) => {
     const current = state.imports[source.key] || { state: "empty", tooltip: "尚未导入", label: "" };
     const group = document.createElement("div");
     group.className = "group";
@@ -68,7 +73,12 @@ function renderImports() {
         <button data-action="review" data-source="${source.key}" title="数据回顾">...</button>
       </div>`;
     area.appendChild(group);
-  }
+    if (index + 1 === GROUP_GAP_AFTER) {
+      const gap = document.createElement("div");
+      gap.className = "group-gap";
+      area.appendChild(gap);
+    }
+  });
   const clean = document.createElement("div");
   clean.className = "clean-row";
   clean.innerHTML = `<button id="btn-clean" title="清空导入数据">...</button>`;
