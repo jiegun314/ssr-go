@@ -34,6 +34,17 @@ func New(explicitConfigDir string) (Resolver, error) {
 		configDir = os.Getenv(ConfigEnvironmentVariable)
 	}
 	if configDir == "" {
+		// 源码运行（`go run`）时，可执行文件在 Go 构建缓存里，按它推导会把项目根算到缓存目录；
+		// 所以先看当前工作目录里有没有 config/（仓库根就是这么用的），没有才按可执行文件推导
+		// （打包产物走的就是后者：exe 同级，macOS 的 .app 则退到 .app 所在目录）。
+		if workingDirectory, err := os.Getwd(); err == nil {
+			candidate := filepath.Join(workingDirectory, "config")
+			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+				configDir = candidate
+			}
+		}
+	}
+	if configDir == "" {
 		configDir = filepath.Join(baseDirectory(), "config")
 	}
 	absoluteConfigDir, err := filepath.Abs(configDir)
