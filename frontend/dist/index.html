@@ -67,8 +67,8 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 :root{
   /* 单一色相族：品牌红（标题条 #D71600）；动作按钮用同族更深/更浅的色调，
      不再引入第二个强调色（原来是 Material Blue 700，与红色标题条争抢注意力）。 */
-  --md-primary:#C0110B;            /* filled 主按钮 */
-  --md-primary-dark:#8F0B06;       /* 主按钮悬停 */
+  --md-primary:#B3261E;            /* filled 主按钮（白字对比度约 5.9:1） */
+  --md-primary-dark:#8C1D18;       /* 主按钮悬停（M3 red 30） */
   --md-on-primary:#FFFFFF;
   --md-secondary-container:#FFDAD6;/* tonal 次按钮底（M3 red 90） */
   --md-on-secondary-container:#8C1D18;
@@ -113,6 +113,7 @@ section>h2{background:#D71600;border-bottom:1px solid #D71600;
   border-radius:var(--md-radius-control) var(--md-radius-control) 0 0;box-shadow:none;
   padding:4px 8px;min-height:24px;color:var(--md-on-surface-medium)}
 button{font:inherit;font-size:13px;font-weight:500;letter-spacing:.2px;border:none;background:transparent;
+  text-transform:none;   /* 中文不需要大写转换（Material 的 uppercase 只针对拉丁字母） */
   color:var(--md-primary);border-radius:var(--md-radius-control);padding:6px 12px;min-height:32px;
   transition:background-color .15s ease,box-shadow .15s ease}
 button:hover:not(:disabled){background:var(--md-hover)}
@@ -138,6 +139,8 @@ button:disabled{color:var(--md-on-surface-disabled);background:transparent}
 .icon-btn:active:not(:disabled){background:var(--md-pressed)}
 .icon-btn:focus-visible{outline:2px solid var(--md-primary);outline-offset:1px;border-radius:50%}
 .icon-btn:disabled{color:var(--md-on-surface-disabled)}
+/* 按钮里的前置图标（Material 允许 filled/tonal 按钮带 leading icon） */
+.btn-icon{width:18px;height:18px;fill:currentColor;flex:0 0 auto}
 /* 清空按钮原是 outlined 文本按钮，改成 icon button 后不要边框 */
 #btn-clean{border:none;color:var(--md-on-surface-medium)}
 #btn-clean:hover:not(:disabled){color:#B3261E;background:rgba(179,38,30,.08)}
@@ -206,9 +209,11 @@ dialog .tblwrap{margin:0 24px 8px}
         <h2>数据整合</h2>
         <div class="body">
           <div class="toolbar">
-            <button id="btn-consolidate">数据整合</button>
+            <button id="btn-consolidate">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20.41L18.41 19 15 15.59 13.59 17 17 20.41zM7.5 8H11v5.59L5.59 19 7 20.41l6-6V8h3.5L12 3.5 7.5 8z"/></svg>数据整合</button>
             <span class="spacer"></span>
-            <button id="btn-export">生成文件</button>
+            <button id="btn-export">
+              <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>生成文件</button>
           </div>
         </div>
       </section>
