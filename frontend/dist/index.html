@@ -88,11 +88,13 @@ body{
   font-size:13px;line-height:20px;background:var(--md-background);color:var(--md-on-surface);
   -webkit-font-smoothing:antialiased;
 }
-/* 区域＝Material 卡片：圆角 + 1dp 抬升，标题按 subtitle-1（14sp/500） */
+/* 区域＝Material 卡片：圆角 + 1dp 抬升，标题按 subtitle-1（14sp/500）；
+   标题条用产品指定的红色 #D71600 底 + 白字（数据导入 / 记录导出 / 数据整合 /
+   整合结果 / 操作日志 五个区域共用这一条规则）。 */
 section{background:var(--md-surface);border:1px solid var(--md-outline);border-radius:var(--md-radius);
   box-shadow:var(--md-elev-1);overflow:hidden}
-section>h2{background:var(--md-surface);border-bottom:1px solid var(--md-outline);
-  font-size:14px;font-weight:500;letter-spacing:.1px;padding:8px 16px;color:var(--md-on-surface)}
+section>h2{background:#D71600;border-bottom:1px solid #D71600;
+  font-size:14px;font-weight:500;letter-spacing:.1px;padding:8px 16px;color:#FFFFFF}
 /* 导入分组＝描边卡片（outlined），内部不再叠阴影 */
 .group{background:var(--md-surface);border:1px solid var(--md-outline);border-radius:var(--md-radius);
   margin-bottom:8px;box-shadow:none}
