@@ -199,15 +199,33 @@ function setLog(text) {
   log.scrollTop = log.scrollHeight;
 }
 
+function pad(number) {
+  return String(number).padStart(2, "0");
+}
+
+// datetime-local 需要 YYYY-MM-DDTHH:MM:SS；库里存的是 YYYY/MM/DD HH:MM:SS。
+function toInputValue(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function toLogTime(value, fallback) {
+  if (!value) return fallback;
+  const [datePart, timePart = "00:00:00"] = value.split("T");
+  const [year, month, day] = datePart.split("-");
+  const time = timePart.length === 5 ? `${timePart}:00` : timePart;
+  return `${year}/${month}/${day} ${time}`;
+}
+
+// 记录导出的默认区间：起始 = 当前时间减一年；结束 = 系统日期的 23:59:59（与原实现一致）。
 function defaultRange() {
-  const today = new Date();
-  const start = new Date(today);
+  const now = new Date();
+  const start = new Date(now);
   start.setFullYear(start.getFullYear() - 1);
-  const end = new Date(today);
-  end.setDate(end.getDate() + 1);
-  const iso = (date) => date.toISOString().slice(0, 10).replace(/-/g, "/");
-  document.getElementById("start-date").value = iso(start);
-  document.getElementById("end-date").value = iso(end);
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 0);
+  document.getElementById("start-date").value = toInputValue(start);
+  document.getElementById("end-date").value = toInputValue(end);
 }
 
 document.addEventListener("click", async (event) => {
@@ -280,8 +298,9 @@ document.addEventListener("click", async (event) => {
       break;
     }
     case "btn-review-log": {
-      const start = document.getElementById("start-date").value;
-      const end = document.getElementById("end-date").value;
+      // 起始默认一年前、结束默认系统日期 23:59:59；这里统一转成库里的时间格式
+      const start = toLogTime(document.getElementById("start-date").value, "");
+      const end = toLogTime(document.getElementById("end-date").value, "");
       review = { kind: "log", source: "", fileType: "operation_log", start, end, page: 1, pageCount: 1 };
       await openReviewPage(1);
       document.getElementById("review").showModal();

@@ -47,7 +47,7 @@ td.MISSING{font-weight:700}
 .dates{display:flex;flex-direction:row;align-items:center;gap:8px;flex:1 1 auto;min-width:0}
 /* 两个日期之间的横线：表示「从…到…」（装饰性，对读屏隐藏） */
 .date-sep{flex:0 0 auto;width:16px;height:1px;background:var(--md-on-surface-medium);border-radius:1px}
-.dates input[type=date]{flex:1 1 auto;min-width:96px}
+.dates input[type=date],.dates input[type=datetime-local]{flex:1 1 auto;min-width:150px}
 .range{display:flex;gap:8px;align-items:center}
 /* 记录导出：日期竖排（起始 / 结束），回顾按钮在右侧居中 —— 与 .ui 里的
    dtLogExportStartDate / label_7 / dtLogExportEndDate + verticalSpacer + btnLogExport 一致 */
@@ -59,7 +59,7 @@ td.MISSING{font-weight:700}
 #review .pager form{margin:0;padding:0;display:flex}
 .pager .page-info{color:var(--md-on-surface-medium);font-size:12px}
 .pager .spacer{flex:1 1 auto}
-input[type=date]{font:inherit;padding:2px 4px}
+input[type=date],input[type=datetime-local]{font:inherit;padding:2px 4px}
 textarea#log{width:100%;height:96px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;resize:none}
 #about-icon{width:40px;height:40px;cursor:pointer;float:right}
 dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
@@ -219,9 +219,9 @@ dialog .tblwrap{margin:0 24px 8px}
         <div class="body">
           <div class="range">
             <div class="dates">
-              <input type="date" id="start-date" />
+              <input type="datetime-local" step="1" id="start-date" />
               <span class="date-sep" aria-hidden="true"></span>
-              <input type="date" id="end-date" />
+              <input type="datetime-local" step="1" id="end-date" />
             </div>
             <span class="spacer"></span>
             <button class="icon-btn" id="btn-review-log" title="回顾" aria-label="回顾">
