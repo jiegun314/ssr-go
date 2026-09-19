@@ -33,7 +33,7 @@ func main() {
 	application := NewApp(notices)
 	applicationMenu := buildMenu(application)
 	err := wails.Run(&options.App{
-		Title:            "SS Ready - UDI数据整合工具",
+		Title:            "SSR - UDI数据整合平台",
 		Width:            969,
 		Height:           962,
 		MinWidth:         969,
