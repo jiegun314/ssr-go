@@ -10,16 +10,24 @@ export function ClearImportedData() {
   return window['go']['main']['App']['ClearImportedData']();
 }
 
+export function ConfigurationDocument() {
+  return window['go']['main']['App']['ConfigurationDocument']();
+}
+
 export function Consolidate() {
   return window['go']['main']['App']['Consolidate']();
 }
 
-export function Export() {
-  return window['go']['main']['App']['Export']();
+export function Export(arg1, arg2) {
+  return window['go']['main']['App']['Export'](arg1, arg2);
 }
 
-export function ImportSource(arg1) {
-  return window['go']['main']['App']['ImportSource'](arg1);
+export function ExportReviewData(arg1, arg2) {
+  return window['go']['main']['App']['ExportReviewData'](arg1, arg2);
+}
+
+export function ImportSource(arg1, arg2) {
+  return window['go']['main']['App']['ImportSource'](arg1, arg2);
 }
 
 export function ImportState(arg1) {
@@ -38,14 +46,34 @@ export function Quit() {
   return window['go']['main']['App']['Quit']();
 }
 
-export function ReviewLog(arg1, arg2) {
-  return window['go']['main']['App']['ReviewLog'](arg1, arg2);
+export function ReviewLog(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ReviewLog'](arg1, arg2, arg3, arg4);
 }
 
-export function ReviewSource(arg1) {
-  return window['go']['main']['App']['ReviewSource'](arg1);
+export function ReviewSource(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ReviewSource'](arg1, arg2, arg3);
+}
+
+export function SaveConfigurationFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveConfigurationFile'](arg1, arg2);
+}
+
+export function SelectExportTarget() {
+  return window['go']['main']['App']['SelectExportTarget']();
+}
+
+export function SelectImportFile(arg1) {
+  return window['go']['main']['App']['SelectImportFile'](arg1);
+}
+
+export function SelectReviewExportTarget(arg1) {
+  return window['go']['main']['App']['SelectReviewExportTarget'](arg1);
 }
 
 export function ShowAbout() {
   return window['go']['main']['App']['ShowAbout']();
+}
+
+export function ShowSettings() {
+  return window['go']['main']['App']['ShowSettings']();
 }
