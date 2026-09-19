@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -95,6 +96,15 @@ func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "Version: %s\nBuild date: %s\n", info.Label(), info.BuildDate)
 
 	if !*skipBuild {
+		// exe 的版本资源（Windows 的 FileVersion/ProductVersion、macOS 的
+		// CFBundleShortVersionString）由 wails.json 的 info 决定，所以构建前写入、
+		// 构建后还原，仓库里不留构建产物（R26 的「四处一致」）。
+		restore, err := applyVersionInfo(projectRoot, info)
+		if err != nil {
+			fmt.Fprintf(stderr, "%v\n", err)
+			return 1
+		}
+		defer restore()
 		command := exec.Command("wails", "build", "-ldflags", ldflags)
 		command.Dir = projectRoot
 		command.Stdout = stdout
@@ -147,6 +157,34 @@ func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "Archive: %s\n", archive)
 	}
 	return 0
+}
+
+// applyVersionInfo 把版本写进 wails.json 的 info，返回还原函数。
+func applyVersionInfo(projectRoot string, info buildinfo.BuildInfo) (func(), error) {
+	path := filepath.Join(projectRoot, "wails.json")
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	document := map[string]any{}
+	if err := json.Unmarshal(original, &document); err != nil {
+		return nil, fmt.Errorf("wails.json 不是合法 JSON：%w", err)
+	}
+	document["info"] = map[string]any{
+		"companyName":    "bioMerieux",
+		"productName":    releaseDirName,
+		"productVersion": info.Version,
+		"copyright":      "Copyright (c) bioMerieux",
+		"comments":       "commit " + info.Commit + ", build " + info.BuildDate,
+	}
+	rendered, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(path, append(rendered, '\n'), 0o644); err != nil {
+		return nil, err
+	}
+	return func() { _ = os.WriteFile(path, original, 0o644) }, nil
 }
 
 // copyBuiltArtifact 把 wails 的产物放进发布目录：
