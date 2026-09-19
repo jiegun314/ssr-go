@@ -105,8 +105,18 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 .status-strip .dot.status-conflict{background:#F4CCCC;border:1px solid #C62828}
 
 /* 操作日志卡片：可收缩（flex:0 1 auto）但有下限；内层文本框占满可用高度 */
-.log-section{flex:0 1 auto;min-height:96px}
+.log-section{flex:0 1 auto;min-height:96px;position:relative}
 .log-section>.body{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+/* 操作日志的上沿是可拖动的分隔条：向上拖把日志拉高，最多到左侧「数据导入 / 记录导出」
+   之间只剩最小间隔；向下拖最低回到默认高度。分隔条浮在上边框上，不占卡片高度。 */
+.log-resizer{position:absolute;top:-5px;left:0;right:0;height:10px;cursor:row-resize;
+  display:flex;align-items:center;justify-content:center;touch-action:none}
+.log-resizer::before{content:"";width:44px;height:3px;border-radius:2px;
+  background:var(--md-outline-strong);transition:background .12s ease,transform .12s ease}
+.log-resizer:hover::before,.log-resizer:focus-visible::before{background:var(--md-primary)}
+.log-resizer:focus-visible{outline:2px solid var(--md-primary);outline-offset:2px}
+body.log-resizing{cursor:row-resize;user-select:none}
+body.log-resizing .log-resizer::before{background:var(--md-primary);transform:scaleX(1.15)}
 
 /* 参数设定窗口：Material 页签 + Markdown 风格内容排版 */
 #settings{max-width:min(80vw,900px)}
@@ -319,6 +329,9 @@ dialog .tblwrap{margin:0 24px 8px}
   </div>
   <!-- 操作日志：窗口变矮时它先让出高度（保底约 90px），避免挤压左侧内容 -->
   <section class="log-section" style="margin-top:8px">
+    <!-- 拖动上沿调整高度：上限＝左侧「数据导入 / 记录导出」只剩现有最小间隔，下限＝默认高度 -->
+    <div class="log-resizer" id="log-resizer" role="separator" aria-orientation="horizontal"
+         aria-label="拖动调整操作日志高度" title="拖动调整操作日志高度" tabindex="0"></div>
     <h2>操作日志</h2>
     <div class="body"><textarea id="log" readonly></textarea></div>
   </section>

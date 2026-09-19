@@ -427,9 +427,120 @@ let aboutClicks = [];
 const EASTER_EGG_CLICKS = 8;
 const EASTER_EGG_WINDOW_MS = 5000;
 
+// 操作日志的高度可以拖动上沿调整（§6.5 界面微调）：
+//   向上拖 = 拉高日志，最多拉到左侧「数据导入 / 记录导出」之间只剩最小间隔（.spacer 的 12px）；
+//   向下拖 = 压回默认高度，不能比默认更矮。
+// 调整过之后卡片改用自己的高度（flex:0 0 auto），让出的高度全部给中间列；
+// 窗口再被压矮时由 resize 回调把它压回去，保证左侧两个模块的间隔不会被压没。
+function setupLogResizer() {
+  const section = document.querySelector(".log-section");
+  const handle = document.getElementById("log-resizer");
+  const columns = document.querySelector(".columns");
+  const left = document.querySelector(".left");
+  const panel = document.querySelector(".right .grow");
+  if (!section || !handle || !columns || !left || !panel) return;
+
+  // 默认高度＝启动时的自动高度（用户口径：拖动下限就是它），只在初始化时量一次
+  const defaultHeight = Math.round(section.getBoundingClientRect().height);
+  // 窗口被压得很矮时允许日志低于默认高度，但不能低于卡片自己的 min-height
+  const floorHeight = parseFloat(getComputedStyle(section).minHeight) || 0;
+  let pinnedHeight = null; // null = 还没调整过，保持自动高度
+  let capHeight = defaultHeight; // 上限：本轮的中间列最低能压到多少
+
+  // 左列的下限＝数据导入 + 记录导出 + 两者之间的最小间隔（.spacer 的 12px）
+  function leftMinimumHeight() {
+    let total = 0;
+    Array.prototype.forEach.call(left.children, (child) => {
+      if (child.classList.contains("spacer")) {
+        total += parseFloat(getComputedStyle(child).minHeight) || 0;
+      } else {
+        total += child.getBoundingClientRect().height;
+      }
+    });
+    return total;
+  }
+
+  // 中间列的最低高度：把日志临时拉到极高，量两侧列被压到极限时需要多少高度
+  // （左列＝两个模块 + 最小间隔；右列＝数据整合卡片的最小内容高度）
+  function columnMinimumHeight() {
+    const savedHeight = section.style.height;
+    const savedFlex = section.style.flex;
+    section.style.flex = "0 0 auto";
+    section.style.height = "10000px";
+    // 挤压状态下，scrollHeight 就是各列内容的最低高度
+    const minimum = Math.max(leftMinimumHeight(), left.scrollHeight,
+      right.scrollHeight, panel.scrollHeight);
+    section.style.height = savedHeight;
+    section.style.flex = savedFlex;
+    return minimum;
+  }
+
+  // 上限＝当前日志高度 + 中间列还能让出的高度（拖动时日志固定高度，全部让给中间列）。
+  // 中间列已经被压过头时这个值是负的，正好用来把日志压回去。
+  function refreshCap() {
+    const shrinkable = columns.getBoundingClientRect().height - columnMinimumHeight();
+    capHeight = Math.round(section.getBoundingClientRect().height + shrinkable);
+    return capHeight;
+  }
+
+  // floor 由调用方给：拖动＝默认高度；窗口变小＝卡片 min-height（只压不涨）
+  function applyHeight(value, floor) {
+    const max = Math.max(floor, capHeight);
+    pinnedHeight = Math.min(Math.max(value, floor), max);
+    section.style.flex = "0 0 auto";
+    section.style.height = pinnedHeight + "px";
+    return pinnedHeight;
+  }
+
+  const right = document.querySelector(".right");
+  let drag = null;
+  handle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    refreshCap();
+    drag = { pointerId: event.pointerId, startY: event.clientY,
+      startHeight: section.getBoundingClientRect().height };
+    // 合成事件（测试用）没有活跃指针，捕获失败不影响拖动
+    try { handle.setPointerCapture(event.pointerId); } catch (error) { /* 忽略 */ }
+    document.body.classList.add("log-resizing");
+  });
+  handle.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    // 鼠标往上（clientY 变小）＝日志变高
+    applyHeight(drag.startHeight + (drag.startY - event.clientY), defaultHeight);
+  });
+  const finishDrag = (event) => {
+    if (!drag) return;
+    if (event && handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
+      handle.releasePointerCapture(event.pointerId);
+    }
+    drag = null;
+    document.body.classList.remove("log-resizing");
+  };
+  handle.addEventListener("pointerup", finishDrag);
+  handle.addEventListener("pointercancel", finishDrag);
+  // 分隔条可以用键盘调：方向键一次 16px（与 Material 分隔条一致）
+  handle.addEventListener("keydown", (event) => {
+    const step = 16;
+    let next = null;
+    if (event.key === "ArrowUp") next = section.getBoundingClientRect().height + step;
+    if (event.key === "ArrowDown") next = section.getBoundingClientRect().height - step;
+    if (next === null) return;
+    event.preventDefault();
+    if (drag === null) refreshCap();
+    applyHeight(next, defaultHeight);
+  });
+  // 窗口变大变小后重新夹紧，保证左侧两个模块的间隔不会被压没
+  window.addEventListener("resize", () => {
+    if (pinnedHeight === null) return;
+    refreshCap();
+    applyHeight(pinnedHeight, Math.min(floorHeight, capHeight));
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   defaultRange();
   renderConsolidationSummary({});
+  setupLogResizer();
   document.getElementById("about-icon").addEventListener("click", () => {
     const now = Date.now();
     aboutClicks = aboutClicks.filter((time) => now - time < EASTER_EGG_WINDOW_MS);
