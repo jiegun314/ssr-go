@@ -106,7 +106,7 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 
 /* 操作日志卡片：可收缩（flex:0 1 auto）但有下限；内层文本框占满可用高度 */
 .log-section{flex:0 1 auto;min-height:96px;position:relative}
-.log-section>.body{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.log-section>.body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 /* 操作日志的上沿是可拖动的分隔条：向上拖把日志拉高，最多到左侧「数据导入 / 记录导出」
    之间只剩最小间隔；向下拖最低回到默认高度。分隔条浮在上边框上，不占卡片高度。 */
 .log-resizer{position:absolute;top:-5px;left:0;right:0;height:10px;cursor:row-resize;

@@ -45,6 +45,13 @@ func TestTheOperationLogCardHasADragHandle(t *testing.T) {
 			t.Errorf("app.js 里缺少拖动逻辑：%s", wanted)
 		}
 	}
+	// 日志窗口要跟着卡片一起变大：内容区必须撑满卡片，文本框再撑满内容区
+	if body := styleRule(t, html, ".log-section>.body{"); !strings.Contains(body, "flex:1 1 auto") {
+		t.Errorf("操作日志的内容区没有撑满卡片，拖动时文本窗口不会跟着变大：%s", body)
+	}
+	if body := styleRule(t, html, "textarea#log{"); !strings.Contains(body, "flex:1 1 auto") {
+		t.Errorf("日志文本框没有撑满内容区：%s", body)
+	}
 }
 
 // TestTheOperationLogResizerKeepsTheLeftColumnGap 说明上限口径的口径来源：
