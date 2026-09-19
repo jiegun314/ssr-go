@@ -114,7 +114,12 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 .tabs button{min-height:40px;padding:0 16px;border-radius:0;color:var(--md-on-surface-medium);
   border-bottom:2px solid transparent}
 .tabs button[aria-selected="true"]{color:var(--md-primary);border-bottom-color:var(--md-primary);font-weight:500}
-.settings-note{padding:0 24px 8px;font-size:12px;color:var(--md-on-surface-medium)}
+.settings-head{display:flex;align-items:center;gap:8px;padding:0 24px 8px}
+.settings-note{flex:1 1 auto;font-size:12px;color:var(--md-on-surface-medium);word-break:break-all}
+#settings-editor{width:100%;min-height:40vh;font:12px/1.5 ui-monospace,Menlo,monospace;
+  border:1px solid var(--md-outline-strong);border-radius:var(--md-radius-control);padding:8px;
+  background:var(--md-surface);color:var(--md-on-surface);white-space:pre;overflow:auto}
+.settings-edit-actions{display:flex;justify-content:flex-end;gap:8px;padding:8px 0 0}
 .settings-body{max-height:56vh;overflow:auto;padding:0 24px 8px}
 .settings-body .md-h{margin:12px 0 4px;font-size:13px;font-weight:500;color:var(--md-on-surface)}
 .settings-body h3.md-h{font-size:14px;color:var(--md-primary)}
@@ -310,7 +315,10 @@ dialog .tblwrap{margin:0 24px 8px}
 <dialog id="settings">
   <h3>参数设定</h3>
   <div class="tabs" id="settings-tabs" role="tablist"></div>
-  <div class="settings-note" id="settings-note"></div>
+  <div class="settings-head">
+    <div class="settings-note" id="settings-note"></div>
+    <button type="button" id="settings-edit">编辑原文</button>
+  </div>
   <div class="settings-body" id="settings-body"></div>
   <form method="dialog"><button>关闭</button></form>
 </dialog>

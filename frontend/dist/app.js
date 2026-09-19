@@ -54,17 +54,54 @@ function renderConsolidationSummary(counts) {
 // 内容由 Go 侧渲染成 Markdown 风格的结构化 HTML。
 let settingsTabsCache = [];
 
+let settingsEditing = false;
+let settingsIndex = 0;
+
 function renderSettingsTab(index) {
   const tab = settingsTabsCache[index];
   if (!tab) return;
+  settingsIndex = index;
+  settingsEditing = false;
   for (const button of document.querySelectorAll("#settings-tabs button")) {
     button.setAttribute("aria-selected", String(Number(button.dataset.index) === index));
   }
   document.getElementById("settings-note").textContent =
     `${tab.title}（${tab.path}）${tab.note ? " · " + tab.note : ""}`;
+  document.getElementById("settings-edit").textContent = "编辑原文";
   document.getElementById("settings-body").innerHTML = tab.html || "";
 }
 
+// 「编辑原文」：直接编辑 YAML 原文并原样保存（Go 侧只做语法与整体校验，失败会还原）
+function renderSettingsEditor() {
+  const tab = settingsTabsCache[settingsIndex];
+  if (!tab) return;
+  settingsEditing = true;
+  document.getElementById("settings-edit").textContent = "结束编辑";
+  document.getElementById("settings-body").innerHTML =
+    `<textarea id="settings-editor" spellcheck="false"></textarea>
+     <div class="settings-edit-actions">
+       <button type="button" id="settings-cancel">取消</button>
+       <button type="button" id="settings-save">保存</button>
+     </div>`;
+  document.getElementById("settings-editor").value = tab.raw || "";
+  document.getElementById("settings-cancel").addEventListener("click", () => renderSettingsTab(settingsIndex));
+  document.getElementById("settings-save").addEventListener("click", async () => {
+    const content = document.getElementById("settings-editor").value;
+    const result = await call("SaveConfigurationFile", tab.key, content);
+    setLog(result.log);
+    showModal(result.title, result.message);
+    if (!result.failed) {
+      // 重新读取四份配置，刷新页签内容
+      const refreshed = await call("ConfigurationDocument");
+      if (Array.isArray(refreshed) && refreshed.length > 0) {
+        settingsTabsCache = refreshed;
+      }
+      renderSettingsTab(settingsIndex);
+    }
+  });
+}
+
+async function openSettings() {
 async function openSettings() {
   const tabs = await call("ConfigurationDocument");
   if (!Array.isArray(tabs) || tabs.length === 0) {
@@ -81,6 +118,13 @@ async function openSettings() {
     button.addEventListener("click", () => renderSettingsTab(Number(button.dataset.index)));
   }
   renderSettingsTab(0);
+  document.getElementById("settings-edit").onclick = () => {
+    if (settingsEditing) {
+      renderSettingsTab(settingsIndex);
+    } else {
+      renderSettingsEditor();
+    }
+  };
   document.getElementById("settings").showModal();
 }
 

@@ -20,6 +20,7 @@ type SettingsTab struct {
 	Note  string `json:"note"`  // 页签说明（例如「生成物，请勿手改」）
 	Path  string `json:"path"`  // 实际读取的文件路径
 	HTML  string `json:"html"`  // 按 Markdown 风格渲染的结构化内容
+	Raw   string `json:"raw"`   // 文件原文（供"编辑原文"使用）
 }
 
 // settingsTabSpec 是四个页签的展示信息（顺序即页签顺序）。
@@ -60,6 +61,7 @@ func (app *App) ConfigurationDocument() []SettingsTab {
 			continue
 		}
 		tabs[index].HTML = yamlNodeToHTML(&document, 0)
+		tabs[index].Raw = string(content)
 	}
 	return tabs
 }
@@ -118,5 +120,71 @@ func yamlNodeToHTML(node *yaml.Node, depth int) string {
 	default:
 		return "<div class=\"md-kv\"><span class=\"md-v\">" +
 			html.EscapeString(node.Value) + "</span></div>\n"
+	}
+}
+
+// SettingsSaveResult 是「参数设定」里保存一份配置的结果。
+type SettingsSaveResult struct {
+	Title   string `json:"title"`
+	Message string `json:"message"`
+	Failed  bool   `json:"failed"`
+	Backup  string `json:"backup"`
+}
+
+// SaveConfigurationFile 把「编辑原文」的内容原样写回配置文件。
+//
+// 只做两件事，不做任何规范化（注释、键序、空行、引号风格都原样保留）：
+//  1. 写入前做 YAML 语法校验——解析不过直接拒绝，不落盘；
+//  2. 写入后用同一份配置整体跑一次 ConfigLoader().ValidateAll()，
+//     任何一项校验不过就**还原**原内容（与程序"配置错误就不启动"的口径一致）。
+//
+// 写入前会把原内容复制成 <文件名>.bak，便于现场回退。
+func (app *App) SaveConfigurationFile(key string, content string) SettingsSaveResult {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.loader == nil {
+		return SettingsSaveResult{Failed: true, Title: "Error", Message: "配置未加载"}
+	}
+	allowed := map[string]bool{}
+	for _, tab := range settingsTabs() {
+		allowed[tab.Key] = true
+	}
+	if !allowed[key] {
+		return SettingsSaveResult{Failed: true, Title: "Error",
+			Message: "不允许修改的文件：" + key}
+	}
+	var document yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &document); err != nil {
+		return SettingsSaveResult{Failed: true, Title: "Error",
+			Message: "YAML 语法错误，未保存：\n" + err.Error()}
+	}
+	path := app.loader.Resolver.ConfigFile(key)
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return SettingsSaveResult{Failed: true, Title: "Error", Message: err.Error()}
+	}
+	backup := path + ".bak"
+	if err := os.WriteFile(backup, original, 0o644); err != nil {
+		return SettingsSaveResult{Failed: true, Title: "Error", Message: err.Error()}
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return SettingsSaveResult{Failed: true, Title: "Error", Message: err.Error()}
+	}
+	// 写盘后整体校验：不通过就还原，绝不让磁盘上留下不可启动的配置
+	reloaded, loadErr := config.NewLoader(app.loader.Resolver.ConfigDir)
+	if loadErr == nil {
+		loadErr = reloaded.ValidateAll()
+	}
+	if err := loadErr; err != nil {
+		_ = os.WriteFile(path, original, 0o644)
+		return SettingsSaveResult{Failed: true, Title: "Error",
+			Message: "配置校验失败，已还原为保存前的内容：\n" + err.Error(), Backup: backup}
+	}
+	app.appendLog("Configuration saved: " + key)
+	return SettingsSaveResult{
+		Title: "Success",
+		Message: "配置已保存：" + key + "\n原文件已备份为 " + backup +
+			"\n注意：改动在重启程序后生效。",
+		Backup: backup,
 	}
 }
