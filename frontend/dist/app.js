@@ -51,9 +51,8 @@ function renderConsolidationSummary(counts) {
 }
 
 // 参数设定（菜单「设置 → 参数设定」）：四份 YAML 分成四个页签，
-// 内容由 Go 侧渲染成 Markdown 风格的结构化 HTML。
+// 内容由 Go 侧渲染成 Markdown 风格的结构化 HTML；支持「编辑原文」原样保存。
 let settingsTabsCache = [];
-
 let settingsEditing = false;
 let settingsIndex = 0;
 
@@ -91,7 +90,6 @@ function renderSettingsEditor() {
     setLog(result.log);
     showModal(result.title, result.message);
     if (!result.failed) {
-      // 重新读取四份配置，刷新页签内容
       const refreshed = await call("ConfigurationDocument");
       if (Array.isArray(refreshed) && refreshed.length > 0) {
         settingsTabsCache = refreshed;
@@ -101,7 +99,6 @@ function renderSettingsEditor() {
   });
 }
 
-async function openSettings() {
 async function openSettings() {
   const tabs = await call("ConfigurationDocument");
   if (!Array.isArray(tabs) || tabs.length === 0) {
@@ -127,7 +124,6 @@ async function openSettings() {
   };
   document.getElementById("settings").showModal();
 }
-
 async function openReviewPage(page) {
   const result = review.kind === "log"
     ? await call("ReviewLog", review.start, review.end, page, REVIEW_PAGE_SIZE)
