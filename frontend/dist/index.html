@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>SS Ready - UDI数据整合工具</title>
+<style>
+:root{--ready:#DFF6DD;--incomplete:#FDE7E9;--duplicate:#FFF4CE;--conflict:#F4CCCC}
+*{box-sizing:border-box}body{margin:0;font:13px "Helvetica Neue",Arial,"PingFang SC",sans-serif;background:#F0F0F0;color:#1A1A1A}
+.wrap{padding:10px 12px}
+section{border:1px solid #C9C9C9;border-radius:4px;background:#FAFAFA;margin-bottom:10px}
+section>h2{margin:0;padding:6px 8px;font-size:13px;font-weight:600;border-bottom:1px solid #DCDCDC}
+.body{padding:8px}
+.group{border:1px solid #DDD;border-radius:3px;background:#FFF;margin-bottom:8px}
+.title-row{display:flex;align-items:center;padding:6px 8px 0}
+.dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.dot.empty{background:transparent;border:1px solid #B7C0CC}
+.dot.imported,.dot.existing{background:#1B7F3B;border:1px solid #A5D6A7}
+.dot.failed{background:#A4262C;border:1px solid #F1B0B7}
+.actions{display:flex;align-items:center;gap:6px;padding:6px 8px}
+.status{flex:1;border:1px solid #B7B7B7;background:#FFF;padding:2px 6px;box-shadow:inset 0 1px 2px rgba(0,0,0,.15);min-height:20px}
+.clean-row{display:flex;justify-content:flex-end;padding:0 8px 8px}
+button{font:inherit;padding:3px 8px;border:1px solid #ADADAD;background:#F5F5F5;border-radius:3px;cursor:pointer}
+button:disabled{color:#999;cursor:default}
+textarea#log{width:100%;height:110px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{border:1px solid #D6D6D6;padding:2px 5px;text-align:left;white-space:nowrap}
+th{background:#EFEFEF;position:sticky;top:0}
+td.MISSING{font-weight:700}
+.tblwrap{max-height:280px;overflow:auto;border:1px solid #D6D6D6;background:#FFF}
+.range{display:flex;gap:8px;align-items:center}
+dialog{border:1px solid #999;border-radius:4px;padding:12px}
+#about-icon{width:48px;height:48px;cursor:pointer}
+.busy{opacity:.6;pointer-events:none}
+#egg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9}
+#egg img{max-width:60%;border-radius:6px;background:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section>
+    <h2>数据导入</h2>
+    <div class="body" id="import-area"></div>
+  </section>
+  <section>
+    <h2>整合结果</h2>
+    <div class="body">
+      <div class="actions">
+        <button id="btn-consolidate">数据整合</button>
+        <button id="btn-export">生成文件</button>
+      </div>
+      <div class="tblwrap"><table id="result-table"></table></div>
+    </div>
+  </section>
+  <section>
+    <h2>记录导出</h2>
+    <div class="body">
+      <div class="range">
+        <label>起始 <input type="date" id="start-date" /></label>
+        <label>结束 <input type="date" id="end-date" /></label>
+        <button id="btn-review-log">回顾</button>
+      </div>
+    </div>
+  </section>
+  <section>
+    <h2>操作日志</h2>
+    <div class="body"><textarea id="log" readonly></textarea></div>
+  </section>
+</div>
+
+<dialog id="modal"><h3 id="modal-title"></h3><p id="modal-text"></p><form method="dialog"><button>确定</button></form></dialog>
+<dialog id="review"><h3 id="review-title"></h3><div class="tblwrap" style="max-height:420px"><table id="review-table"></table></div><form method="dialog"><button>关闭</button></form></dialog>
+
+<div id="egg"><img src="easter_egg.png" alt="🐶Puppy Approved!🐾" /></div>
+<script src="app.js"></script>
+</body>
+</html>
