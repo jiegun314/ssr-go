@@ -28,10 +28,12 @@ let state = { imports: {}, busy: false };
 
 // 数据回顾窗口的状态：按页取（每页 100 行），大表不会一次性塞给前端。
 const REVIEW_PAGE_SIZE = 100;
-let review = { source: "", page: 1, pageCount: 1 };
+let review = { kind: "source", source: "", fileType: "", start: "", end: "", page: 1, pageCount: 1 };
 
 async function openReviewPage(page) {
-  const result = await call("ReviewSource", review.source, page, REVIEW_PAGE_SIZE);
+  const result = review.kind === "log"
+    ? await call("ReviewLog", review.start, review.end, page, REVIEW_PAGE_SIZE)
+    : await call("ReviewSource", review.source, page, REVIEW_PAGE_SIZE);
   setLog(result.log);
   if (result.failed) {
     showModal(result.title, result.message);
@@ -93,6 +95,7 @@ const BUSY_TEXT = {
   ReviewLog: "正在加载已导入数据...",
   SelectExportTarget: "正在选择保存位置",
   Export: "正在导出文件...",
+  SelectReviewExportTarget: "正在选择保存位置",
   ExportReviewData: "正在导出文件...",
   ClearImportedData: "正在清空导入数据...",
 };
@@ -224,7 +227,7 @@ document.addEventListener("click", async (event) => {
       break;
     }
     case "review": {
-      review.source = source;
+      review = { kind: "source", source, fileType: source, page: 1, pageCount: 1 };
       await openReviewPage(1);
       document.getElementById("review").showModal();
       break;
@@ -238,7 +241,9 @@ document.addEventListener("click", async (event) => {
       break;
     }
     case "review-export": {
-      const result = await call("ExportReviewData", review.source);
+      const choice = await call("SelectReviewExportTarget", review.fileType);
+      if (!choice || !choice.target) break; // 取消：什么都不做
+      const result = await call("ExportReviewData", review.fileType, choice.target);
       setLog(result.log);
       showModal(result.title, result.message);
       break;
@@ -277,11 +282,8 @@ document.addEventListener("click", async (event) => {
     case "btn-review-log": {
       const start = document.getElementById("start-date").value;
       const end = document.getElementById("end-date").value;
-      const result = await call("ReviewLog", start, end);
-      setLog(result.log);
-      if (result.failed) return showModal(result.title, result.message);
-      renderTable("review-table", result.columns, result.rows);
-      document.getElementById("review-title").textContent = result.title;
+      review = { kind: "log", source: "", fileType: "operation_log", start, end, page: 1, pageCount: 1 };
+      await openReviewPage(1);
       document.getElementById("review").showModal();
       break;
     }

@@ -301,7 +301,84 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	}
 }
 
-// ReviewResult 是数据回顾 / 日志回顾回给界面的内容。数据回顾按页返回：
+// ReviewLog 按时间区间读操作日志，并像来源回顾一样分页（§5.6）。
+//
+// 运行日志只在第 1 页写一行，与现状实现的开窗时机一致。
+func (app *App) ReviewLog(start string, end string, page int, pageSize int) ReviewResult {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if err := app.beginOperation(); err != nil {
+		return ReviewResult{Failed: true, Title: "Error", Message: err.Error()}
+	}
+	defer app.endOperation()
+	if pageSize <= 0 {
+		pageSize = 100
+	}
+	if page < 1 {
+		page = 1
+	}
+	rows, err := app.log.ReadByTime(start, end)
+	if err != nil {
+		return ReviewResult{Log: app.logText(), Failed: true, Title: "Error", Message: err.Error()}
+	}
+	columns := app.log.TableColumns()
+	pageCount := (len(rows) + pageSize - 1) / pageSize
+	if pageCount == 0 {
+		pageCount = 1
+	}
+	if page > pageCount {
+		page = pageCount
+	}
+	begin := (page - 1) * pageSize
+	finish := begin + pageSize
+	if finish > len(rows) {
+		finish = len(rows)
+	}
+	table := make([][]string, 0, finish-begin)
+	for _, row := range rows[begin:finish] {
+		values := make([]string, 0, len(columns))
+		for _, column := range columns {
+			values = append(values, row[column])
+		}
+		table = append(table, values)
+	}
+	if page == 1 {
+		app.appendLog(fmt.Sprintf(
+			"Operation log review completed successfully for time range %s to %s. Rows reviewed: %d",
+			start, end, len(rows)))
+	}
+	return ReviewResult{
+		Log: app.logText(), Title: "Operation Log Review - " + start + " to " + end,
+		Columns: columns, Rows: table,
+		Total: len(rows), Page: page, PageSize: pageSize, PageCount: pageCount,
+	}
+}
+
+// About 是「关于」窗口需要的内容（版本 + tooltip 明细，§6.4）。
+func (app *App) About() map[string]string {
+	version := ""
+	if app.loader != nil {
+		if setting, err := app.loader.LoadSetting(); err == nil {
+			version = text(setting["APP_VERSION"])
+		}
+	}
+	info := buildinfo.ReadBuildInfo(buildinfo.Options{AppVersion: version})
+	return map[string]string{
+		"name":    "SingleSourceReady",
+		"version": "Version: " + info.Version,
+		"detail":  info.Detail(),
+	}
+}
+
+// ShowAbout 由菜单「关于」调用：把版本信息推给前端弹窗。
+func (app *App) ShowAbout() {
+	if app.context == nil {
+		return
+	}
+	runtime.EventsEmit(app.context, "show-about", app.About())
+}
+
+// ReviewResult 是数据回顾 / 日志回顾回给界面的内容。两种回顾都按页返回：
 // 有些来源一次导入上万行，全部塞给前端既慢又占内存，所以分页在 Go 侧做。
 type ReviewResult struct {
 	Log       string     `json:"log"`
@@ -333,8 +410,7 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 	if page < 1 {
 		page = 1
 	}
-	rule := app.importer.Rules[source]
-	rows, err := app.repo.Rows(rule.TargetTable)
+	columns, rows, err := app.reviewData(source)
 	if err != nil {
 		return ReviewResult{Log: app.logText(), Failed: true, Title: "Error", Message: err.Error()}
 	}
@@ -345,121 +421,113 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 	if page > pageCount {
 		page = pageCount
 	}
-	start := (page - 1) * pageSize
-	end := start + pageSize
-	if end > len(rows) {
-		end = len(rows)
+	begin := (page - 1) * pageSize
+	finish := begin + pageSize
+	if finish > len(rows) {
+		finish = len(rows)
 	}
-	pageRows := rows[start:end]
+	if page == 1 {
+		app.appendLog(fmt.Sprintf(
+			"Data review completed successfully for %s. Rows reviewed: %d",
+			app.importer.Rules[source].ChineseName, len(rows)))
+	}
+	return ReviewResult{
+		Log: app.logText(), Title: "Data Review - " + source,
+		Columns: columns, Rows: rows[begin:finish],
+		Total: len(rows), Page: page, PageSize: pageSize, PageCount: pageCount,
+	}
+}
+
+// reviewData 返回一个回顾对象的列与全部数据。
+//
+// fileType 是来源键，或 operation_log —— 记录导出的回顾与来源回顾在现状实现里共用同一个
+// 窗口类，所以这里也共用同一份数据与导出实现。
+func (app *App) reviewData(fileType string) ([]string, [][]string, error) {
+	if fileType == "operation_log" {
+		rows, err := app.log.Repository.Rows(app.log.TableName)
+		if err != nil {
+			return nil, nil, err
+		}
+		columns := app.log.TableColumns()
+		table := make([][]string, 0, len(rows))
+		for _, row := range rows {
+			values := make([]string, 0, len(columns))
+			for _, column := range columns {
+				values = append(values, row[column])
+			}
+			table = append(table, values)
+		}
+		return columns, table, nil
+	}
+	rule, known := app.importer.Rules[fileType]
+	if !known {
+		return nil, nil, fmt.Errorf("Invalid file type: %s", fileType)
+	}
+	rows, err := app.repo.Rows(rule.TargetTable)
+	if err != nil {
+		return nil, nil, err
+	}
 	columns := make([]string, 0, len(rule.Columns))
 	for _, column := range rule.Columns {
 		columns = append(columns, column.ChineseName)
 	}
-	table := make([][]string, 0, len(pageRows))
-	for _, row := range pageRows {
+	table := make([][]string, 0, len(rows))
+	for _, row := range rows {
 		values := make([]string, 0, len(rule.Columns))
 		for _, column := range rule.Columns {
 			values = append(values, row[column.DBField])
 		}
 		table = append(table, values)
 	}
-	if page == 1 {
-		app.appendLog(fmt.Sprintf(
-			"Data review completed successfully for %s. Rows reviewed: %d",
-			rule.ChineseName, len(rows)))
-	}
-	return ReviewResult{
-		Log: app.logText(), Title: "Data Review - " + source, Columns: columns, Rows: table,
-		Total: len(rows), Page: page, PageSize: pageSize, PageCount: pageCount,
-	}
+	return columns, table, nil
 }
 
-// ExportReviewData 把某个来源已导入的全部数据导出成 Excel（§5.3）。
+// SelectReviewExportTarget 打开回顾窗口的「Save Imported Data」对话框。
 //
-// 对话框标题 `Save Imported Data`、默认文件名 `{file_type}_imported_data.xlsx`、
-// 过滤器 `Excel Files (*.xlsx)`，成功提示 `Imported data exported successfully to {路径}`，
-// 失败提示 `Export Error` —— 与现状实现一致（导出的是全部行，不是当前页）。
-func (app *App) ExportReviewData(source string) ExportResult {
+// 与现状实现一致：默认文件名 `{fileType}_imported_data.xlsx`、过滤器 Excel Files (*.xlsx)；
+// 记录导出的回顾用 fileType = operation_log，于是默认名是 operation_log_imported_data.xlsx。
+func (app *App) SelectReviewExportTarget(fileType string) ExportTarget {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.importer == nil {
+		return ExportTarget{}
+	}
+	defaultName := fileType + "_imported_data.xlsx"
+	target, err := runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
+		Title:           "Save Imported Data",
+		DefaultFilename: defaultName,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
+		},
+	})
+	if err != nil {
+		return ExportTarget{DefaultName: defaultName}
+	}
+	return ExportTarget{DefaultName: defaultName, Target: target}
+}
+
+// ExportReviewData 把回顾窗口里的全部数据写成 Excel（保存位置由上一步选定）。
+//
+// 成功提示 `Imported data exported successfully to {路径}`、失败弹 `Export Error`（与现状一致）。
+func (app *App) ExportReviewData(fileType string, target string) ExportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
 		return ExportResult{Failed: true, Title: "Export Error", Message: err.Error()}
 	}
 	defer app.endOperation()
-	rule := app.importer.Rules[source]
-	target, err := runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
-		Title:           "Save Imported Data",
-		DefaultFilename: source + "_imported_data.xlsx",
-		Filters: []runtime.FileFilter{
-			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
-		},
-	})
-	if err != nil || target == "" {
-		// 用户取消：什么都不做
+	if target == "" {
 		return ExportResult{Log: app.logText()}
 	}
-	rows, err := app.repo.Rows(rule.TargetTable)
+	columns, rows, err := app.reviewData(fileType)
 	if err != nil {
 		return ExportResult{Log: app.logText(), Title: "Export Error", Message: err.Error(), Failed: true}
 	}
-	if err := writeReviewWorkbook(target, rule, rows); err != nil {
+	if err := writeReviewWorkbook(target, columns, rows); err != nil {
 		return ExportResult{Log: app.logText(), Title: "Export Error", Message: err.Error(), Failed: true}
 	}
 	return ExportResult{
 		Log: app.logText(), Title: "Success", Path: target,
 		Message: "Imported data exported successfully to " + target,
 	}
-}
-
-// ReviewLog 按时间区间读操作日志（§5.6）。
-func (app *App) ReviewLog(start string, end string) ReviewResult {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-	if err := app.beginOperation(); err != nil {
-		return ReviewResult{Failed: true, Title: "Error", Message: err.Error()}
-	}
-	defer app.endOperation()
-	rows, err := app.log.ReadByTime(start, end)
-	if err != nil {
-		return ReviewResult{Log: app.logText(), Failed: true, Title: "Error", Message: err.Error()}
-	}
-	table := make([][]string, 0, len(rows))
-	for _, row := range rows {
-		values := make([]string, 0, len(app.log.LogColumns))
-		for _, column := range app.log.LogColumns {
-			values = append(values, row[column])
-		}
-		table = append(table, values)
-	}
-	app.appendLog(fmt.Sprintf(
-		"Operation log review completed successfully for time range %s to %s. Rows reviewed: %d",
-		start, end, len(table)))
-	return ReviewResult{
-		Log: app.logText(), Title: "Operation Log Review - " + start + " to " + end,
-		Columns: app.log.TableColumns(), Rows: table,
-	}
-}
-
-// About 是「关于」窗口需要的内容（版本 + tooltip 明细，§6.4）。
-func (app *App) About() map[string]string {
-	version := ""
-	if app.loader != nil {
-		if setting, err := app.loader.LoadSetting(); err == nil {
-			version = text(setting["APP_VERSION"])
-		}
-	}
-	info := buildinfo.ReadBuildInfo(buildinfo.Options{AppVersion: version})
-	return map[string]string{
-		"name":    "SingleSourceReady",
-		"version": "Version: " + info.Version,
-		"detail":  info.Detail(),
-	}
-}
-
-// ShowAbout 由菜单「关于」调用：把版本信息推给前端弹窗。
-func (app *App) ShowAbout() {
-	if app.context == nil {
-		return
-	}
-	runtime.EventsEmit(app.context, "show-about", app.About())
 }
