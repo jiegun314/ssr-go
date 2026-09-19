@@ -54,7 +54,9 @@ td.MISSING{font-weight:700}
 .range .dates{flex:0 0 auto}
 .range .spacer{flex:1 1 auto}
 /* 数据回顾窗口的翻页条与导出按钮（每页 100 行） */
-.pager{display:flex;align-items:center;gap:8px;padding:0 24px 8px}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 24px 12px}
+.pager-center{display:flex;align-items:center;gap:8px}
+#review .pager form{margin:0;padding:0;display:flex}
 .pager .page-info{color:var(--md-on-surface-medium);font-size:12px}
 .pager .spacer{flex:1 1 auto}
 input[type=date]{font:inherit;padding:2px 4px}
@@ -240,17 +242,18 @@ dialog .tblwrap{margin:0 24px 8px}
   <h3 id="review-title"></h3>
   <div class="tblwrap" style="max-height:420px"><table id="review-table"></table></div>
   <div class="pager">
-    <button type="button" class="icon-btn" id="review-prev" title="上一页" aria-label="上一页">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-    </button>
-    <span class="page-info" id="review-page-info"></span>
-    <button type="button" class="icon-btn" id="review-next" title="下一页" aria-label="下一页">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-    </button>
-    <span class="spacer"></span>
     <button type="button" id="review-export" title="导出当前来源的导入数据">导出</button>
+    <div class="pager-center">
+      <button type="button" class="icon-btn" id="review-prev" title="上一页" aria-label="上一页">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+      </button>
+      <span class="page-info" id="review-page-info"></span>
+      <button type="button" class="icon-btn" id="review-next" title="下一页" aria-label="下一页">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </button>
+    </div>
+    <form method="dialog"><button>关闭</button></form>
   </div>
-  <form method="dialog"><button>关闭</button></form>
 </dialog>
 
 <!-- 关于窗口（菜单「关于」打开）。图标上 5 秒内连点 8 次进入彩蛋。 -->
