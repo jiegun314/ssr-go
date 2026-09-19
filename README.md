@@ -31,12 +31,13 @@
 | `internal/buildinfo`（R26 版本与构建信息） | 已实现 + 单测 |
 | `internal/paths`（§4.3 路径基准） | 已实现 |
 | `internal/config`（R24 配置整体校验） | 已实现 + 单测（setting / import / consolidation / log columns 四份配置全量校验） |
+| `internal/store`（R8/R9/R23/R25 的 SQL 层） | 已实现 + 单测（通用仓库、来源表导入策略、启动清理与「清空导入数据」口径） |
 | `cmd/ssr-core` 子命令骨架（8 个子命令） | 骨架（除 `version` 外均为占位） |
-| `internal/store` / `importer` / `consolidation` / `changedetect` / `excelio` | 待做 |
+| `internal/store` 的 `operation_log`（R22/R23）+ `importer` / `consolidation` / `changedetect` / `excelio` | 待做 |
 | Wails 界面 | 待做 |
 
-依赖：`gopkg.in/yaml.v3`（配置解析）。后续步骤会加入 `modernc.org/sqlite`（纯 Go，无需 cgo）
-与 `github.com/xuri/excelize/v2`。
+依赖：`gopkg.in/yaml.v3`（配置解析）、`modernc.org/sqlite`（纯 Go SQLite，`CGO_ENABLED=0`）。
+后续步骤会加入 `github.com/xuri/excelize/v2`。
 
 ## 构建与测试
 
