@@ -58,6 +58,85 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 #egg img{max-width:60%;border-radius:6px;background:#fff}
 .busy{opacity:.65;pointer-events:none}
 </style>
+<!-- Material Design 主题层：只覆盖视觉（颜色/字体/圆角/阴影/控件外观），
+     不改变上面的布局规则（左右两栏比例、分组顺序与空行、置顶/置底与可伸缩空隙）。 -->
+<style>
+:root{
+  --md-primary:#1976D2;            /* Material Blue 700 */
+  --md-primary-dark:#0D47A1;
+  --md-on-primary:#FFFFFF;
+  --md-surface:#FFFFFF;
+  --md-background:#F5F5F5;         /* Grey 100 */
+  --md-on-surface:rgba(0,0,0,.87);
+  --md-on-surface-medium:rgba(0,0,0,.60);
+  --md-on-surface-disabled:rgba(0,0,0,.38);
+  --md-outline:rgba(0,0,0,.12);
+  --md-outline-strong:rgba(0,0,0,.24);
+  --md-hover:rgba(25,118,210,.06);
+  --md-pressed:rgba(25,118,210,.12);
+  --md-radius:8px;                 /* 卡片 8dp */
+  --md-radius-control:4px;         /* 控件 4dp */
+  --md-elev-1:0 1px 2px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.06);
+  --md-elev-2:0 2px 4px rgba(0,0,0,.12),0 3px 6px rgba(0,0,0,.08);
+  --md-elev-dialog:0 11px 15px -7px rgba(0,0,0,.20),0 24px 38px 3px rgba(0,0,0,.14);
+}
+body{
+  font-family:Roboto,-apple-system,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:13px;line-height:20px;background:var(--md-background);color:var(--md-on-surface);
+  -webkit-font-smoothing:antialiased;
+}
+/* 区域＝Material 卡片：圆角 + 1dp 抬升，标题按 subtitle-1（14sp/500） */
+section{background:var(--md-surface);border:1px solid var(--md-outline);border-radius:var(--md-radius);
+  box-shadow:var(--md-elev-1);overflow:hidden}
+section>h2{background:var(--md-surface);border-bottom:1px solid var(--md-outline);
+  font-size:14px;font-weight:500;letter-spacing:.1px;padding:8px 16px;color:var(--md-on-surface)}
+/* 导入分组＝描边卡片（outlined），内部不再叠阴影 */
+.group{background:var(--md-surface);border:1px solid var(--md-outline);border-radius:var(--md-radius);
+  margin-bottom:8px;box-shadow:none}
+.title-row{padding:8px 16px 0}
+.title-row>span:last-child{font-size:14px;font-weight:500;letter-spacing:.1px}
+.actions{padding:8px 16px 12px;gap:8px}
+/* 圆点：直径与四态配色是界面契约（§6.1），此处只加一点轮廓阴影 */
+.dot{box-shadow:0 0 0 2px rgba(0,0,0,.02)}
+/* 状态标签＝只读的 filled 文本域外观 */
+.status{background:rgba(0,0,0,.04);border:none;border-bottom:1px solid var(--md-outline-strong);
+  border-radius:var(--md-radius-control) var(--md-radius-control) 0 0;box-shadow:none;
+  padding:4px 8px;min-height:24px;color:var(--md-on-surface-medium)}
+button{font:inherit;font-size:13px;font-weight:500;letter-spacing:.2px;border:none;background:transparent;
+  color:var(--md-primary);border-radius:var(--md-radius-control);padding:6px 12px;min-height:32px;
+  transition:background-color .15s ease,box-shadow .15s ease}
+button:hover:not(:disabled){background:var(--md-hover)}
+button:active:not(:disabled){background:var(--md-pressed)}
+button:focus-visible{outline:2px solid var(--md-primary);outline-offset:1px}
+button:disabled{color:var(--md-on-surface-disabled);background:transparent}
+/* 主要动作＝filled button；次要动作＝outlined button（与原按钮一一对应，不新增控件） */
+#btn-consolidate,#btn-export{background:var(--md-primary);color:var(--md-on-primary);box-shadow:var(--md-elev-1)}
+#btn-consolidate:hover:not(:disabled),#btn-export:hover:not(:disabled){background:var(--md-primary-dark)}
+#btn-review-log,#btn-clean{border:1px solid var(--md-outline-strong)}
+.group .actions button[data-action="import"]{border:1px solid var(--md-outline-strong)}
+/* 日期输入＝Material 描边文本域 */
+input[type=date]{font:inherit;font-size:13px;padding:6px 8px;min-height:34px;background:var(--md-surface);
+  color:var(--md-on-surface);border:1px solid var(--md-outline-strong);border-radius:var(--md-radius-control)}
+input[type=date]:focus{outline:none;border-color:var(--md-primary);box-shadow:inset 0 0 0 1px var(--md-primary)}
+/* 数据表＝Material data table：表头 medium、行分隔线、悬停高亮 */
+table{font-size:12px;line-height:18px}
+th,td{border:none;border-bottom:1px solid var(--md-outline);padding:6px 12px}
+th{background:var(--md-surface);font-weight:500;color:var(--md-on-surface-medium);letter-spacing:.4px}
+tr:hover td{background:rgba(0,0,0,.03)}
+.tblwrap{border:1px solid var(--md-outline);border-radius:var(--md-radius);box-shadow:var(--md-elev-1)}
+textarea#log{background:rgba(0,0,0,.03);border:1px solid var(--md-outline);
+  border-radius:var(--md-radius-control);padding:8px;color:var(--md-on-surface)}
+/* 对话框＝Material dialog：28dp 圆角 + 高抬升 + 背景遮罩 */
+dialog{border:none;border-radius:16px;box-shadow:var(--md-elev-dialog);padding:0;max-width:72vw;background:var(--md-surface)}
+dialog::backdrop{background:rgba(0,0,0,.32)}
+dialog h3{margin:0;padding:16px 24px 8px;font-size:16px;font-weight:500;line-height:24px}
+dialog p{margin:0;padding:0 24px 12px;color:var(--md-on-surface-medium);white-space:pre-wrap}
+dialog form{display:flex;justify-content:flex-end;gap:8px;padding:8px 16px 16px}
+dialog form button{color:var(--md-primary);font-weight:500}
+dialog .tblwrap{margin:0 24px 8px}
+#about-icon{border-radius:8px}
+#egg{backdrop-filter:blur(2px)}
+</style>
 </head>
 <body>
 <div class="app">
