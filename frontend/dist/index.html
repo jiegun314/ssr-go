@@ -5,11 +5,19 @@
 <title>SS Ready - UDI数据整合工具</title>
 <style>
 :root{--ready:#DFF6DD;--incomplete:#FDE7E9;--duplicate:#FFF4CE;--conflict:#F4CCCC}
-*{box-sizing:border-box}body{margin:0;font:13px "Helvetica Neue",Arial,"PingFang SC",sans-serif;background:#F0F0F0;color:#1A1A1A}
-.wrap{padding:10px 12px}
-section{border:1px solid #C9C9C9;border-radius:4px;background:#FAFAFA;margin-bottom:10px}
-section>h2{margin:0;padding:6px 8px;font-size:13px;font-weight:600;border-bottom:1px solid #DCDCDC}
-.body{padding:8px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:13px "Helvetica Neue",Arial,"PingFang SC",sans-serif;background:#F0F0F0;color:#1A1A1A}
+/* 两栏：左＝数据导入 + 记录导出，右＝数据整合 + 整合结果（大表格），底部整宽＝操作日志 */
+.app{display:flex;flex-direction:column;height:100%;padding:8px 10px}
+.columns{display:flex;gap:8px;flex:1 1 auto;min-height:0}
+.left{flex:0 0 46%;display:flex;flex-direction:column;gap:8px;min-width:0}
+.right{flex:1 1 auto;display:flex;flex-direction:column;gap:8px;min-width:0}
+section{border:1px solid #C9C9C9;border-radius:4px;background:#FAFAFA;display:flex;flex-direction:column;min-height:0}
+section>h2{margin:0;padding:6px 8px;font-size:13px;font-weight:600;border-bottom:1px solid #DCDCDC;background:#F2F2F2}
+section>.body{padding:8px;overflow:auto;min-height:0}
+.grow{flex:1 1 auto;min-height:0}
+.grow>.body{flex:1 1 auto;display:flex;flex-direction:column}
 .group{border:1px solid #DDD;border-radius:3px;background:#FFF;margin-bottom:8px}
 .title-row{display:flex;align-items:center;padding:6px 8px 0}
 .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
@@ -18,50 +26,67 @@ section>h2{margin:0;padding:6px 8px;font-size:13px;font-weight:600;border-bottom
 .dot.failed{background:#A4262C;border:1px solid #F1B0B7}
 .actions{display:flex;align-items:center;gap:6px;padding:6px 8px}
 .status{flex:1;border:1px solid #B7B7B7;background:#FFF;padding:2px 6px;box-shadow:inset 0 1px 2px rgba(0,0,0,.15);min-height:20px}
-.clean-row{display:flex;justify-content:flex-end;padding:0 8px 8px}
+.clean-row{display:flex;justify-content:flex-end;padding:0 2px 2px}
 button{font:inherit;padding:3px 8px;border:1px solid #ADADAD;background:#F5F5F5;border-radius:3px;cursor:pointer}
 button:disabled{color:#999;cursor:default}
-textarea#log{width:100%;height:110px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap}
+.toolbar{display:flex;align-items:center;gap:8px}
+.toolbar .spacer{flex:1}
 table{border-collapse:collapse;width:100%;font-size:12px}
 th,td{border:1px solid #D6D6D6;padding:2px 5px;text-align:left;white-space:nowrap}
-th{background:#EFEFEF;position:sticky;top:0}
+th{background:#EFEFEF;position:sticky;top:0;z-index:1}
 td.MISSING{font-weight:700}
-.tblwrap{max-height:280px;overflow:auto;border:1px solid #D6D6D6;background:#FFF}
+.tblwrap{flex:1 1 auto;min-height:180px;overflow:auto;border:1px solid #D6D6D6;background:#FFF}
 .range{display:flex;gap:8px;align-items:center}
-dialog{border:1px solid #999;border-radius:4px;padding:12px}
-#about-icon{width:48px;height:48px;cursor:pointer}
-.busy{opacity:.6;pointer-events:none}
+input[type=date]{font:inherit;padding:2px 4px}
+textarea#log{width:100%;height:96px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;resize:none}
+#about-icon{width:40px;height:40px;cursor:pointer;float:right}
+dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 #egg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9}
 #egg img{max-width:60%;border-radius:6px;background:#fff}
+.busy{opacity:.65;pointer-events:none}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <section>
-    <h2>数据导入</h2>
-    <div class="body" id="import-area"></div>
-  </section>
-  <section>
-    <h2>整合结果</h2>
-    <div class="body">
-      <div class="actions">
-        <button id="btn-consolidate">数据整合</button>
-        <button id="btn-export">生成文件</button>
-      </div>
-      <div class="tblwrap"><table id="result-table"></table></div>
+<div class="app">
+  <div class="columns">
+    <div class="left">
+      <section>
+        <h2>数据导入</h2>
+        <div class="body">
+          <div id="import-area"></div>
+        </div>
+      </section>
+      <section>
+        <h2>记录导出</h2>
+        <div class="body">
+          <div class="range">
+            <label>起始 <input type="date" id="start-date" /></label>
+            <label>结束 <input type="date" id="end-date" /></label>
+            <button id="btn-review-log">回顾</button>
+          </div>
+        </div>
+      </section>
     </div>
-  </section>
-  <section>
-    <h2>记录导出</h2>
-    <div class="body">
-      <div class="range">
-        <label>起始 <input type="date" id="start-date" /></label>
-        <label>结束 <input type="date" id="end-date" /></label>
-        <button id="btn-review-log">回顾</button>
-      </div>
+    <div class="right">
+      <section>
+        <h2>数据整合</h2>
+        <div class="body">
+          <div class="toolbar">
+            <button id="btn-consolidate">数据整合</button>
+            <span class="spacer"></span>
+            <button id="btn-export">生成文件</button>
+          </div>
+        </div>
+      </section>
+      <section class="grow">
+        <h2>整合结果</h2>
+        <div class="body">
+          <div class="tblwrap"><table id="result-table"></table></div>
+        </div>
+      </section>
     </div>
-  </section>
-  <section>
+  </div>
+  <section style="margin-top:8px;flex:0 0 auto">
     <h2>操作日志</h2>
     <div class="body"><textarea id="log" readonly></textarea></div>
   </section>

@@ -6,6 +6,7 @@ package main
 
 import (
 	"embed"
+	"runtime"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/menu"
@@ -52,6 +53,11 @@ func main() {
 // buildMenu 复刻现有界面的菜单：文件（打开 / 退出）、设置（空）、关于。
 func buildMenu(application *App) *menu.Menu {
 	root := menu.NewMenu()
+	// macOS 会把第一个子菜单当作「应用菜单」：先补上系统应用菜单，
+	// 我们的「文件」才会作为独立菜单出现在菜单栏里（否则它会变成应用菜单本身）。
+	if runtime.GOOS == "darwin" {
+		root.Append(menu.AppMenu())
+	}
 	file := root.AddSubmenu("文件")
 	file.AddText("打开", nil, func(*menu.CallbackData) {
 		application.OpenSourceFromDialog()
