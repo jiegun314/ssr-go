@@ -96,6 +96,13 @@ func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "Version: %s\nBuild date: %s\n", info.Label(), info.BuildDate)
 
 	if !*skipBuild {
+		// 图标：Wails 构建期从 build/appicon.png（macOS 的 .icns）与
+		// build/windows/icon.ico（exe 资源与任务栏）取图。build/ 是构建产物目录（已忽略），
+		// 所以这里从仓库里的图标源把它们铺好，否则会用 Wails 的默认图标。
+		if err := stageBuildIcons(projectRoot); err != nil {
+			fmt.Fprintf(stderr, "%v\n", err)
+			return 1
+		}
 		// exe 的版本资源（Windows 的 FileVersion/ProductVersion、macOS 的
 		// CFBundleShortVersionString）由 wails.json 的 info 决定，所以构建前写入、
 		// 构建后还原，仓库里不留构建产物（R26 的「四处一致」）。
@@ -157,6 +164,56 @@ func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "Archive: %s\n", archive)
 	}
 	return 0
+}
+
+// stageBuildIcons 把仓库里的图标铺到 Wails 要求的两个位置。
+//
+// 源是 internal/appicon/icon.ico（那份也是编进二进制、运行时回退用的同一张图）。
+func stageBuildIcons(projectRoot string) error {
+	source := filepath.Join(projectRoot, "internal", "appicon", "icon.ico")
+	if _, err := os.Stat(source); err != nil {
+		return fmt.Errorf("找不到图标源 %s：%w", source, err)
+	}
+	windowsIcon := filepath.Join(projectRoot, "build", "windows", "icon.ico")
+	if err := os.MkdirAll(filepath.Dir(windowsIcon), 0o755); err != nil {
+		return err
+	}
+	if err := copyFileContents(source, windowsIcon); err != nil {
+		return err
+	}
+	if runtime.GOOS == "darwin" {
+		// macOS 要一张 PNG（Wails 再转成 .icns）：用系统自带的 sips 从 ico 转出来，
+		// 并放大到 1024（Wails 的建议尺寸）。Windows 上没有 sips，也不需要这一步。
+		appIcon := filepath.Join(projectRoot, "build", "appicon.png")
+		if err := runCommand(projectRoot, "sips", "-s", "format", "png", source, "--out", appIcon); err != nil {
+			return fmt.Errorf("转换 macOS 图标失败：%w", err)
+		}
+		if err := runCommand(projectRoot, "sips", "-z", "1024", "1024", appIcon); err != nil {
+			return fmt.Errorf("放大 macOS 图标失败：%w", err)
+		}
+	}
+	return nil
+}
+
+func runCommand(directory string, name string, arguments ...string) error {
+	command := exec.Command(name, arguments...)
+	command.Dir = directory
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s %v: %v (%s)", name, arguments, err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+func copyFileContents(source string, target string) error {
+	content, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(target, content, 0o644)
 }
 
 // applyVersionInfo 把版本写进 wails.json 的 info，返回还原函数。
