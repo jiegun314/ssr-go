@@ -90,10 +90,19 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 
 /* 结果卡片的表格工具条（Material data table 的 toolbar 位置）：
    动作在左、汇总摘要在右；固定高度，不参与收缩 */
-.table-toolbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;min-height:40px;
-  padding:4px 8px;margin-bottom:8px;background:rgba(0,0,0,.04);border-radius:var(--md-radius-control)}
-.table-toolbar .toolbar-summary{margin-left:auto;font-size:12px;color:var(--md-on-surface-medium);
-  white-space:nowrap}
+.table-toolbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+/* 中间那条浅色信息条：占满中间空间，内容居中 */
+.status-strip{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:16px;
+  min-height:40px;padding:4px 12px;background:rgba(0,0,0,.04);border-radius:var(--md-radius-control);
+  font-size:12px;color:var(--md-on-surface-medium);white-space:nowrap;overflow:hidden}
+.status-strip .strip-item{display:inline-flex;align-items:center;gap:6px}
+.status-strip .strip-item b{font-weight:500;color:var(--md-on-surface)}
+/* 结果状态的圆点：与导入区同尺寸（10dp），颜色取对应状态语义 */
+.status-strip .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+.status-strip .dot.status-ready{background:#1B7F3B;border:1px solid #A5D6A7}
+.status-strip .dot.status-incomplete{background:#A4262C;border:1px solid #F1B0B7}
+.status-strip .dot.status-duplicate{background:#B26A00;border:1px solid #FFE0B2}
+.status-strip .dot.status-conflict{background:#F4CCCC;border:1px solid #C62828}
 </style>
 <!-- Material Design 主题层：只覆盖视觉（颜色/字体/圆角/阴影/控件外观），
      不改变上面的布局规则（左右两栏比例、分组顺序与空行、置顶/置底与可伸缩空隙）。 -->
@@ -246,9 +255,10 @@ dialog .tblwrap{margin:0 24px 8px}
           <div class="table-toolbar">
             <button id="btn-consolidate">
               <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 20.41L18.41 19 15 15.59 13.59 17 17 20.41zM7.5 8H11v5.59L5.59 19 7 20.41l6-6V8h3.5L12 3.5 7.5 8z"/></svg>数据整合</button>
+            <!-- 中间浅色工具条：汇总信息居中，状态用圆点（与导入区一致的口径） -->
+            <div class="status-strip" id="consolidation-summary"></div>
             <button id="btn-export">
               <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"/></svg>生成文件</button>
-            <span class="toolbar-summary" id="consolidation-summary"></span>
           </div>
           <div class="tblwrap"><table id="result-table"></table></div>
         </div>

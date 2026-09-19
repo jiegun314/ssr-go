@@ -30,6 +30,26 @@ let state = { imports: {}, busy: false };
 const REVIEW_PAGE_SIZE = 100;
 let review = { kind: "source", source: "", fileType: "", start: "", end: "", page: 1, pageCount: 1 };
 
+// 整合结果的状态汇总条：三种主要状态常显（绿/红/黄圆点，与导入区圆点同尺寸），
+// Conflict 只在真的出现时显示（它的含义见 README 3.2.3 / AGENTS.md R14）。
+function renderConsolidationSummary(counts) {
+  const strip = document.getElementById("consolidation-summary");
+  if (!strip) return;
+  const items = [
+    ["Ready", "status-ready"],
+    ["Incomplete", "status-incomplete"],
+    ["Duplicate", "status-duplicate"],
+  ];
+  let markup = items
+    .map(([name, dotClass]) =>
+      `<span class="strip-item"><span class="dot ${dotClass}"></span>${name} <b>${counts[name] || 0}</b></span>`)
+    .join("");
+  if (counts.Conflict) {
+    markup += `<span class="strip-item"><span class="dot status-conflict"></span>Conflict <b>${counts.Conflict}</b></span>`;
+  }
+  strip.innerHTML = markup;
+}
+
 async function openReviewPage(page) {
   const result = review.kind === "log"
     ? await call("ReviewLog", review.start, review.end, page, REVIEW_PAGE_SIZE)
@@ -287,14 +307,12 @@ document.addEventListener("click", async (event) => {
       setLog(result.log);
       if (result.failed) return showModal(result.title, result.message);
       renderTable("result-table", result.columns, result.rows, result.statuses);
-      // 汇总摘要前置到工具条：Ready / Incomplete / Duplicate / Conflict 计数
+      // 汇总信息条：Ready / Incomplete / Duplicate 常显，Conflict 只在出现时显示
       const counts = {};
       for (const status of result.statuses || []) {
         counts[status] = (counts[status] || 0) + 1;
       }
-      document.getElementById("consolidation-summary").textContent =
-        `Ready ${counts.Ready || 0} · Incomplete ${counts.Incomplete || 0} · ` +
-        `Duplicate ${counts.Duplicate || 0} · Conflict ${counts.Conflict || 0}`;
+      renderConsolidationSummary(counts);
       break;
     }
     case "btn-export": {
@@ -337,6 +355,7 @@ const EASTER_EGG_WINDOW_MS = 5000;
 
 document.addEventListener("DOMContentLoaded", () => {
   defaultRange();
+  renderConsolidationSummary({});
   document.getElementById("about-icon").addEventListener("click", () => {
     const now = Date.now();
     aboutClicks = aboutClicks.filter((time) => now - time < EASTER_EGG_WINDOW_MS);
