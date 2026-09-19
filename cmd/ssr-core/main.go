@@ -72,6 +72,8 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		return runGenSampleFlags(arguments[1:], stdout, stderr)
 	case "alignlogcolumns":
 		return runAlignLogColumnsFlags(arguments[1:], stdout, stderr)
+	case "release":
+		return runReleaseFlags(arguments[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "未知子命令：%s\n\n%s", arguments[0], usageText)
 		return 2

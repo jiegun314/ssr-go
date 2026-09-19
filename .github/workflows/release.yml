@@ -1,0 +1,61 @@
+# macOS 与 Windows 的构建 + 发布（不做 Linux，见 AGENTS.md §7.6：没有交叉编译，
+# 每个平台各自原生构建）。
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: 单元测试
+        run: go test ./...
+      - name: 日志列必须与导出模板一致（防止生成物漂移）
+        run: go run ./cmd/ssr-core genlogcolumns --check --config config
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 版本号来自 git tag：必须取到完整历史与 tag
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: 安装 Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: 校验版本前置条件（HEAD 有 tag、工作区干净）
+        shell: bash
+        run: |
+          git describe --tags --always --match 'v[0-9]*'
+          test -z "$(git status --porcelain)"
+      - name: 构建并组装发布包
+        # 非 tag 触发（PR / 手动）时允许脏树，本地自测口径与发布一致
+        run: go run ./cmd/ssr-core release ${{ startsWith(github.ref, 'refs/tags/') && '' || '--allow-dirty' }}
+      - name: 上传发布包
+        uses: actions/upload-artifact@v4
+        with:
+          name: SingleSourceReady-${{ matrix.platform }}
+          path: |
+            release/*.zip
+            release/SingleSourceReady/VERSION
+          if-no-files-found: error

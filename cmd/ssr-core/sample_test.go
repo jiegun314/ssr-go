@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// copyTree 把配置与模板复制进临时工作区（导入与整合都按配置根解析路径）。
-func copyTree(t *testing.T, source string, target string) {
+// copyTreeForTest 把配置与模板复制进临时工作区（导入与整合都按配置根解析路径）。
+func copyTreeForTest(t *testing.T, source string, target string) {
 	t.Helper()
 	entries, err := os.ReadDir(source)
 	if err != nil {
@@ -22,7 +22,7 @@ func copyTree(t *testing.T, source string, target string) {
 			if err := os.MkdirAll(to, 0o755); err != nil {
 				t.Fatalf("建目录失败：%v", err)
 			}
-			copyTree(t, from, to)
+			copyTreeForTest(t, from, to)
 			continue
 		}
 		content, err := os.ReadFile(from)
@@ -42,8 +42,8 @@ func copyTree(t *testing.T, source string, target string) {
 // tests/test_sample_data.py：Go 生成的样本必须能跑出文档写明的结果。
 func TestGeneratedSamplesReproduceTheDocumentedOutcome(t *testing.T) {
 	workspace := t.TempDir()
-	copyTree(t, filepath.Join("..", "..", "config"), filepath.Join(workspace, "config"))
-	copyTree(t, filepath.Join("..", "..", "data"), filepath.Join(workspace, "data"))
+	copyTreeForTest(t, filepath.Join("..", "..", "config"), filepath.Join(workspace, "config"))
+	copyTreeForTest(t, filepath.Join("..", "..", "data"), filepath.Join(workspace, "data"))
 	configDir := filepath.Join(workspace, "config")
 	var stdout, stderr bytes.Buffer
 
