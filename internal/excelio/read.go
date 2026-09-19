@@ -34,6 +34,20 @@ func ReadFirstSheet(path string) (*Sheet, error) {
 	return ReadSheet(workbook, name)
 }
 
+// ReadSheetByName 读指定工作表（生成日志列时用：那份表是配置里指定的 sheet_name）。
+func ReadSheetByName(path string, sheetName string) (*Sheet, error) {
+	workbook, err := excelize.OpenFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open workbook %s: %w", path, err)
+	}
+	defer workbook.Close()
+	index, err := workbook.GetSheetIndex(sheetName)
+	if err != nil || index < 0 {
+		return nil, fmt.Errorf("Workbook %s has no worksheet %s", path, sheetName)
+	}
+	return ReadSheet(workbook, sheetName)
+}
+
 // ReadSheet 读指定工作表（导出模板以外的场景用不到）。
 func ReadSheet(workbook *excelize.File, sheetName string) (*Sheet, error) {
 	rows, err := workbook.Rows(sheetName)

@@ -64,7 +64,11 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		return runExportFlags(arguments[1:], stdout, stderr)
 	case "snapshot":
 		return runSnapshotFlags(arguments[1:], stdout, stderr)
-	case "genlogcolumns", "alignlogcolumns", "gensample", "preparedb":
+	case "genlogcolumns":
+		return runGenLogColumnsFlags(arguments[1:], stdout, stderr)
+	case "preparedb":
+		return runPrepareDBFlags(arguments[1:], stdout, stderr)
+	case "alignlogcolumns", "gensample":
 		return runNotImplemented(arguments[0], arguments[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "未知子命令：%s\n\n%s", arguments[0], usageText)
