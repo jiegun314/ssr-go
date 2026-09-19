@@ -125,9 +125,15 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 .settings-edit-actions{display:flex;justify-content:flex-end;gap:8px;padding:8px 0 0}
 .settings-body{max-height:56vh;overflow:auto;padding:0 24px 8px}
 /* 参数设定的排版：红色标题层全大写、居左；每深入一层多缩进一级 */
-.settings-body .md-h{margin:12px 0 4px;font-size:13px;font-weight:500;color:var(--md-on-surface);
-  text-align:left;text-transform:uppercase;letter-spacing:.4px}
-.settings-body h3.md-h{font-size:14px;color:var(--md-primary)}
+/* 分层排版：一级＝红色大写加粗；二级＝黑色加粗；三级及更深＝与正文一致（不加粗不放大），
+   只靠左侧缩进体现层级 */
+.settings-body .md-h{margin:12px 0 4px;text-align:left;font-weight:400;
+  font-size:12px;color:var(--md-on-surface);text-transform:none;letter-spacing:normal}
+.settings-body h3.md-h{font-size:14px;font-weight:600;color:var(--md-primary);
+  text-transform:uppercase;letter-spacing:.4px}
+.settings-body h4.md-h{font-size:13px;font-weight:600;color:var(--md-on-surface)}
+.settings-body h5.md-h,
+.settings-body h6.md-h{font-size:12px;font-weight:400;color:var(--md-on-surface-medium)}
 .settings-body .md-d0{padding-left:0}
 .settings-body .md-d1{padding-left:12px}
 .settings-body .md-d2{padding-left:24px}
