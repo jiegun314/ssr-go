@@ -93,19 +93,20 @@ func yamlNodeToHTML(node *yaml.Node, depth int) string {
 				if level > 6 {
 					level = 6
 				}
-				fmt.Fprintf(&builder, "<h%d class=\"md-h\">%s</h%d>\n",
-					level, html.EscapeString(key), level)
+				fmt.Fprintf(&builder, "<h%d class=\"md-h md-d%d\">%s</h%d>\n",
+					level, depth, html.EscapeString(key), level)
 				builder.WriteString(yamlNodeToHTML(value, depth+1))
 				continue
 			}
-			builder.WriteString("<div class=\"md-kv\"><span class=\"md-k\">" +
-				html.EscapeString(key) + "</span><span class=\"md-v\">" +
-				html.EscapeString(value.Value) + "</span></div>\n")
+			fmt.Fprintf(&builder,
+				"<div class=\"md-kv md-d%d\"><span class=\"md-k\">%s</span>"+
+					"<span class=\"md-v\">%s</span></div>\n",
+				depth, html.EscapeString(key), html.EscapeString(value.Value))
 		}
 		return builder.String()
 	case yaml.SequenceNode:
 		var builder strings.Builder
-		builder.WriteString("<ul class=\"md-list\">\n")
+		fmt.Fprintf(&builder, "<ul class=\"md-list md-d%d\">\n", depth)
 		for _, item := range node.Content {
 			if item.Kind == yaml.MappingNode || item.Kind == yaml.SequenceNode {
 				builder.WriteString("<li class=\"md-item-block\">")
@@ -113,7 +114,8 @@ func yamlNodeToHTML(node *yaml.Node, depth int) string {
 				builder.WriteString("</li>\n")
 				continue
 			}
-			builder.WriteString("<li>" + html.EscapeString(item.Value) + "</li>\n")
+			builder.WriteString("<li class=\"md-d" + fmt.Sprint(depth) + "\">" +
+				html.EscapeString(item.Value) + "</li>\n")
 		}
 		builder.WriteString("</ul>\n")
 		return builder.String()

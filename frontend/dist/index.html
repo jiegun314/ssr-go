@@ -124,8 +124,16 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
   background:var(--md-surface);color:var(--md-on-surface);white-space:pre;overflow:auto}
 .settings-edit-actions{display:flex;justify-content:flex-end;gap:8px;padding:8px 0 0}
 .settings-body{max-height:56vh;overflow:auto;padding:0 24px 8px}
-.settings-body .md-h{margin:12px 0 4px;font-size:13px;font-weight:500;color:var(--md-on-surface)}
+/* 参数设定的排版：红色标题层全大写、居左；每深入一层多缩进一级 */
+.settings-body .md-h{margin:12px 0 4px;font-size:13px;font-weight:500;color:var(--md-on-surface);
+  text-align:left;text-transform:uppercase;letter-spacing:.4px}
 .settings-body h3.md-h{font-size:14px;color:var(--md-primary)}
+.settings-body .md-d0{padding-left:0}
+.settings-body .md-d1{padding-left:12px}
+.settings-body .md-d2{padding-left:24px}
+.settings-body .md-d3{padding-left:36px}
+.settings-body .md-d4{padding-left:48px}
+.settings-body .md-d5{padding-left:60px}
 .settings-body .md-kv{display:flex;gap:12px;padding:2px 0 2px 8px;font-size:12px;line-height:18px}
 .settings-body .md-k{flex:0 0 auto;min-width:180px;color:var(--md-on-surface-medium)}
 .settings-body .md-v{flex:1 1 auto;word-break:break-word;

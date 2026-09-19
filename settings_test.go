@@ -60,6 +60,13 @@ func TestConfigurationDocumentRendersFourTabs(t *testing.T) {
 			}
 		}
 	}
+	// 逐级缩进：嵌套层级要带深度类（CSS 用 md-d0/1/2… 控制缩进）
+	nested := tabs[1].HTML // excel_import_mapping.yaml 结构最深
+	for _, wanted := range []string{"md-d1", "md-d2", "md-d3"} {
+		if !strings.Contains(nested, wanted) {
+			t.Errorf("嵌套内容缺少深度类 %s", wanted)
+		}
+	}
 	// 转义：渲染结果里不能出现未转义的可执行标签
 	if strings.Contains(tabs[1].HTML, "<script") {
 		t.Error("渲染结果里出现了未转义的 script 标签")
