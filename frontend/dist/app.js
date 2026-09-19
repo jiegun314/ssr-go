@@ -91,6 +91,7 @@ const BUSY_TEXT = {
   Consolidate: "正在整合数据...",
   ReviewSource: "正在加载已导入数据...",
   ReviewLog: "正在加载已导入数据...",
+  SelectExportTarget: "正在选择保存位置",
   Export: "正在导出文件...",
   ExportReviewData: "正在导出文件...",
   ClearImportedData: "正在清空导入数据...",
@@ -264,7 +265,11 @@ document.addEventListener("click", async (event) => {
       break;
     }
     case "btn-export": {
-      const result = await call("Export");
+      // 第一步：选择保存位置（载入图层显示「正在选择保存位置」）
+      const choice = await call("SelectExportTarget");
+      if (!choice || !choice.target) break; // 取消：什么都不做
+      // 第二步：写文件（载入图层显示「正在导出文件...」）
+      const result = await call("Export", choice.defaultName, choice.target);
       setLog(result.log);
       showModal(result.title, result.message);
       break;

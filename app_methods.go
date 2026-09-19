@@ -236,20 +236,47 @@ type ExportResult struct {
 	Path    string `json:"path"`
 }
 
-// Export 弹保存对话框并把 Ready 行写进模板副本（R20/R21）。
-func (app *App) Export() ExportResult {
+// ExportTarget 是保存对话框的结果：默认文件名（= 导出目录里那份副本的名字，R20）
+// 与用户选中的路径；Target 为空表示用户取消。
+type ExportTarget struct {
+	DefaultName string `json:"defaultName"`
+	Target      string `json:"target"`
+}
+
+// SelectExportTarget 打开「Save Consolidation Result」对话框并返回选择结果。
+//
+// 与导出分成两步，让载入图层显示准确阶段：对话框阶段是「正在选择保存位置」，
+// 真正写文件时才是「正在导出文件...」。
+func (app *App) SelectExportTarget() ExportTarget {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.importer == nil {
+		return ExportTarget{}
+	}
+	defaultName := app.service.DefaultExportFileName(time.Now())
+	target, err := app.saveFile(defaultName)
+	if err != nil {
+		return ExportTarget{DefaultName: defaultName}
+	}
+	return ExportTarget{DefaultName: defaultName, Target: target}
+}
+
+// Export 把 Ready 行写进模板副本（导出目录留副本），再复制到用户选中的路径（R20/R21）。
+func (app *App) Export(fileName string, target string) ExportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
 		return ExportResult{Failed: true, Title: "Export Error", Message: err.Error()}
 	}
 	defer app.endOperation()
-	now := time.Now()
-	defaultName := app.service.DefaultExportFileName(now)
-	target, err := app.saveFile(defaultName)
-	if err != nil || target == "" {
+	if target == "" {
 		// 用户取消：什么都不做
 		return ExportResult{Log: app.logText()}
+	}
+	now := time.Now()
+	defaultName := fileName
+	if defaultName == "" {
+		defaultName = app.service.DefaultExportFileName(now)
 	}
 	exported, err := app.service.ExportConsolidationResult(defaultName, now)
 	if err != nil {
