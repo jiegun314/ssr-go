@@ -58,7 +58,7 @@ func TestTheOperationLogCardHasADragHandle(t *testing.T) {
 	if body := styleRule(t, html, "textarea#log{"); !strings.Contains(body, "flex:1 1 auto") {
 		t.Errorf("日志文本框没有撑满内容区：%s", body)
 	}
-	// 关于窗口的图标保持普通指针（彩蛋不提示）
+	// 关于窗口的图标保持普通指针（不额外提示可点击）
 	if body := styleRule(t, html, "#about-icon{"); strings.Contains(body, "cursor:") {
 		t.Errorf("关于窗口图标不应设光标：%s", body)
 	}
@@ -92,4 +92,30 @@ func readFrontendFile(t *testing.T, name string) string {
 		t.Fatalf("读前端文件 %s 失败：%v", name, err)
 	}
 	return string(raw)
+}
+
+// TestTheHiddenWindowIsNotAdvertisedInTheFrontend 固定「不提示」的口径：
+// 界面、脚本与资源文件名里都不能出现说明隐藏窗口的文字或命名
+// （它们会随界面打进程序，用 strings 就能看到）。
+func TestTheHiddenWindowIsNotAdvertisedInTheFrontend(t *testing.T) {
+	hints := []string{"彩蛋", "连点", "easter", "EASTER", "egg", "Egg", "EGG"}
+	for _, name := range []string{"index.html", "app.js"} {
+		content := readFrontendFile(t, name)
+		for _, hint := range hints {
+			if strings.Contains(content, hint) {
+				t.Errorf("frontend/dist/%s 里出现了会提示隐藏窗口的文字：%q", name, hint)
+			}
+		}
+	}
+	entries, err := os.ReadDir(filepath.Join("frontend", "dist"))
+	if err != nil {
+		t.Fatalf("读 frontend/dist 失败：%v", err)
+	}
+	for _, entry := range entries {
+		for _, hint := range hints {
+			if strings.Contains(entry.Name(), hint) {
+				t.Errorf("资源文件名带提示：%s（命中 %q）", entry.Name(), hint)
+			}
+		}
+	}
 }

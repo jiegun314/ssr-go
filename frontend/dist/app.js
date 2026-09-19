@@ -422,10 +422,10 @@ async function openAbout() {
   document.getElementById("about").showModal();
 }
 
-// 彩蛋：在关于窗口的图标上 5 秒内连点 8 次（原版行为，必须保留）。
+// 关于窗口图标上的点击计数：阈值与时间窗沿用原版，属行为契约，不要改这两个数值。
 let aboutClicks = [];
-const EASTER_EGG_CLICKS = 8;
-const EASTER_EGG_WINDOW_MS = 5000;
+const ICON_CLICK_COUNT = 8;
+const ICON_CLICK_WINDOW_MS = 5000;
 
 // 操作日志的高度可以拖动上沿调整（§6.5 界面微调）：
 //   向上拖 = 拉高日志，最多拉到左侧「数据导入 / 记录导出」之间只剩最小间隔（.spacer 的 12px）；
@@ -554,12 +554,12 @@ document.addEventListener("DOMContentLoaded", () => {
   setupLogResizer();
   document.getElementById("about-icon").addEventListener("click", () => {
     const now = Date.now();
-    aboutClicks = aboutClicks.filter((time) => now - time < EASTER_EGG_WINDOW_MS);
+    aboutClicks = aboutClicks.filter((time) => now - time < ICON_CLICK_WINDOW_MS);
     aboutClicks.push(now);
-    if (aboutClicks.length >= EASTER_EGG_CLICKS) {
+    if (aboutClicks.length >= ICON_CLICK_COUNT) {
       aboutClicks = [];
       document.getElementById("about").close();
-      document.getElementById("egg-dialog").showModal();
+      document.getElementById("puppy-dialog").showModal();
     }
   });
   // 菜单「关于」由 Go 侧发事件（runtime.EventsEmit("show-about")）

@@ -61,11 +61,9 @@ td.MISSING{font-weight:700}
 .pager .spacer{flex:1 1 auto}
 input[type=date],input[type=datetime-local]{font:inherit;padding:2px 4px}
 textarea#log{width:100%;flex:1 1 auto;height:auto;min-height:56px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;resize:none}
-/* 图标默认就是普通指针（彩蛋不提示、不引导）：这里和 .about img 都不设手型光标 */
+/* 图标保持默认指针：这里和 .about img 都不设手型光标（不额外提示可点击） */
 #about-icon{width:40px;height:40px;float:right}
 dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
-#egg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9}
-#egg img{max-width:60%;border-radius:6px;background:#fff}
 .busy{opacity:.65;pointer-events:none}
 
 /* 载入图层（Material）：全窗口 scrim + 居中卡片 + M3 不定量圆形进度指示器。
@@ -280,8 +278,8 @@ dialog .tblwrap{margin:0 24px 8px}
 .about .version{color:var(--md-on-surface-medium);font-size:12px;line-height:18px}
 /* 说明段：原文是四行（含换行），保留原样换行 */
 .about .intro{white-space:pre-wrap;color:var(--md-on-surface-medium);font-size:12px;line-height:18px}
-/* 彩蛋窗口：标题 🐶Puppy Approved!🐾 + 图片 */
-#egg-dialog img{display:block;max-width:323px;max-height:323px;margin:0 24px 8px;border-radius:8px}
+/* 附加窗口：标题 🐶Puppy Approved!🐾 + 图片 */
+#puppy-dialog img{display:block;max-width:323px;max-height:323px;margin:0 24px 8px;border-radius:8px}
 </style>
 </head>
 <body>
@@ -382,7 +380,7 @@ dialog .tblwrap{margin:0 24px 8px}
   </div>
 </dialog>
 
-<!-- 关于窗口（菜单「关于」打开）。图标上 5 秒内连点 8 次进入彩蛋。 -->
+<!-- 关于窗口（菜单「关于」打开）：图标 + 名称 + 版本号 -->
 <dialog id="about">
   <h3>About</h3>
   <div class="about">
@@ -401,10 +399,10 @@ Greater China Supply Chain &amp; RA Team
   <form method="dialog"><button>确定</button></form>
 </dialog>
 
-<!-- 彩蛋窗口（原版是独立窗口，标题就是下面这行） -->
-<dialog id="egg-dialog">
+<!-- 附加窗口（原版是独立窗口，标题就是下面这行） -->
+<dialog id="puppy-dialog">
   <h3>🐶Puppy Approved!🐾</h3>
-  <img src="easter_egg.png" alt="🐶Puppy Approved!🐾" />
+  <img src="puppy.png" alt="🐶Puppy Approved!🐾" />
   <form method="dialog"><button>关闭</button></form>
 </dialog>
 
