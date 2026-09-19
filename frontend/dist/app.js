@@ -29,15 +29,19 @@ let state = { imports: {}, busy: false };
 // Google Material 图标的官方路径（Apache-2.0），内嵌在页面里 —— 这是离线工具，
 // 不能引外链字体。尺寸与配色由 .icon-btn 控制。
 const ICONS = {
-  // file_upload：导入
+  // file_download：导入（箭头朝内落到托盘上）。注意 file_upload 的箭头朝外，
+  // 那是「导出/上传」的语义，用在这里是错的。
   import:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zM5 18h14v2H5v-2z"/></svg>',
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>',
   // visibility：数据回顾
   review:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>',
   // delete：清空导入数据
   clear:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
+  // history：记录导出区的「回顾」（按时间区间回看操作日志）
+  history:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>',
 };
 
 const bridge = () => (window.go && window.go.main ? window.go.main.App : null);

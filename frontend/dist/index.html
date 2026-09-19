@@ -112,7 +112,6 @@ button:disabled{color:var(--md-on-surface-disabled);background:transparent}
 /* 主要动作＝filled button；次要动作＝outlined button（与原按钮一一对应，不新增控件） */
 #btn-consolidate,#btn-export{background:var(--md-primary);color:var(--md-on-primary);box-shadow:var(--md-elev-1)}
 #btn-consolidate:hover:not(:disabled),#btn-export:hover:not(:disabled){background:var(--md-primary-dark)}
-#btn-review-log{border:1px solid var(--md-outline-strong)}
 .group .actions button[data-action="import"]{border:1px solid var(--md-outline-strong)}
 /* Material icon button（M3 extra-small：32dp 容器 + 20dp 图标 + 圆形状态层）。
    三个图标按钮（导入 / 数据回顾 / 清空导入数据）共用这套口径；语义色与布局不变。 */
@@ -173,7 +172,9 @@ dialog .tblwrap{margin:0 24px 8px}
               <input type="date" id="end-date" />
             </div>
             <span class="spacer"></span>
-            <button id="btn-review-log">回顾</button>
+            <button class="icon-btn" id="btn-review-log" title="回顾" aria-label="回顾">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            </button>
           </div>
         </div>
       </section>
