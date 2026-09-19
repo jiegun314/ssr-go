@@ -61,7 +61,8 @@ td.MISSING{font-weight:700}
 .pager .spacer{flex:1 1 auto}
 input[type=date],input[type=datetime-local]{font:inherit;padding:2px 4px}
 textarea#log{width:100%;flex:1 1 auto;height:auto;min-height:56px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;resize:none}
-#about-icon{width:40px;height:40px;cursor:pointer;float:right}
+/* 图标默认就是普通指针（彩蛋不提示、不引导）：这里和 .about img 都不设手型光标 */
+#about-icon{width:40px;height:40px;float:right}
 dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 #egg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9}
 #egg img{max-width:60%;border-radius:6px;background:#fff}
@@ -113,9 +114,11 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
   display:flex;align-items:center;justify-content:center;touch-action:none}
 .log-resizer::before{content:"";width:44px;height:3px;border-radius:2px;
   background:var(--md-outline-strong);transition:background .12s ease,transform .12s ease}
+/* 上下调节的光标只由分隔条自己提供：拖动时分隔条跟着鼠标走，光标自然保持；
+   不在 body 上覆盖 cursor —— 否则松手后光标会卡在上下调节（曾经的问题）。 */
 .log-resizer:hover::before,.log-resizer:focus-visible::before{background:var(--md-primary)}
 .log-resizer:focus-visible{outline:2px solid var(--md-primary);outline-offset:2px}
-body.log-resizing{cursor:row-resize;user-select:none}
+body.log-resizing{user-select:none}
 body.log-resizing .log-resizer::before{background:var(--md-primary);transform:scaleX(1.15)}
 
 /* 参数设定窗口：Material 页签 + Markdown 风格内容排版 */
@@ -272,7 +275,7 @@ dialog .tblwrap{margin:0 24px 8px}
 /* 关于窗口：图标 + 名称 + 一行版本号（commit 与构建时间在版本号的 tooltip 里），
    小对话框、固定内容 —— 与 Qt 版的 AboutWindow 一致 */
 .about{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 32px 8px;text-align:center}
-.about img{width:48px;height:48px;border-radius:8px;cursor:pointer}
+.about img{width:48px;height:48px;border-radius:8px}
 .about .name{font-size:16px;font-weight:500;line-height:24px}
 .about .version{color:var(--md-on-surface-medium);font-size:12px;line-height:18px}
 /* 说明段：原文是四行（含换行），保留原样换行 */

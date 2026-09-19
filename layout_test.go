@@ -33,6 +33,10 @@ func TestTheOperationLogCardHasADragHandle(t *testing.T) {
 	if body := styleRule(t, html, ".log-resizer{"); !strings.Contains(body, "cursor:row-resize") {
 		t.Errorf("分隔条不是上下拖动的手型：%s", body)
 	}
+	// 上下调节的光标只能由分隔条自己提供：在 body 上覆盖 cursor 会让松手后光标卡住
+	if body := styleRule(t, html, "body.log-resizing{"); strings.Contains(body, "cursor:") {
+		t.Errorf("拖动状态不应在 body 上覆盖光标（松手后会卡在上下调节）：%s", body)
+	}
 	// 拖动逻辑：向上拖＝变高，下限是默认高度，上限由中间列的最低高度决定
 	for _, wanted := range []string{
 		"function setupLogResizer()",
@@ -40,6 +44,8 @@ func TestTheOperationLogCardHasADragHandle(t *testing.T) {
 		"drag.startY - event.clientY",
 		"columnMinimumHeight()",
 		`section.style.flex = "0 0 auto"`,
+		`window.addEventListener("pointerup", finishDrag)`,
+		`window.addEventListener("pointercancel", finishDrag)`,
 	} {
 		if !strings.Contains(script, wanted) {
 			t.Errorf("app.js 里缺少拖动逻辑：%s", wanted)
@@ -51,6 +57,13 @@ func TestTheOperationLogCardHasADragHandle(t *testing.T) {
 	}
 	if body := styleRule(t, html, "textarea#log{"); !strings.Contains(body, "flex:1 1 auto") {
 		t.Errorf("日志文本框没有撑满内容区：%s", body)
+	}
+	// 关于窗口的图标保持普通指针（彩蛋不提示）
+	if body := styleRule(t, html, "#about-icon{"); strings.Contains(body, "cursor:") {
+		t.Errorf("关于窗口图标不应设光标：%s", body)
+	}
+	if body := styleRule(t, html, ".about img{"); strings.Contains(body, "cursor:") {
+		t.Errorf("关于窗口图标不应设光标：%s", body)
 	}
 }
 

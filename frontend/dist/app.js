@@ -494,6 +494,26 @@ function setupLogResizer() {
 
   const right = document.querySelector(".right");
   let drag = null;
+  function onPointerMove(event) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    // 鼠标往上（clientY 变小）＝日志变高
+    applyHeight(drag.startHeight + (drag.startY - event.clientY), defaultHeight);
+  }
+  function finishDrag(event) {
+    if (!drag) return;
+    if (event && event.pointerId !== undefined && event.pointerId !== drag.pointerId) return;
+    if (handle.hasPointerCapture && handle.hasPointerCapture(drag.pointerId)) {
+      try { handle.releasePointerCapture(drag.pointerId); } catch (error) { /* 忽略 */ }
+    }
+    // 收尾事件挂在 window 上，这里要摘掉
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", finishDrag);
+    window.removeEventListener("pointercancel", finishDrag);
+    window.removeEventListener("blur", finishDrag);
+    drag = null;
+    document.body.classList.remove("log-resizing");
+    document.body.style.cursor = ""; // 兜底：清掉可能残留的光标覆盖
+  }
   handle.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     refreshCap();
@@ -502,22 +522,13 @@ function setupLogResizer() {
     // 合成事件（测试用）没有活跃指针，捕获失败不影响拖动
     try { handle.setPointerCapture(event.pointerId); } catch (error) { /* 忽略 */ }
     document.body.classList.add("log-resizing");
+    // 松手/取消挂在 window 上：鼠标移出分隔条再松手也能收尾，
+    // 不然光标会停在上下调节的样子（用户报的 bug）。
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", finishDrag);
+    window.addEventListener("pointercancel", finishDrag);
+    window.addEventListener("blur", finishDrag);
   });
-  handle.addEventListener("pointermove", (event) => {
-    if (!drag) return;
-    // 鼠标往上（clientY 变小）＝日志变高
-    applyHeight(drag.startHeight + (drag.startY - event.clientY), defaultHeight);
-  });
-  const finishDrag = (event) => {
-    if (!drag) return;
-    if (event && handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
-      handle.releasePointerCapture(event.pointerId);
-    }
-    drag = null;
-    document.body.classList.remove("log-resizing");
-  };
-  handle.addEventListener("pointerup", finishDrag);
-  handle.addEventListener("pointercancel", finishDrag);
   // 分隔条可以用键盘调：方向键一次 16px（与 Material 分隔条一致）
   handle.addEventListener("keydown", (event) => {
     const step = 16;
