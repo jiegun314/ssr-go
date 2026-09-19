@@ -26,6 +26,27 @@ const STATUS_COLOURS = {
 
 let state = { imports: {}, busy: false };
 
+// 数据回顾窗口的状态：按页取（每页 100 行），大表不会一次性塞给前端。
+const REVIEW_PAGE_SIZE = 100;
+let review = { source: "", page: 1, pageCount: 1 };
+
+async function openReviewPage(page) {
+  const result = await call("ReviewSource", review.source, page, REVIEW_PAGE_SIZE);
+  setLog(result.log);
+  if (result.failed) {
+    showModal(result.title, result.message);
+    return;
+  }
+  renderTable("review-table", result.columns, result.rows);
+  document.getElementById("review-title").textContent = result.title;
+  review.page = result.page || 1;
+  review.pageCount = result.pageCount || 1;
+  document.getElementById("review-page-info").textContent =
+    `第 ${review.page} / ${review.pageCount} 页（共 ${result.total} 行）`;
+  document.getElementById("review-prev").disabled = review.page <= 1;
+  document.getElementById("review-next").disabled = review.page >= review.pageCount;
+}
+
 // Google Material 图标的官方路径（Apache-2.0），内嵌在页面里 —— 这是离线工具，
 // 不能引外链字体。尺寸与配色由 .icon-btn 控制。
 const ICONS = {
@@ -179,12 +200,23 @@ document.addEventListener("click", async (event) => {
       break;
     }
     case "review": {
-      const result = await call("ReviewSource", source);
-      setLog(result.log);
-      if (result.failed) return showModal(result.title, result.message);
-      renderTable("review-table", result.columns, result.rows);
-      document.getElementById("review-title").textContent = result.title;
+      review.source = source;
+      await openReviewPage(1);
       document.getElementById("review").showModal();
+      break;
+    }
+    case "review-prev": {
+      if (review.page > 1) await openReviewPage(review.page - 1);
+      break;
+    }
+    case "review-next": {
+      if (review.page < review.pageCount) await openReviewPage(review.page + 1);
+      break;
+    }
+    case "review-export": {
+      const result = await call("ExportReviewData", review.source);
+      setLog(result.log);
+      showModal(result.title, result.message);
       break;
     }
     case "btn-clean": {

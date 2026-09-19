@@ -257,48 +257,113 @@ func (app *App) Export() ExportResult {
 	}
 }
 
-// ReviewResult 是数据回顾 / 日志回顾回给界面的内容。
+// ReviewResult 是数据回顾 / 日志回顾回给界面的内容。数据回顾按页返回：
+// 有些来源一次导入上万行，全部塞给前端既慢又占内存，所以分页在 Go 侧做。
 type ReviewResult struct {
-	Log     string     `json:"log"`
-	Title   string     `json:"title"`
-	Message string     `json:"message"`
-	Failed  bool       `json:"failed"`
-	Columns []string   `json:"columns"`
-	Rows    [][]string `json:"rows"`
+	Log       string     `json:"log"`
+	Title     string     `json:"title"`
+	Message   string     `json:"message"`
+	Failed    bool       `json:"failed"`
+	Columns   []string   `json:"columns"`
+	Rows      [][]string `json:"rows"`
+	Total     int        `json:"total"`
+	Page      int        `json:"page"`
+	PageSize  int        `json:"pageSize"`
+	PageCount int        `json:"pageCount"`
 }
 
-// ReviewSource 读一个来源暂存表的全部数据，列名用中文表头（§5.3）。
+// ReviewSource 读一个来源暂存表的一页数据，列名用中文表头（§5.3）。
 //
 // 医保编码来源同样可以回顾 —— 这是 #3 的修复：现状实现里那个分支被注释掉了。
-func (app *App) ReviewSource(source string) ReviewResult {
+// 运行日志只在打开回顾窗口（第 1 页）时写一行，与现状实现的开窗时机一致。
+func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
 		return ReviewResult{Failed: true, Title: "Error", Message: err.Error()}
 	}
 	defer app.endOperation()
+	if pageSize <= 0 {
+		pageSize = 100
+	}
+	if page < 1 {
+		page = 1
+	}
 	rule := app.importer.Rules[source]
 	rows, err := app.repo.Rows(rule.TargetTable)
 	if err != nil {
 		return ReviewResult{Log: app.logText(), Failed: true, Title: "Error", Message: err.Error()}
 	}
+	pageCount := (len(rows) + pageSize - 1) / pageSize
+	if pageCount == 0 {
+		pageCount = 1
+	}
+	if page > pageCount {
+		page = pageCount
+	}
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if end > len(rows) {
+		end = len(rows)
+	}
+	pageRows := rows[start:end]
 	columns := make([]string, 0, len(rule.Columns))
 	for _, column := range rule.Columns {
 		columns = append(columns, column.ChineseName)
 	}
-	table := make([][]string, 0, len(rows))
-	for _, row := range rows {
+	table := make([][]string, 0, len(pageRows))
+	for _, row := range pageRows {
 		values := make([]string, 0, len(rule.Columns))
 		for _, column := range rule.Columns {
 			values = append(values, row[column.DBField])
 		}
 		table = append(table, values)
 	}
-	app.appendLog(fmt.Sprintf(
-		"Data review completed successfully for %s. Rows reviewed: %d",
-		rule.ChineseName, len(table)))
+	if page == 1 {
+		app.appendLog(fmt.Sprintf(
+			"Data review completed successfully for %s. Rows reviewed: %d",
+			rule.ChineseName, len(rows)))
+	}
 	return ReviewResult{
 		Log: app.logText(), Title: "Data Review - " + source, Columns: columns, Rows: table,
+		Total: len(rows), Page: page, PageSize: pageSize, PageCount: pageCount,
+	}
+}
+
+// ExportReviewData 把某个来源已导入的全部数据导出成 Excel（§5.3）。
+//
+// 对话框标题 `Save Imported Data`、默认文件名 `{file_type}_imported_data.xlsx`、
+// 过滤器 `Excel Files (*.xlsx)`，成功提示 `Imported data exported successfully to {路径}`，
+// 失败提示 `Export Error` —— 与现状实现一致（导出的是全部行，不是当前页）。
+func (app *App) ExportReviewData(source string) ExportResult {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if err := app.beginOperation(); err != nil {
+		return ExportResult{Failed: true, Title: "Export Error", Message: err.Error()}
+	}
+	defer app.endOperation()
+	rule := app.importer.Rules[source]
+	target, err := runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
+		Title:           "Save Imported Data",
+		DefaultFilename: source + "_imported_data.xlsx",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
+		},
+	})
+	if err != nil || target == "" {
+		// 用户取消：什么都不做
+		return ExportResult{Log: app.logText()}
+	}
+	rows, err := app.repo.Rows(rule.TargetTable)
+	if err != nil {
+		return ExportResult{Log: app.logText(), Title: "Export Error", Message: err.Error(), Failed: true}
+	}
+	if err := writeReviewWorkbook(target, rule, rows); err != nil {
+		return ExportResult{Log: app.logText(), Title: "Export Error", Message: err.Error(), Failed: true}
+	}
+	return ExportResult{
+		Log: app.logText(), Title: "Success", Path: target,
+		Message: "Imported data exported successfully to " + target,
 	}
 }
 
