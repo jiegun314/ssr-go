@@ -1,7 +1,10 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -70,5 +73,81 @@ func TestConfigurationDocumentRendersFourTabs(t *testing.T) {
 	// 转义：渲染结果里不能出现未转义的可执行标签
 	if strings.Contains(tabs[1].HTML, "<script") {
 		t.Error("渲染结果里出现了未转义的 script 标签")
+	}
+}
+
+// TestSettingsHTMLCarriesAnIndentForEveryDepth 固定缩进的写法：每个带层级类的
+// 元素都要在 style 里带上本层的缩进基准（--md-indent = 层数 × 12px）。
+// 回归点：CSS 里曾经只定义 md-d0…md-d5 六个基准，整合映射的
+// merge_rules.sources.*.duplicates.compare_by（第 6 层）取不到值，列表项顶到最左边。
+func TestSettingsHTMLCarriesAnIndentForEveryDepth(t *testing.T) {
+	workspace := t.TempDir()
+	copyDirectoryForTest(t, "config", filepath.Join(workspace, "config"))
+	loader, err := config.NewLoader(filepath.Join(workspace, "config"))
+	if err != nil {
+		t.Fatalf("读配置失败：%v", err)
+	}
+	app := NewApp(nil)
+	app.loader = loader
+
+	depthClass := regexp.MustCompile(`<(h[3-6]|div|ul|li) class="([^"]*md-d(\d+)[^"]*)"([^>]*)>`)
+	maxDepth := -1
+	for _, tab := range app.ConfigurationDocument() {
+		for _, match := range depthClass.FindAllStringSubmatch(tab.HTML, -1) {
+			depth, convErr := strconv.Atoi(match[3])
+			if convErr != nil {
+				t.Fatalf("层数不是数字：%q", match[0])
+			}
+			if depth > maxDepth {
+				maxDepth = depth
+			}
+			if match[1] == "li" {
+				continue // 列表项不消费缩进变量（缩进由它所属的 ul 提供）
+			}
+			wanted := `style="--md-indent:` + strconv.Itoa(depth*12) + `px"`
+			if !strings.Contains(match[4], wanted) {
+				t.Errorf("%s: 第 %d 层元素缺少缩进基准 %s：%s", tab.Key, depth, wanted, match[0])
+			}
+		}
+	}
+	if maxDepth < 6 {
+		t.Fatalf("最深层级 = %d；配置里最少有第 6 层（compare_by），用例没有覆盖到这个回归点", maxDepth)
+	}
+}
+
+// TestSettingsStylesConsumeTheIndentVariable 固定样式表与渲染器的分工：
+// 缩进基准由渲染器写到元素上，CSS 只负责消费 —— 不能再出现"按层级写死的
+// padding-left 清单"（那正是深层内容顶头的原因）。
+func TestSettingsStylesConsumeTheIndentVariable(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("frontend", "dist", "index.html"))
+	if err != nil {
+		t.Fatalf("读界面文件失败：%v", err)
+	}
+	style := string(raw)
+
+	for _, rule := range []string{
+		".settings-body .md-h{",
+		".settings-body .md-kv{",
+		".settings-body .md-list{",
+	} {
+		start := strings.Index(style, rule)
+		if start < 0 {
+			t.Fatalf("样式里找不到规则 %s", rule)
+		}
+		body := style[start:]
+		if end := strings.Index(body, "}"); end >= 0 {
+			body = body[:end]
+		}
+		if !strings.Contains(body, "var(--md-indent") {
+			t.Errorf("%s 没有消费缩进变量：%s", rule, body)
+		}
+	}
+	// 一级块之间的淡分隔线
+	if !strings.Contains(style, ".settings-body h3.md-h:not(:first-child){border-top:1px solid rgba(0,0,0,.12)") {
+		t.Error("样式里缺少一级块之间的分隔线")
+	}
+	// 按层级写死缩进的清单必须已经删掉（否则会与变量方案互相打架）
+	if matched, _ := regexp.MatchString(`\.md-d\d+\{padding-left`, style); matched {
+		t.Error("样式里还有按层级写死的 padding-left 清单")
 	}
 }

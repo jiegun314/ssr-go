@@ -76,6 +76,10 @@ func (app *App) ShowSettings() {
 
 // yamlNodeToHTML 把 YAML 节点渲染成 Markdown 风格的结构化 HTML：
 // 映射与列表的键变成标题，标量变成「键 / 值」行或条目。
+//
+// 每个带层级类的元素都会带上本层的缩进基准 --md-indent（见 indentStyle）：
+// CSS 只负责消费这个变量，所以缩进没有深度上限 —— 之前用 md-d0…md-d5 六个
+// 固定类，深度 ≥6 的元素取不到基准值，会退回 0 并顶到最左边。
 func yamlNodeToHTML(node *yaml.Node, depth int) string {
 	switch node.Kind {
 	case yaml.DocumentNode:
@@ -93,20 +97,20 @@ func yamlNodeToHTML(node *yaml.Node, depth int) string {
 				if level > 6 {
 					level = 6
 				}
-				fmt.Fprintf(&builder, "<h%d class=\"md-h md-d%d\">%s</h%d>\n",
-					level, depth, html.EscapeString(key), level)
+				fmt.Fprintf(&builder, "<h%d class=\"md-h md-d%d\"%s>%s</h%d>\n",
+					level, depth, indentStyle(depth), html.EscapeString(key), level)
 				builder.WriteString(yamlNodeToHTML(value, depth+1))
 				continue
 			}
 			fmt.Fprintf(&builder,
-				"<div class=\"md-kv md-d%d\"><span class=\"md-k\">%s</span>"+
+				"<div class=\"md-kv md-d%d\"%s><span class=\"md-k\">%s</span>"+
 					"<span class=\"md-v\">%s</span></div>\n",
-				depth, html.EscapeString(key), html.EscapeString(value.Value))
+				depth, indentStyle(depth), html.EscapeString(key), html.EscapeString(value.Value))
 		}
 		return builder.String()
 	case yaml.SequenceNode:
 		var builder strings.Builder
-		fmt.Fprintf(&builder, "<ul class=\"md-list md-d%d\">\n", depth)
+		fmt.Fprintf(&builder, "<ul class=\"md-list md-d%d\"%s>\n", depth, indentStyle(depth))
 		for _, item := range node.Content {
 			if item.Kind == yaml.MappingNode || item.Kind == yaml.SequenceNode {
 				builder.WriteString("<li class=\"md-item-block\">")
@@ -123,6 +127,16 @@ func yamlNodeToHTML(node *yaml.Node, depth int) string {
 		return "<div class=\"md-kv\"><span class=\"md-v\">" +
 			html.EscapeString(node.Value) + "</span></div>\n"
 	}
+}
+
+// indentStyle 输出本层的缩进基准：每深入一层多 12px。
+// 基准值写在元素上（而不是靠 CSS 里 md-d0…md-d5 的固定清单），
+// 这样任意深度的配置都能正确缩进。
+func indentStyle(depth int) string {
+	if depth < 0 {
+		depth = 0
+	}
+	return fmt.Sprintf(" style=\"--md-indent:%dpx\"", depth*12)
 }
 
 // SettingsSaveResult 是「参数设定」里保存一份配置的结果。

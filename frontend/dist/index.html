@@ -126,25 +126,29 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 .settings-body{max-height:56vh;overflow:auto;padding:0 24px 8px}
 /* 参数设定的排版：红色标题层全大写、居左；每深入一层多缩进一级 */
 /* 分层排版：一级＝红色大写加粗；二级＝黑色加粗；三级及更深＝与正文一致（不加粗不放大），
-   只靠左侧缩进体现层级 */
+   只靠左侧缩进体现层级。
+   缩进用 CSS 变量 --md-indent 作为"本层基准"（渲染器写在元素上，每层 +12px），
+   各元素在此基础上叠加自己的内边距——这样深度规则与基础规则的先后顺序不会互相覆盖，
+   缩进也没有深度上限（之前用 md-d0…md-d5 固定清单，第 6 层取不到基准值，内容会顶头）。 */
 .settings-body .md-h{margin:12px 0 4px;text-align:left;font-weight:400;
-  font-size:12px;color:var(--md-on-surface);text-transform:none;letter-spacing:normal}
+  font-size:12px;color:var(--md-on-surface);text-transform:none;letter-spacing:normal;
+  padding-left:calc(var(--md-indent, 0px) + 0px)}
 .settings-body h3.md-h{font-size:14px;font-weight:600;color:var(--md-primary);
   text-transform:uppercase;letter-spacing:.4px}
 .settings-body h4.md-h{font-size:13px;font-weight:600;color:var(--md-on-surface)}
 .settings-body h5.md-h,
 .settings-body h6.md-h{font-size:12px;font-weight:400;color:var(--md-on-surface-medium)}
-.settings-body .md-d0{padding-left:0}
-.settings-body .md-d1{padding-left:12px}
-.settings-body .md-d2{padding-left:24px}
-.settings-body .md-d3{padding-left:36px}
-.settings-body .md-d4{padding-left:48px}
-.settings-body .md-d5{padding-left:60px}
-.settings-body .md-kv{display:flex;gap:12px;padding:2px 0 2px 8px;font-size:12px;line-height:18px}
+/* 每个一级块之间一条淡分隔线，长内容更好读 */
+.settings-body h3.md-h:not(:first-child){border-top:1px solid rgba(0,0,0,.12);
+  margin-top:16px;padding-top:12px}
+.settings-body .md-kv{display:flex;gap:12px;font-size:12px;line-height:18px;
+  padding:2px 0 2px calc(var(--md-indent, 0px) + 8px)}
 .settings-body .md-k{flex:0 0 auto;min-width:180px;color:var(--md-on-surface-medium)}
 .settings-body .md-v{flex:1 1 auto;word-break:break-word;
   font-family:ui-monospace,Menlo,monospace;color:var(--md-on-surface)}
-.settings-body .md-list{margin:2px 0 6px;padding-left:24px;font-size:12px;line-height:18px}
+.settings-body .md-list{margin:2px 0 6px;font-size:12px;line-height:18px;
+  padding-left:calc(var(--md-indent, 0px) + 24px)}
+.settings-body .md-list li{padding-left:0}
 .settings-body .md-list li{margin:2px 0}
 .settings-body .md-item-block{list-style:none;margin-left:-16px}
 .settings-body .empty{color:var(--md-on-surface-medium)}
