@@ -61,9 +61,15 @@ func (resolver Resolver) ConfigFile(name string) string {
 
 // baseDirectory 是「可执行文件同级目录」；`go run` 的可执行文件在系统临时目录里，
 // 那种情况下改用当前工作目录，否则开发时会去临时目录找配置。
+//
+// macOS 的 .app 是个例外：可执行文件在 `X.app/Contents/MacOS/` 里，而发布约定是配置与
+// 模板放在 **.app 同级**目录（现场改配置不用重新打包），所以要往上退三层回到 .app 的父目录。
 func baseDirectory() string {
 	executable, err := os.Executable()
 	if err == nil && !strings.HasPrefix(executable, os.TempDir()) {
+		if directory, ok := bundleParent(executable); ok {
+			return directory
+		}
 		return filepath.Dir(executable)
 	}
 	workingDirectory, err := os.Getwd()
@@ -71,4 +77,18 @@ func baseDirectory() string {
 		return "."
 	}
 	return workingDirectory
+}
+
+// bundleParent 判断可执行文件是否在 macOS 应用包里（.../X.app/Contents/MacOS/Y），
+// 是则返回 .app 所在目录。
+func bundleParent(executable string) (string, bool) {
+	macOSDirectory := filepath.Dir(executable)        // .../X.app/Contents/MacOS
+	contentsDirectory := filepath.Dir(macOSDirectory) // .../X.app/Contents
+	bundle := filepath.Dir(contentsDirectory)         // .../X.app
+	if filepath.Base(macOSDirectory) != "MacOS" ||
+		filepath.Base(contentsDirectory) != "Contents" ||
+		!strings.HasSuffix(bundle, ".app") {
+		return "", false
+	}
+	return filepath.Dir(bundle), true
 }
