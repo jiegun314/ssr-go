@@ -16,7 +16,7 @@ body{margin:0;font:13px "Helvetica Neue",Arial,"PingFang SC",sans-serif;backgrou
 .app{display:flex;flex-direction:column;height:100%;padding:8px 10px}
 .columns{display:flex;gap:8px;flex:1 1 auto;min-height:0}
 /* 左列按内容宽度（压缩到最小），右列吃掉所有剩余空间 */
-.left{flex:0 0 auto;width:340px;min-width:300px;max-width:45%;display:flex;flex-direction:column;min-height:0}
+.left{flex:0 0 auto;width:340px;min-width:300px;max-width:45%;display:flex;flex-direction:column;min-height:0;overflow-y:auto;overflow-x:hidden}
 .left>.spacer{flex:1 1 auto;min-height:12px}
 .right{flex:1 1 auto;display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0}
 section{border:1px solid #C9C9C9;border-radius:4px;background:#FAFAFA;display:flex;flex-direction:column;min-height:0}
@@ -60,7 +60,7 @@ td.MISSING{font-weight:700}
 .pager .page-info{color:var(--md-on-surface-medium);font-size:12px}
 .pager .spacer{flex:1 1 auto}
 input[type=date],input[type=datetime-local]{font:inherit;padding:2px 4px}
-textarea#log{width:100%;height:96px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;resize:none}
+textarea#log{width:100%;flex:1 1 auto;height:auto;min-height:56px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;resize:none}
 #about-icon{width:40px;height:40px;cursor:pointer;float:right}
 dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 #egg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9}
@@ -103,6 +103,10 @@ dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}
 .status-strip .dot.status-incomplete{background:#A4262C;border:1px solid #F1B0B7}
 .status-strip .dot.status-duplicate{background:#B26A00;border:1px solid #FFE0B2}
 .status-strip .dot.status-conflict{background:#F4CCCC;border:1px solid #C62828}
+
+/* 操作日志卡片：可收缩（flex:0 1 auto）但有下限；内层文本框占满可用高度 */
+.log-section{flex:0 1 auto;min-height:96px}
+.log-section>.body{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 </style>
 <!-- Material Design 主题层：只覆盖视觉（颜色/字体/圆角/阴影/控件外观），
      不改变上面的布局规则（左右两栏比例、分组顺序与空行、置顶/置底与可伸缩空隙）。 -->
@@ -265,7 +269,8 @@ dialog .tblwrap{margin:0 24px 8px}
       </section>
     </div>
   </div>
-  <section style="margin-top:8px;flex:0 0 auto">
+  <!-- 操作日志：窗口变矮时它先让出高度（保底约 90px），避免挤压左侧内容 -->
+  <section class="log-section" style="margin-top:8px">
     <h2>操作日志</h2>
     <div class="body"><textarea id="log" readonly></textarea></div>
   </section>

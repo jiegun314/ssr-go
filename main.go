@@ -37,7 +37,7 @@ func main() {
 		Width:            969,
 		Height:           962,
 		MinWidth:         969,
-		MinHeight:        700,
+		MinHeight:        760, // 保证最小尺寸下 记录导出/操作日志 都完整可见
 		DisableResize:    false,
 		BackgroundColour: &options.RGBA{R: 240, G: 240, B: 240, A: 1},
 		AssetServer:      &assetserver.Options{Assets: assets},
