@@ -1,0 +1,433 @@
+version: "1.0"
+
+target_dataset:
+
+  display_name: "UDI Consolidated Export"
+
+  # Columns that decide whether a consolidated row already exists in the
+  # database, so a re-export of the same device is marked "Duplicate" instead
+  # of being exported twice. They are compared in the listed order and must
+  # also be export columns under fields below.
+  # The same identity is the index of the change comparison that derives
+  # "Change Description" below, so both rules share this one definition.
+  #
+  # The identity is the product itself: the catalog / reference number (the
+  # material code of the base source) together with the Primary DI. The medical
+  # insurance code is deliberately NOT part of it. A device keeps its identity
+  # when only its insurance code changes, so such a row is exported as a change
+  # of the same record ("Medical Insurance Code changed") instead of being
+  # stored as a second record of the same device. The change comparison lists
+  # the insurance code among the compared columns, so a changed code is still
+  # reported as a change.
+  duplicate_check:
+    identity_fields:
+      - Catalog or Reference Number
+      - Primary DI
+
+  # Source table names are intentionally absent from this file. The source
+  # identifiers below are resolved through excel_import_mapping.yaml, where
+  # each source owns its target_table. Application-owned result and log tables
+  # are resolved through setting.yaml under tables.
+  merge_rules:
+    base_source:
+      source: ra_input
+      key:
+        - material_code
+
+    result_identity:
+      fields:
+        - material_code
+        - device_identifier_min_sales_unit
+      separator: "::"
+
+    sources:
+      ra_input:
+        match_type: lookup
+        cardinality: one_to_one
+        match:
+          material_code: material_code
+
+      global_udi_input:
+        match_type: lookup
+        cardinality: one_to_many
+        match:
+          material_code: material_code
+        expand_by:
+          - device_identifier_min_sales_unit
+        row_identity:
+          - material_code
+          - device_identifier_min_sales_unit
+        no_match:
+          action: emit_incomplete
+          value: "MISSING"
+        duplicates:
+          compare_by:
+            - material_code
+            - device_identifier_min_sales_unit
+          identical_content: deduplicate
+          different_content: conflict
+
+      medical_insurance_code:
+        match_type: lookup
+        cardinality: many_to_one
+        match:
+          material_code: material_code
+        # An insurance code is optional data: not every material code has an
+        # insurance row, and the export accepts an empty Medical Insurance Code.
+        # Without this rule a material code whose insurance row is missing would
+        # mark the whole record "Incomplete" and drop it, although the only
+        # column the source feeds is allowed to stay empty. "empty" therefore
+        # writes the columns of that source as empty and keeps the record
+        # exportable.
+        no_match:
+          action: empty
+          value: ""
+        duplicates:
+          compare_by:
+            - medical_insurance_code
+          same_value: deduplicate
+          different_value: conflict
+          selected_record: first
+
+      product_category:
+        match_type: lookup
+        cardinality: one_to_one
+        match:
+          material_code: material_code
+
+  fields:
+    Primary DI:
+      category: "DEVICE KEY IDENTIFICATION"
+      comments: "Required for data import"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: device_identifier_min_sales_unit
+      transform:
+        type: direct
+
+
+    Primary DI Issuing Agency:
+      category: "DEVICE KEY IDENTIFICATION"
+      comments: "Required for data import"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: udi_issuing_agency_name
+      transform:
+        type: direct
+
+
+    Applicable Submission Channel:
+      category: "DEVICE KEY IDENTIFICATION"
+      comments: "Enter only when Data Scope = Default"
+      mandatory_status: ""
+      source: {}
+
+
+    Data Scope:
+      category: "DEVICE KEY IDENTIFICATION"
+      comments: >
+        Use Default when providing data
+        common across all authorities.
+      mandatory_status: "user_defined"
+      source:
+        key: "data_scope"
+      transform:
+        type: direct
+
+
+    Choose Action:
+      category: "DEVICE KEY IDENTIFICATION"
+      comments: "Add or Modify"
+      mandatory_status: "required"
+      source: {}
+      transform:
+        type: direct
+        value: "Add or Modify"
+
+    Unified Social Credit Code:
+      category: "UNIFIED SOCIAL CREDIT CODE"
+      comments: ""
+      mandatory_status: "user_defined"
+      source:
+        key: "social_credit_code"
+      transform:
+        type: direct
+
+    # The value of this column is not read from a source field: it is derived
+    # from the difference between the consolidated row and the latest record
+    # that was already exported with the same identity. That is why "source"
+    # stays empty and the transform type is "change_description" instead of
+    # "direct": the column is calculated, not mapped.
+    #
+    # To use the text that the source workbook provides instead (RA 信息的
+    # “更新描述” / 医保编码的“变更描述”), declare the source on this field and
+    # switch the mode:
+    #   source:
+    #     file: ra_input
+    #     field: change_description
+    #   transform:
+    #     type: "change_description"
+    #     identity_fields: "duplicate_check"
+    #     compare_fields: "all"
+    #     ignore_fields:
+    #       - "Choose Action"
+    #     on_new_record: ""
+    #     on_no_change: ""
+    #     on_other_change:
+    #       mode: "source"
+    #       missing_action: "error"
+    Change Description:
+      category: "Health Authority Specific Change Description"
+      comments: "Default data scope should not be used when the change description is different for health authorities."
+      mandatory_status: "required_if_applicable"
+      source: {}
+      transform:
+        type: "change_description"
+        # Index of the comparison. "duplicate_check" reuses
+        # target_dataset.duplicate_check.identity_fields instead of repeating
+        # the list, so the duplicate check and the change comparison can not
+        # drift apart.
+        identity_fields: "duplicate_check"
+        # "all" compares every export column that the stored record also holds.
+        # A list of column names compares only those columns.
+        compare_fields: "all"
+        # Columns that never describe a change of the product data.
+        ignore_fields:
+          - "Choose Action"
+        # Text of a row without a stored record, of a row that matches a stored
+        # record without any difference, and of a row with differences.
+        on_new_record: ""
+        on_no_change: ""
+        on_other_change:
+          # auto: build one text per changed column from the consolidated row.
+          # source: keep the text declared by the source field above, and use
+          # missing_action ("error" aborts the run, "empty" leaves it blank)
+          # when that text is missing.
+          mode: "auto"
+          # {column} is the export column name, {chinese_name} uses the
+          # chinese_name of the mapping when the field declares one.
+          template: "{column} changed"
+          separator: "; "
+
+    Product Name/Generic Name:
+      category: "PRODUCT NAME/GENERIC NAME"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: product_name
+      transform:
+        type: direct
+
+
+    Device Description:
+      category: "DEVICE DESCRIPTION"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: product_description
+      transform:
+        type: direct
+
+
+    Quantity of Device:
+      category: "QTY OF DEVICE"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: quantity_per_min_sales_unit
+      transform:
+        type: direct
+
+    Is Primary DI same as the Registered or Filed DI?:
+      category: "NMPA DEVICE REGISTRATION AND FILING INFO"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: is_identifier_consistent_with_registered_product
+      transform:
+        type: direct
+
+    Registered or Filed DI:
+      category: "NMPA DEVICE REGISTRATION AND FILING INFO"
+      mandatory_status: "required_if_applicable"
+      source:
+        file: global_udi_input
+        field: registration_filing_di
+      transform:
+        type: direct
+
+    Device Registrant or Filer Name:
+      category: "NMPA DEVICE REGISTRATION AND FILING INFO"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: registrant_name
+      transform:
+        type: direct
+
+    Registration Certificate Number or Filing Certificate Number:
+      category: "NMPA DEVICE REGISTRATION AND FILING INFO"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: registration_filing_certificate_number
+      transform:
+        type: first_not_null
+
+    Unit of Use DI:
+      category: "UNIT OF USE DI"
+      # 条件必填：来源列 device_identifier_use_unit 声明了 required_when
+      # （最小销售单元中使用单元的数量 > 1），整合时用同一条规则判断这一列在
+      # 当前行是否必须填写；数量为 1 或无法比较时允许为空。
+      mandatory_status: "required_if_applicable"
+      source:
+        file: global_udi_input
+        field: device_identifier_use_unit
+      transform:
+        type: direct
+
+    Has Direct Marking DI?:
+      category: "DIRECT MARKING DI"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: if_direct_marking
+      transform:
+        type: direct
+
+    Is Direct Marking DI same as Primary DI?:
+      category: "DIRECT MARKING DI"
+      mandatory_status: "required_if_applicable"
+      source:
+        file: global_udi_input
+        field: if_dm_identical_to_min_sales_unit_di
+      transform:
+        type: direct
+
+    Direct Marking DI:
+      category: "DIRECT MARKING DI"
+      mandatory_status: "required_if_applicable"
+      source:
+        file: global_udi_input
+        field: direct_marking
+      transform:
+        type: direct
+    
+    Catalog or Reference Number:
+      category: "CATALOG /REF NO"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: material_code
+      transform:
+        type: direct
+
+    Device or IVD Reagents?:
+      category: "PRODUCT CATEGORY"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: device_category
+      transform:
+        type: direct
+
+    Consumables or Equipment?:
+      category: "PRODUCT CATEGORY"
+      mandatory_status: "required"
+      source:
+        file: product_category
+        field: product_type
+      transform:
+        type: direct
+
+    Single Use Device?:
+      category: "SINGLE USE / REUSE"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: if_one_time_use
+      transform:
+        type: direct
+
+    Maximum Number of Reuses:
+      category: "SINGLE USE / REUSE"
+      mandatory_status: "required_if_applicable"
+      source:
+        file: ra_input
+        field: max_reuse_count
+      transform:
+        type: direct
+
+    Packaged or Labeled as Sterile?:
+      category: "STERILIZATION"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: if_sterilized
+      transform:
+        type: direct
+
+    Needs Sterilization Before Use?:
+      category: "STERILIZATION"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: if_requires_sterilization_before_use
+      transform:
+        type: direct
+
+    MRI Safety Status:
+      category: "MRI SAFETY INFO"
+      mandatory_status: "required_if_applicable"
+      source:
+        file: ra_input
+        field: mr_safety_information
+      transform:
+        type: direct
+
+    Medical Insurance Code:
+      category: "NMPA MEDICAL INSURANCE CODE"
+      comments: >
+        Medical Insurance Code must be
+        27-character long.
+        Multiple medical insurance codes are allowed.
+      mandatory_status: "required_if_applicable"
+      source:
+        file: medical_insurance_code
+        field:
+          - medical_insurance_code
+          - serial_number
+      transform:
+        type: concatenate
+        separator: "-"
+      validation:
+        min_length: 27
+
+    Package DI:
+      category: "ADDITIONAL PACKAGE CONFIGURATIONS"
+      mandatory_status: "required_if_applicable"
+      source:
+        file: global_udi_input
+        field: package_identifier
+      transform:
+        type: direct
+
+    Package Quantity:
+      category: "ADDITIONAL PACKAGE CONFIGURATIONS"
+      mandatory_status: "required_if_applicable"
+      source:
+        file: global_udi_input
+        field: lower_level_package_quantity
+      transform:
+        type: direct
+    
+    Package Type:
+      category: "ADDITIONAL PACKAGE CONFIGURATIONS"
+      mandatory_status: "required_if_applicable"
+      source:
+        file: global_udi_input
+        field: package_type
+      transform:
+        type: direct

@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/app">
+        <file>easter_egg.png</file>
+        <file>logo.ico</file>
+    </qresource>
+</RCC>

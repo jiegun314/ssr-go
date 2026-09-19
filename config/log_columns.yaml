@@ -1,0 +1,100 @@
+# Columns of one stored operation log record.
+#
+# The log keeps one column per exported column of the target export template, in
+# the order of its header row, so a stored record can be read back and reviewed
+# like the exported file. The file is generated, not maintained: change the
+# template or setting.yaml and run
+#
+#     python scripts/build_log_columns.py
+#
+# instead of editing the column list by hand.
+#
+# before / after list the columns the template does not define. A stored record
+# needs them anyway - when it was logged, what happened, and how it was
+# consolidated - so they surround the exported columns. The order below is the
+# order the log table stores and the log review shows; a column without a value
+# stays empty.
+version: '1.0'
+before:
+  - log_time
+  - status
+columns:
+  - Primary DI
+  - Primary DI Issuing Agency
+  - Applicable Submission Channel
+  - Data Scope
+  - Choose Action
+  - Unified Social Credit Code
+  - DI Record Publish Date
+  - Change Description
+  - Product Name/Generic Name
+  - Brand or Trade Name(s)
+  - Brand or Trade Name Language
+  - Device Description
+  - Device Description Language
+  - URL for Additional Information
+  - Commercial Distribution End Date
+  - Quantity of Device
+  - Is Primary DI same as the Registered or Filed DI?
+  - Registered or Filed DI
+  - Device Registrant or Filer Name
+  - Device Registrant or Filer Name in English
+  - Registration Certificate Number or Filing Certificate Number
+  - Unit of Use DI
+  - Has Direct Marking DI?
+  - Is Direct Marking DI same as Primary DI?
+  - Direct Marking DI
+  - Version or Model
+  - Catalog or Reference Number
+  - DI Data Carrier Type
+  - NMPA Original Classification Code
+  - NMPA Classification Code
+  - Device or IVD Reagents?
+  - Combination Product?
+  - Kit?
+  - Consumables or Equipment?
+  - Controlled by Expiration Date?
+  - Controlled by Manufacturing Date?
+  - Controlled by Lot or Batch Number?
+  - Controlled by Serial Number?
+  - Single Use Device?
+  - Maximum Number of Reuses
+  - Packaged or Labeled as Sterile?
+  - Needs Sterilization Before Use?
+  - Sterilization Method Description
+  - Clinical Size Type(s)
+  - Clinical Size Type Description
+  - Clinical Size Type Description Language
+  - Clinical Size Value
+  - Clinical Size Range - Minimum Value
+  - Clinical Size Range - Maximum Value
+  - Clinical Size Unit
+  - Clinical Size Unit Description
+  - Clinical Size Unit Description Language
+  - Clinical Size Text
+  - Clinical Size Type and Measurement Description (If Clinical Size Type is not available)
+  - Storage and Handling Condition Value(s)
+  - Storage and Handling Low Value
+  - Storage and Handling High Value
+  - Storage and Handling Unit
+  - Storage and Handling Condition Comment
+  - Storage and Handling Condition Comment Language
+  - Special Storage and Handling Condition
+  - MRI Safety Status
+  - Medical Insurance Code
+  - Package DI
+  - Package DI Issuing Agency
+  - Contains Package DI
+  - Contains Package DI Issuing Agency
+  - Package Quantity
+  - Package Type
+  - Package Status
+  - Package Discontinued Date
+  - Product SKU
+  - Company Device Tracking Number
+  - Company Device Batch Number
+  - Company Product Cross Reference DI
+after:
+  - material_code
+  - operation
+  - details

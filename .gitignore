@@ -1,0 +1,24 @@
+# build output
+/bin/
+/dist/
+/build/
+*.exe
+*.app
+*.test
+
+# release package (produced by the packaging scripts)
+/release/
+
+# snapshot output of `ssr-core snapshot`
+/baseline-go/
+/perf-go/
+
+# local data (never committed: staging tables, logs, exports, samples)
+/data/input/
+/data/*.sqlite3
+/data/*.sqlite3-*
+/output/
+
+# editor / OS noise
+.DS_Store
+*.swp

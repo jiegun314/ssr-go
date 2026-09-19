@@ -1,0 +1,52 @@
+# settings.yaml
+APP_NAME: "SingleSourceReady"
+APP_DESCRIPTION: "SingleSourceReady - UDI数据整合工具"
+APP_SHORT_NAME: "SSR"
+# 回退版本号。真正的版本来自 git tag：打包时 scripts/gen_build_info.py 把它写成
+# core/_build_info.py（不提交），运行期由 core/build_info.py 依次读「构建期模块 →
+# git → 这里」。只有既没有构建期模块、又没有 git 时才用这个值，所以按需更新即可。
+APP_VERSION: "0.2.1"
+
+database:
+  path: data/udi_data.sqlite3
+
+user_defined_data:
+  social_credit_code: '91310115703465170L'
+  data_scope: 'China-udi'
+
+folder:
+  export: output/export
+
+export_template:
+  path: 'data/template/SingleSource-DCF-Row-China-UDI.xlsx'
+  sheet_name: 'DEVICE'
+  header_row: 4
+  data_start_row: 6
+
+# Application-level settings live in this file. Database paths, user-defined
+# values, folders, export template settings, and application-owned tables are defined
+# here so services do not need to infer them from an import or merge mapping.
+#
+# Source table names do not belong here. They are defined exactly once in
+# excel_import_mapping.yaml under each source's target_table. A source table is
+# rebuilt when that source is imported.
+tables:
+  # Temporary output produced by the consolidation workflow.
+  consolidation_result:
+    name: consolidation_staging
+    replace_on_import: false
+    preserve_on_cleanup: false
+  # Historical records written after a successful export.
+  operation_log:
+    name: operation_log
+    replace_on_import: false
+    preserve_on_cleanup: true
+  # Column used by the operation log time-range query.
+  operation_log_time_column: log_time
+
+# Startup behaviour. The release package keeps cleanup_on_startup: true so every
+# session starts from empty staging tables; a developer who wants to keep the
+# imported data of an earlier run overrides it with SSR_CLEANUP_ON_STARTUP=false
+# for that single run instead of editing this tracked file.
+startup:
+  cleanup_on_startup: true
