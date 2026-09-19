@@ -30,10 +30,13 @@
 | `internal/rules`（R1 空值语义、R6 条件规则） | 已实现 + 单测 |
 | `internal/buildinfo`（R26 版本与构建信息） | 已实现 + 单测 |
 | `internal/paths`（§4.3 路径基准） | 已实现 |
+| `internal/config`（R24 配置整体校验） | 已实现 + 单测（setting / import / consolidation / log columns 四份配置全量校验） |
 | `cmd/ssr-core` 子命令骨架（8 个子命令） | 骨架（除 `version` 外均为占位） |
-| `internal/config`（R24 配置校验） | 待做（需要 `gopkg.in/yaml.v3`） |
 | `internal/store` / `importer` / `consolidation` / `changedetect` / `excelio` | 待做 |
 | Wails 界面 | 待做 |
+
+依赖：`gopkg.in/yaml.v3`（配置解析）。后续步骤会加入 `modernc.org/sqlite`（纯 Go，无需 cgo）
+与 `github.com/xuri/excelize/v2`。
 
 ## 构建与测试
 
