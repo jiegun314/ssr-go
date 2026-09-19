@@ -41,12 +41,20 @@ func TestVersionReportsAVersionString(t *testing.T) {
 	}
 }
 
-func TestAPortedSubcommandSaysItIsNotImplementedYet(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	if code := run([]string{"alignlogcolumns"}, &stdout, &stderr); code != 2 {
-		t.Fatalf("尚未移植的子命令应返回 2，得到 %d", code)
-	}
-	if !strings.Contains(stderr.String(), "尚未实现") {
-		t.Errorf("应明确说明尚未实现：%q", stderr.String())
+// TestEverySubcommandIsImplemented 防止有人把某个子命令退回占位实现：
+// 每个子命令都要么成功、要么因为缺少参数/配置而失败，但不能再出现「尚未实现」。
+func TestEverySubcommandIsImplemented(t *testing.T) {
+	for _, name := range []string{
+		"import", "consolidate", "export", "snapshot",
+		"genlogcolumns", "alignlogcolumns", "gensample", "preparedb",
+	} {
+		t.Run(name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			run([]string{name}, &stdout, &stderr)
+			combined := stdout.String() + stderr.String()
+			if strings.Contains(combined, "尚未实现") {
+				t.Fatalf("%s 仍是占位实现：%s", name, combined)
+			}
+		})
 	}
 }

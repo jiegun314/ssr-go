@@ -191,6 +191,109 @@ type KeyedTable struct {
 	Rows map[string]Row
 }
 
+// Query 执行一条查询并把每行读成字符串切片（左到右）。
+func (repository *Repository) Query(query string, parameters ...any) ([][]string, error) {
+	rows, err := repository.db.Query(query, parameters...)
+	if err != nil {
+		return nil, fmt.Errorf("Database query failed: %w", err)
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	results := [][]string{}
+	for rows.Next() {
+		values := make([]any, len(columns))
+		pointers := make([]any, len(columns))
+		for index := range values {
+			pointers[index] = &values[index]
+		}
+		if err := rows.Scan(pointers...); err != nil {
+			return nil, err
+		}
+		row := make([]string, 0, len(columns))
+		for _, value := range values {
+			row = append(row, cellText(value))
+		}
+		results = append(results, row)
+	}
+	return results, rows.Err()
+}
+
+// InTransaction 在一个事务里执行 action：返回错误就整体回滚（R23 的失败回滚口径）。
+func (repository *Repository) InTransaction(action func(*sqlTransaction) error) error {
+	transaction, err := repository.db.Begin()
+	if err != nil {
+		return fmt.Errorf("Failed to begin transaction: %w", err)
+	}
+	defer transaction.Rollback() //nolint:errcheck // 提交成功后回滚是空操作
+	if err := action(&sqlTransaction{transaction: transaction}); err != nil {
+		return err
+	}
+	if err := transaction.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit transaction: %w", err)
+	}
+	return nil
+}
+
+// sqlTransaction 是事务里可用的最小 SQL 面。
+type sqlTransaction struct {
+	transaction *sql.Tx
+}
+
+// Exec 执行一条语句。
+func (executor *sqlTransaction) Exec(statement string) error {
+	if _, err := executor.transaction.Exec(statement); err != nil {
+		return fmt.Errorf("Database query failed: %w", err)
+	}
+	return nil
+}
+
+// Count 统计一张表的行数。
+func (executor *sqlTransaction) Count(tableName string) (int, error) {
+	return executor.CountWhere(tableName, "")
+}
+
+// CountWhere 统计满足条件的行数（condition 为空时统计整表）。
+func (executor *sqlTransaction) CountWhere(tableName string, condition string) (int, error) {
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", quoteIdentifier(tableName))
+	if condition != "" {
+		query += " WHERE " + condition
+	}
+	count := 0
+	if err := executor.transaction.QueryRow(query).Scan(&count); err != nil {
+		return 0, fmt.Errorf("Database query failed: %w", err)
+	}
+	return count, nil
+}
+
+// DifferingRowVersions 比较两张表在给定列上的「值组合 + 出现次数」差异。
+//
+// 行数算在组合里，所以同一组合两边出现次数不同也会被算成差异。
+func (executor *sqlTransaction) DifferingRowVersions(
+	source string,
+	target string,
+	columns []string,
+) (int, error) {
+	if len(columns) == 0 {
+		return 0, nil
+	}
+	valueList := quoteColumns(columns)
+	query := fmt.Sprintf(
+		"SELECT COUNT(*) FROM ("+
+			"SELECT %s, COUNT(*) AS row_count FROM %s GROUP BY %s "+
+			"EXCEPT "+
+			"SELECT %s, COUNT(*) AS row_count FROM %s GROUP BY %s)",
+		valueList, quoteIdentifier(source), valueList,
+		valueList, quoteIdentifier(target), valueList)
+	count := 0
+	if err := executor.transaction.QueryRow(query).Scan(&count); err != nil {
+		return 0, fmt.Errorf("Database query failed: %w", err)
+	}
+	return count, nil
+}
+
 // KeyedTable 按某个字段收口整张表，顺序即表里的行顺序。
 func (repository *Repository) KeyedTable(tableName string, indexField string) (*KeyedTable, error) {
 	rows, err := repository.Rows(tableName)

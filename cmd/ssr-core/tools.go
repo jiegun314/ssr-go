@@ -304,6 +304,71 @@ func runGenSampleFlags(arguments []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+func runAlignLogColumnsFlags(arguments []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("alignlogcolumns", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	configDir := flags.String("config", "", "配置目录（默认取 UDI_CONFIG_DIR）")
+	database := flags.String("database", "", "要对齐的 SQLite 文件（默认取 setting.yaml）")
+	noBackup := flags.Bool("no-backup", false, "跳过备份（默认先备份）")
+	if err := flags.Parse(arguments); err != nil {
+		return 2
+	}
+	loader, err := config.NewLoader(*configDir)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 1
+	}
+	setting, err := loader.LoadSetting()
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 1
+	}
+	tables, _ := setting["tables"].(map[string]any)
+	operationLog, _ := tables["operation_log"].(map[string]any)
+	tableName := textValue(operationLog["name"])
+	columns, err := loader.LoadLogColumns()
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 1
+	}
+	if len(columns) == 0 {
+		fmt.Fprintf(stderr, "配置里没有日志列：%s\n",
+			loader.Resolver.ConfigFile(config.LogColumnsFile))
+		return 1
+	}
+	databasePath := *database
+	if databasePath == "" {
+		database, _ := setting["database"].(map[string]any)
+		databasePath = loader.ResolvePath(textValue(database["path"]))
+	}
+	report, err := store.AlignDatabase(databasePath, tableName, columns, !*noBackup)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "%s: %s holds %d columns\n", report.Database, report.Table, len(columns))
+	switch report.Action {
+	case store.AlignAlreadyAligned:
+		fmt.Fprintln(stdout, "Already matches the configured columns, nothing written")
+	case store.AlignCreated:
+		fmt.Fprintln(stdout, "Created the missing table")
+	default:
+		fmt.Fprintf(stdout, "Rows kept: %d\n", report.Rows)
+		if len(report.Added) > 0 {
+			fmt.Fprintf(stdout, "Columns added: %s\n", strings.Join(report.Added, ", "))
+		}
+		if len(report.Removed) > 0 {
+			fmt.Fprintf(stdout, "Columns dropped: %s\n", strings.Join(report.Removed, ", "))
+		}
+		if report.Backup != "" {
+			fmt.Fprintf(stdout, "Backup: %s\n", report.Backup)
+		} else {
+			fmt.Fprintln(stdout, "No backup")
+		}
+	}
+	return 0
+}
+
 func textValue(value any) string {
 	text, _ := value.(string)
 	return text

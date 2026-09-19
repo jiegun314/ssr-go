@@ -71,7 +71,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	case "gensample":
 		return runGenSampleFlags(arguments[1:], stdout, stderr)
 	case "alignlogcolumns":
-		return runNotImplemented(arguments[0], arguments[1:], stdout, stderr)
+		return runAlignLogColumnsFlags(arguments[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "未知子命令：%s\n\n%s", arguments[0], usageText)
 		return 2
@@ -99,45 +99,6 @@ func runVersion(arguments []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "详情：%s\n", info.Detail())
 	fmt.Fprintf(stdout, "配置：%s\n", resolver.ConfigDir)
 	return 0
-}
-
-// runNotImplemented 定义每个子命令的对外接口（--help 可查），然后明确报「尚未实现」。
-// 骨架阶段这样做的目的：接口先固定下来，实现时不会偷偷改变命令行契约。
-func runNotImplemented(name string, arguments []string, stdout, stderr io.Writer) int {
-	flags := flag.NewFlagSet(name, flag.ContinueOnError)
-	flags.SetOutput(stdout)
-	configDir := flags.String("config", "", "配置目录（默认取 UDI_CONFIG_DIR）")
-	switch name {
-	case "import":
-		flags.String("source", "", "来源键：ra_input | global_udi_input | medical_insurance_code | product_category")
-		flags.String("file", "", "要导入的 Excel 文件")
-	case "export":
-		flags.String("file", "", "导出目标文件名（默认 = 模板名 + 时间戳，见 R20）")
-	case "snapshot":
-		flags.String("out", "baseline-go", "逐格 dump 的输出目录")
-		flags.String("input", "data/input/sample/valid", "四份来源 Excel 所在目录")
-	case "genlogcolumns":
-		flags.Bool("check", false, "只校验 config/log_columns.yaml 与模板是否一致，不写文件")
-	case "alignlogcolumns":
-		flags.String("database", "", "要对齐的 SQLite 文件（默认取 setting.yaml）")
-		flags.Bool("no-backup", false, "跳过备份（默认先备份）")
-	case "gensample":
-		flags.String("output", "data/input/sample", "样本输出目录")
-		flags.Int("rows", 5, "产品代码数量")
-	case "preparedb":
-		flags.String("output", "", "空数据库输出路径")
-	}
-	if err := flags.Parse(arguments); err != nil {
-		return 2
-	}
-	resolver, err := paths.New(*configDir)
-	if err != nil {
-		fmt.Fprintf(stderr, "解析配置目录失败：%v\n", err)
-		return 1
-	}
-	fmt.Fprintf(stderr, "子命令 %s 尚未实现（配置目录：%s）\n", name, resolver.ConfigDir)
-	fmt.Fprintf(stderr, "见 ssr_go/AGENTS.md §11.1 的交付清单与 ssr_go/baseline/ 的验收基准\n")
-	return 2
 }
 
 // isPackaged 说明这次运行是不是发布包（发布包没有仓库，所以不查 git）。
