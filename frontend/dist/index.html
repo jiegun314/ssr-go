@@ -64,7 +64,13 @@ td.MISSING{font-weight:700}
 .pager .page-info{color:var(--md-on-surface-medium);font-size:12px}
 .pager .spacer{flex:1 1 auto}
 input[type=date],input[type=datetime-local]{font:inherit;padding:2px 4px}
-textarea#log{width:100%;flex:1 1 auto;height:auto;min-height:56px;font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;resize:none}
+/* 操作日志用界面自己的字体栈，不用等宽栈：日志是整句文本（中英混排）而不是表格，
+   而 ui-monospace 在 Chromium 内核里不被识别、Menlo 只有 macOS 有，Windows 会退化成
+   Consolas（英文/数字）+ 微软雅黑（中文）两种字体混排，看着参差。
+   Windows：Segoe UI 排英文数字、中文落到微软雅黑；macOS：系统字体 + 苹方 —— 
+   与原版一致（原 PySide6 的 QPlainTextEdit 没设字体，跟随系统 UI 字体）。 */
+textarea#log{width:100%;flex:1 1 auto;height:auto;min-height:56px;white-space:pre-wrap;resize:none;
+  font:12px/1.5 "Segoe UI",-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif}
 /* 图标保持默认指针：这里和 .about img 都不设手型光标（不额外提示可点击） */
 #about-icon{width:40px;height:40px;float:right}
 dialog{border:1px solid #999;border-radius:4px;padding:12px;max-width:70vw}

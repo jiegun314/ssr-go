@@ -146,3 +146,20 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 		t.Errorf("回顾按钮不应参与收缩：%s", body)
 	}
 }
+
+// TestTheOperationLogUsesTheUIFontFamily 固定操作日志的字体口径：
+// 日志是整句中英混排文本、不是表格，所以不能用等宽栈 —— ui-monospace 在 Chromium
+// 内核里不被识别、Menlo 只有 macOS 有，Windows 会退化成 Consolas（英文/数字）
+// 加微软雅黑（中文）两种字体混排。改成界面自己的系统字体栈后，
+// Windows：Segoe UI + 微软雅黑；macOS：系统字体 + 苹方。
+func TestTheOperationLogUsesTheUIFontFamily(t *testing.T) {
+	rule := styleRule(t, readFrontendFile(t, "index.html"), "textarea#log{")
+	if strings.Contains(rule, "monospace") {
+		t.Errorf("操作日志不应使用等宽字体（Windows 上会退化成 Consolas + 微软雅黑混排）：%s", rule)
+	}
+	for _, wanted := range []string{`"Segoe UI"`, "-apple-system", `"PingFang SC"`, `"Microsoft YaHei"`} {
+		if !strings.Contains(rule, wanted) {
+			t.Errorf("操作日志字体栈里缺少 %s：%s", wanted, rule)
+		}
+	}
+}
