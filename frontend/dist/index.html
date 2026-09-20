@@ -47,12 +47,16 @@ td.MISSING{font-weight:700}
 .dates{display:flex;flex-direction:row;align-items:center;gap:8px;flex:1 1 auto;min-width:0}
 /* 两个日期之间的横线：表示「从…到…」（装饰性，对读屏隐藏） */
 .date-sep{flex:0 0 auto;width:16px;height:1px;background:var(--md-on-surface-medium);border-radius:1px}
-.dates input[type=date]{flex:1 1 auto;min-width:120px}
-.range{display:flex;gap:8px;align-items:center}
+.dates input[type=date]{flex:1 1 auto;min-width:100px;max-width:100%}
+/* 记录导出整行必须能被压缩：日期控件在 Windows（WebView2）下的固有宽度比 macOS 宽很多，
+   原来 min-width:120px + 容器 flex:0 0 auto 会把整行撑出模块，模块底部就冒出横向滚动条。
+   现在日期容器参与收缩、日期框各自可退到 100px（仍够显示 2026/09/19），按钮不参与收缩。 */
+.range{display:flex;gap:8px;align-items:center;min-width:0}
 /* 记录导出：日期竖排（起始 / 结束），回顾按钮在右侧居中 —— 与 .ui 里的
    dtLogExportStartDate / label_7 / dtLogExportEndDate + verticalSpacer + btnLogExport 一致 */
-.range .dates{flex:0 0 auto}
-.range .spacer{flex:1 1 auto}
+.range .dates{flex:0 1 auto;min-width:0}
+.range .spacer{flex:1 1 auto;min-width:0}
+.range .icon-btn{flex:0 0 auto}
 /* 数据回顾窗口的翻页条与导出按钮（每页 100 行） */
 .pager{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 24px 12px}
 .pager-center{display:flex;align-items:center;gap:8px}

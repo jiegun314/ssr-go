@@ -119,3 +119,30 @@ func TestTheHiddenWindowIsNotAdvertisedInTheFrontend(t *testing.T) {
 		}
 	}
 }
+
+// TestTheLogExportRowSurvivesWiderPlatformFonts 固定「记录导出」整行可压缩的口径：
+// Windows（WebView2）下日期控件的固有宽度比 macOS 宽很多，一旦整行不可压缩，
+// 模块底部就会冒出横向滚动条（用户报的 bug）。所以：
+//   - 日期容器允许收缩（不能写死 flex:0 0 auto）
+//   - 日期框各自可退让，但不允许超出容器（max-width:100%）
+//   - 右侧图标按钮不参与收缩，否则会被压扁
+func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
+	html := readFrontendFile(t, "index.html")
+
+	if body := styleRule(t, html, ".range{"); !strings.Contains(body, "min-width:0") {
+		t.Errorf("记录导出整行必须允许收缩：%s", body)
+	}
+	if body := styleRule(t, html, ".range .dates{"); !strings.Contains(body, "flex:0 1 auto") {
+		t.Errorf("日期容器必须可收缩（Windows 下日期控件更宽）：%s", body)
+	}
+	dates := styleRule(t, html, ".dates input[type=date]{")
+	if !strings.Contains(dates, "flex:1 1 auto") || !strings.Contains(dates, "max-width:100%") {
+		t.Errorf("日期框必须可收缩且不得超出容器：%s", dates)
+	}
+	if !strings.Contains(dates, "min-width:") {
+		t.Errorf("日期框需要保留一个最小可读宽度：%s", dates)
+	}
+	if body := styleRule(t, html, ".range .icon-btn{"); !strings.Contains(body, "flex:0 0 auto") {
+		t.Errorf("回顾按钮不应参与收缩：%s", body)
+	}
+}
