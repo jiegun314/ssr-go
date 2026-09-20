@@ -427,6 +427,26 @@ let aboutClicks = [];
 const ICON_CLICK_COUNT = 8;
 const ICON_CLICK_WINDOW_MS = 5000;
 
+// 附加窗口的声音：窗口打开时循环播放，关闭时停掉（并把播放位置复位）。
+// 这里的 play() 发生在点击回调里，属于用户手势，不会被自动播放策略拦下；
+// 万一被拦（或音频文件不可用）也只忽略，不影响窗口显示。
+function startPuppyVoice() {
+  const voice = document.getElementById("puppy-voice");
+  if (!voice) return;
+  voice.currentTime = 0;
+  const played = voice.play();
+  if (played && typeof played.catch === "function") {
+    played.catch(() => { /* 自动播放被拦或解码失败：静默忽略 */ });
+  }
+}
+
+function stopPuppyVoice() {
+  const voice = document.getElementById("puppy-voice");
+  if (!voice) return;
+  voice.pause();
+  voice.currentTime = 0;
+}
+
 // 操作日志的高度可以拖动上沿调整（§6.5 界面微调）：
 //   向上拖 = 拉高日志，最多拉到左侧「数据导入 / 记录导出」之间只剩最小间隔（.spacer 的 12px）；
 //   向下拖 = 压回默认高度，不能比默认更矮。
@@ -560,8 +580,18 @@ document.addEventListener("DOMContentLoaded", () => {
       aboutClicks = [];
       document.getElementById("about").close();
       document.getElementById("puppy-dialog").showModal();
+      startPuppyVoice();
     }
   });
+  // 关闭附加窗口的三条路径都要停声音：点「关闭」（form method=dialog）、按 Esc（cancel）、
+  // 以及 close 事件本身（兜底）。只挂 close 会依赖事件派发时机，用户按下去就该立刻安静。
+  const puppyDialog = document.getElementById("puppy-dialog");
+  if (puppyDialog) {
+    puppyDialog.addEventListener("close", stopPuppyVoice);
+    puppyDialog.addEventListener("cancel", stopPuppyVoice);
+    const voiceCloseButton = puppyDialog.querySelector("form button");
+    if (voiceCloseButton) voiceCloseButton.addEventListener("click", stopPuppyVoice);
+  }
   // 菜单「关于」由 Go 侧发事件（runtime.EventsEmit("show-about")）
   if (window.runtime && window.runtime.EventsOn) {
     window.runtime.EventsOn("show-about", () => openAbout());

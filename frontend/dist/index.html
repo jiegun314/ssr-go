@@ -168,8 +168,10 @@ body.log-resizing .log-resizer::before{background:var(--md-primary);transform:sc
 .settings-body .md-kv{display:flex;gap:12px;font-size:12px;line-height:18px;
   padding:2px 0 2px calc(var(--md-indent, 0px) + 8px)}
 .settings-body .md-k{flex:0 0 auto;min-width:180px;color:var(--md-on-surface-medium)}
-.settings-body .md-v{flex:1 1 auto;word-break:break-word;
-  font-family:ui-monospace,Menlo,monospace;color:inherit}
+/* 值文本与界面同一套字体栈：参数里会夹中文，等宽栈在 Windows 上同样会退化成
+   Consolas + 微软雅黑混排（键名与值的区分由左侧固定键列和缩进负责，不靠字体）。 */
+.settings-body .md-v{flex:1 1 auto;word-break:break-word;color:inherit;
+  font-family:"Segoe UI",-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif}
 .settings-body .md-list{margin:2px 0 6px;font-size:12px;line-height:18px;
   padding-left:calc(var(--md-indent, 0px) + 24px)}
 .settings-body .md-list li{padding-left:0}
@@ -415,6 +417,8 @@ Greater China Supply Chain &amp; RA Team
   <img src="puppy.png" alt="🐶Puppy Approved!🐾" />
   <form method="dialog"><button>关闭</button></form>
 </dialog>
+<!-- 附加窗口的声音：loop 表示窗口开着就一直响；开关逻辑见 app.js -->
+<audio id="puppy-voice" src="puppy-voice.mp3" loop preload="auto"></audio>
 
 <script src="app.js"></script>
 </body>

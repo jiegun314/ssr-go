@@ -162,4 +162,47 @@ func TestTheOperationLogUsesTheUIFontFamily(t *testing.T) {
 			t.Errorf("操作日志字体栈里缺少 %s：%s", wanted, rule)
 		}
 	}
+	// 参数设定的值文本同理（参数里会夹中文）
+	value := styleRule(t, readFrontendFile(t, "index.html"), ".settings-body .md-v{")
+	if strings.Contains(value, "monospace") {
+		t.Errorf("参数设定的值文本不应使用等宽字体：%s", value)
+	}
+	if !strings.Contains(value, `"Microsoft YaHei"`) {
+		t.Errorf("参数设定的值文本缺少跨平台字体栈：%s", value)
+	}
+}
+
+// TestTheHiddenWindowSoundShipsInsideTheApp 固定附加窗口声音的落地方式：
+// 音频必须放在 frontend/dist（构建时由 //go:embed 编进二进制），不能放在
+// resource/（发布脚本会整目录拷进发布包，那样就会留下一个单独的文件）；
+// 窗口打开时循环播放、关闭时停掉。
+func TestTheHiddenWindowSoundShipsInsideTheApp(t *testing.T) {
+	html := readFrontendFile(t, "index.html")
+	script := readFrontendFile(t, "app.js")
+
+	if !strings.Contains(html, `<audio id="puppy-voice" src="puppy-voice.mp3" loop`) {
+		t.Error("界面里缺少循环播放的音频元素")
+	}
+	if stray, _ := filepath.Glob(filepath.Join("resource", "*.mp3")); len(stray) > 0 {
+		t.Errorf("音频不要放在会被整目录拷进发布包的 resource/：%v", stray)
+	}
+	info, err := os.Stat(filepath.Join("frontend", "dist", "puppy-voice.mp3"))
+	if err != nil {
+		t.Fatalf("音频没有随界面资源一起内嵌：%v", err)
+	}
+	if info.Size() < 1024 {
+		t.Errorf("音频文件过小（%d 字节），可能不是有效的 mp3", info.Size())
+	}
+	for _, wanted := range []string{
+		"function startPuppyVoice()",
+		"function stopPuppyVoice()",
+		"startPuppyVoice();",
+		`puppyDialog.addEventListener("close", stopPuppyVoice)`,
+		`puppyDialog.addEventListener("cancel", stopPuppyVoice)`,
+		`voiceCloseButton.addEventListener("click", stopPuppyVoice)`,
+	} {
+		if !strings.Contains(script, wanted) {
+			t.Errorf("app.js 里缺少声音控制：%s", wanted)
+		}
+	}
 }
