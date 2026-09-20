@@ -20,8 +20,6 @@ export function ImportState(arg1:string):Promise<main.ImportState>;
 
 export function InitialState():Promise<main.State>;
 
-export function OpenSourceFromDialog():Promise<void>;
-
 export function Quit():Promise<void>;
 
 export function ReviewLog(arg1:string,arg2:string,arg3:number,arg4:number):Promise<main.ReviewResult>;

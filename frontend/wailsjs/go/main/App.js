@@ -38,10 +38,6 @@ export function InitialState() {
   return window['go']['main']['App']['InitialState']();
 }
 
-export function OpenSourceFromDialog() {
-  return window['go']['main']['App']['OpenSourceFromDialog']();
-}
-
 export function Quit() {
   return window['go']['main']['App']['Quit']();
 }

@@ -284,32 +284,6 @@ func (app *App) saveFile(defaultName string) (string, error) {
 	})
 }
 
-// OpenSourceFromDialog 是菜单「文件 → 打开」：按中文名选来源再选文件。
-func (app *App) OpenSourceFromDialog() {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-	if err := app.beginOperation(); err != nil {
-		return
-	}
-	defer app.endOperation()
-	path, err := app.selectFile()
-	if err != nil || path == "" {
-		return
-	}
-	app.importFileFor(path)
-}
-
-// importFileFor 按文件名猜来源（菜单入口用）：表头能对上的第一个来源。
-func (app *App) importFileFor(path string) {
-	for _, source := range app.importer.Order {
-		if _, err := app.importer.Import(source, path); err == nil {
-			app.markImported(source, filepath.Base(path))
-			return
-		}
-	}
-	app.appendLog(fmt.Sprintf("Import failed: %s", path))
-}
-
 // markImported 记录导入成功后的状态与日志。
 func (app *App) markImported(source string, fileName string) {
 	count, err := app.importer.CountImportedRows(source)

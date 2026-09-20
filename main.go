@@ -50,22 +50,18 @@ func main() {
 	}
 }
 
-// buildMenu 复刻现有界面的菜单：文件（打开 / 退出）、设置（空）、关于。
+// buildMenu 复刻现有界面的菜单：设置（参数设定）、关于（关于）。
+//
+// 曾经的「文件」菜单已删除：它的「打开」走的是"按文件名猜来源"的启发式路径
+// （四个来源的表头校验逐个试，容易把文件导进错的来源），而界面里每个来源都有自己的
+// 导入按钮；「退出」在 macOS 由系统应用菜单提供、Windows 直接关窗口即可。
 func buildMenu(application *App) *menu.Menu {
 	root := menu.NewMenu()
 	// macOS 会把第一个子菜单当作「应用菜单」：先补上系统应用菜单，
-	// 我们的「文件」才会作为独立菜单出现在菜单栏里（否则它会变成应用菜单本身）。
+	// 我们的「设置」「关于」才会作为独立菜单出现在菜单栏里（否则第一个会变成应用菜单本身）。
 	if runtime.GOOS == "darwin" {
 		root.Append(menu.AppMenu())
 	}
-	file := root.AddSubmenu("文件")
-	file.AddText("打开", nil, func(*menu.CallbackData) {
-		application.OpenSourceFromDialog()
-	})
-	file.AddSeparator()
-	file.AddText("退出", nil, func(*menu.CallbackData) {
-		application.Quit()
-	})
 	settings := root.AddSubmenu("设置")
 	settings.AddText("参数设定", nil, func(*menu.CallbackData) {
 		application.ShowSettings()
