@@ -50,7 +50,8 @@ func main() {
 	}
 }
 
-// buildMenu 复刻现有界面的菜单：设置（参数设定）、关于（关于）。
+// buildMenu 复刻现有界面的菜单：编辑（仅 macOS，见下）、设置（参数设定）、
+// 工具（打开常用目录 / 备份数据库）、关于（关于）。
 //
 // 曾经的「文件」菜单已删除：它的「打开」走的是"按文件名猜来源"的启发式路径
 // （四个来源的表头校验逐个试，容易把文件导进错的来源），而界面里每个来源都有自己的
@@ -61,10 +62,30 @@ func buildMenu(application *App) *menu.Menu {
 	// 我们的「设置」「关于」才会作为独立菜单出现在菜单栏里（否则第一个会变成应用菜单本身）。
 	if runtime.GOOS == "darwin" {
 		root.Append(menu.AppMenu())
+		// 编辑菜单只在 macOS 加：WKWebView 的 ⌘C/⌘V/⌘A 要靠菜单项才能路由到原生行为，
+		// 没有它，「编辑原文」里的复制粘贴快捷键会失灵。
+		// Wails v2 只提供整菜单形式的 role（单项 role 函数已被上游注释掉），
+		// 菜单标题与内部各项（撤销/重做/剪切/拷贝/粘贴/全选）由系统本地化。
+		// Windows（WebView2）本来就直接支持这些快捷键，加了反而会出现空标题的菜单项，所以不加。
+		root.Append(menu.EditMenu())
 	}
 	settings := root.AddSubmenu("设置")
 	settings.AddText("参数设定", nil, func(*menu.CallbackData) {
 		application.ShowSettings()
+	})
+	tools := root.AddSubmenu("工具")
+	tools.AddText("打开配置目录", nil, func(*menu.CallbackData) {
+		application.OpenConfigDirectory()
+	})
+	tools.AddText("打开导出目录", nil, func(*menu.CallbackData) {
+		application.OpenExportDirectory()
+	})
+	tools.AddText("打开数据目录", nil, func(*menu.CallbackData) {
+		application.OpenDataDirectory()
+	})
+	tools.AddSeparator()
+	tools.AddText("备份数据库…", nil, func(*menu.CallbackData) {
+		application.BackupDatabase()
 	})
 	about := root.AddSubmenu("关于")
 	about.AddText("关于", nil, func(*menu.CallbackData) {

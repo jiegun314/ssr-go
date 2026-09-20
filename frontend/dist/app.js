@@ -597,6 +597,13 @@ document.addEventListener("DOMContentLoaded", () => {
     window.runtime.EventsOn("show-about", () => openAbout());
     // 菜单「设置 → 参数设定」
     window.runtime.EventsOn("show-settings", () => openSettings());
+    // 菜单「工具」里的动作（打开目录 / 备份数据库）没有返回值通道，走事件：
+    // 一个更新操作日志面板，一个弹结果框
+    window.runtime.EventsOn("log-updated", (text) => setLog(text));
+    window.runtime.EventsOn("show-message", (payload) => {
+      if (!payload) return;
+      showModal(payload.title || "Info", payload.message || "");
+    });
   }
 });
 

@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function About():Promise<Record<string, string>>;
 
+export function BackupDatabase():Promise<main.BackupResult>;
+
 export function ClearImportedData():Promise<main.ClearResult>;
 
 export function ConfigurationDocument():Promise<Array<main.SettingsTab>>;
@@ -19,6 +21,12 @@ export function ImportSource(arg1:string,arg2:string):Promise<main.ImportResult>
 export function ImportState(arg1:string):Promise<main.ImportState>;
 
 export function InitialState():Promise<main.State>;
+
+export function OpenConfigDirectory():Promise<void>;
+
+export function OpenDataDirectory():Promise<void>;
+
+export function OpenExportDirectory():Promise<void>;
 
 export function Quit():Promise<void>;
 

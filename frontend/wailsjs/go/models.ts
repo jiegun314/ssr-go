@@ -1,5 +1,23 @@
 export namespace main {
 	
+	export class BackupResult {
+	    title: string;
+	    message: string;
+	    failed: boolean;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.title = source["title"];
+	        this.message = source["message"];
+	        this.failed = source["failed"];
+	        this.path = source["path"];
+	    }
+	}
 	export class ClearResult {
 	    log: string;
 	    title: string;

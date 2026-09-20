@@ -6,6 +6,10 @@ export function About() {
   return window['go']['main']['App']['About']();
 }
 
+export function BackupDatabase() {
+  return window['go']['main']['App']['BackupDatabase']();
+}
+
 export function ClearImportedData() {
   return window['go']['main']['App']['ClearImportedData']();
 }
@@ -36,6 +40,18 @@ export function ImportState(arg1) {
 
 export function InitialState() {
   return window['go']['main']['App']['InitialState']();
+}
+
+export function OpenConfigDirectory() {
+  return window['go']['main']['App']['OpenConfigDirectory']();
+}
+
+export function OpenDataDirectory() {
+  return window['go']['main']['App']['OpenDataDirectory']();
+}
+
+export function OpenExportDirectory() {
+  return window['go']['main']['App']['OpenExportDirectory']();
 }
 
 export function Quit() {
