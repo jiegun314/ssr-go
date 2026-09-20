@@ -167,14 +167,53 @@ func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "Release ready: %s\n", releaseRoot)
 	if !*noZip {
-		archive, err := zipRelease(releaseRoot, releaseArtifactName(info))
+		// 压缩包不带数据库：升级时解压覆盖不该动到用户已有的库
+		// （库由程序首次运行时自己建，见 store.OpenOperationLog）。
+		databaseRelative, err := releaseDatabaseRelativePath(loader)
+		if err != nil {
+			fmt.Fprintf(stderr, "%v\n", err)
+			return 1
+		}
+		skip := releaseArchiveSkipSet(databaseRelative)
+		archive, err := zipRelease(releaseRoot, releaseArtifactName(info), skip)
 		if err != nil {
 			fmt.Fprintf(stderr, "%v\n", err)
 			return 1
 		}
 		fmt.Fprintf(stdout, "Archive: %s\n", archive)
+		if databaseRelative != "" {
+			fmt.Fprintf(stdout, "（压缩包不含 %s：解压覆盖不会覆盖用户已有数据库）\n", databaseRelative)
+		}
 	}
 	return 0
+}
+
+// releaseDatabaseRelativePath 是 setting.yaml 里数据库相对发布根目录的路径
+// （当前＝data/udi_data.sqlite3），用来把数据库排除在压缩包之外。
+func releaseDatabaseRelativePath(loader *config.Loader) (string, error) {
+	setting, err := loader.LoadSetting()
+	if err != nil {
+		return "", err
+	}
+	database, _ := setting["database"].(map[string]any)
+	path := strings.TrimSpace(textValue(database["path"]))
+	if path == "" {
+		return "", nil
+	}
+	return filepath.ToSlash(filepath.Clean(path)), nil
+}
+
+// releaseArchiveSkipSet 是压缩包要跳过的文件：数据库本体与它的附属文件
+// （WAL / SHM / journal）都不进发布包。
+func releaseArchiveSkipSet(databaseRelative string) map[string]bool {
+	skip := map[string]bool{}
+	if databaseRelative == "" {
+		return skip
+	}
+	for _, suffix := range []string{"", "-wal", "-shm", "-journal"} {
+		skip[databaseRelative+suffix] = true
+	}
+	return skip
 }
 
 // stageBuildIcons 把仓库里的图标铺到 Wails 要求的两个位置。
@@ -345,7 +384,8 @@ func copyTree(source string, target string) error {
 }
 
 // zipRelease 打包发布目录里的**文件**（解压即得 run 脚本与可执行文件，而不是多一层目录）。
-func zipRelease(releaseRoot string, archiveName string) (string, error) {
+// skip 里的相对路径（如 data/udi_data.sqlite3）不会进压缩包。
+func zipRelease(releaseRoot string, archiveName string, skip map[string]bool) (string, error) {
 	archivePath := filepath.Join(filepath.Dir(releaseRoot), archiveName)
 	file, err := os.Create(archivePath)
 	if err != nil {
@@ -369,6 +409,9 @@ func zipRelease(releaseRoot string, archiveName string) (string, error) {
 		if entry.IsDir() {
 			_, err := writer.Create(name + "/")
 			return err
+		}
+		if skip[name] {
+			return nil
 		}
 		header := &zip.FileHeader{Name: name, Method: zip.Deflate}
 		header.SetMode(0o644)
