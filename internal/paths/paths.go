@@ -65,6 +65,11 @@ func (resolver Resolver) Resolve(configuredPath string) string {
 	return filepath.Join(resolver.ProjectRoot, configuredPath)
 }
 
+// BaseDirectory 是「程序自己所在的目录」：可执行文件同级（macOS 的 .app 则退到
+// .app 所在目录），`go run` 这种可执行文件在临时目录里的情况退回当前工作目录。
+// 配置装载层用它找发布包自带的默认配置（config/defaults/）。
+func BaseDirectory() string { return baseDirectory() }
+
 // ConfigFile 返回四份 YAML 之一在配置目录里的路径。
 func (resolver Resolver) ConfigFile(name string) string {
 	return filepath.Join(resolver.ConfigDir, name)

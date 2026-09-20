@@ -146,11 +146,17 @@ func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
-	for _, directory := range []string{"config", filepath.Join("data", "template"), "resource"} {
+	for _, directory := range []string{filepath.Join("data", "template"), "resource"} {
 		if err := copyTree(filepath.Join(projectRoot, directory), filepath.Join(releaseRoot, directory)); err != nil {
 			fmt.Fprintf(stderr, "复制 %s 失败：%v\n", directory, err)
 			return 1
 		}
+	}
+	// 配置只带默认文件（config/defaults/*.yaml）：正式名的 config/*.yaml 交给第一次运行生成，
+	// 这样解压覆盖升级永远不会覆盖用户改过的配置（与数据库同一个口径）。
+	if err := copyConfigDefaults(projectRoot, releaseRoot); err != nil {
+		fmt.Fprintf(stderr, "复制默认配置失败：%v\n", err)
+		return 1
 	}
 	if err := os.MkdirAll(filepath.Join(releaseRoot, "output", "export"), 0o755); err != nil {
 		fmt.Fprintf(stderr, "%v\n", err)
@@ -201,6 +207,39 @@ func releaseDatabaseRelativePath(loader *config.Loader) (string, error) {
 		return "", nil
 	}
 	return filepath.ToSlash(filepath.Clean(path)), nil
+}
+
+// copyConfigDefaults 把仓库 config/ 下的 YAML 复制成发布包的 config/defaults/。
+// 发布包里**不出现正式名配置文件**：正式名文件由程序第一次运行按需生成（缺失才生成，
+// 已存在的一律不动），所以解压覆盖升级不会覆盖用户改过的配置。
+func copyConfigDefaults(projectRoot string, releaseRoot string) error {
+	source := filepath.Join(projectRoot, "config")
+	entries, err := os.ReadDir(source)
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(releaseRoot, "config", config.DefaultsDirectory)
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".yaml") {
+			continue
+		}
+		if err := copyFile(filepath.Join(source, entry.Name()), filepath.Join(target, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// copyFile 复制单个文件（发布包里的小文件，一次性读写即可）。
+func copyFile(source string, target string) error {
+	content, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(target, content, 0o644)
 }
 
 // releaseArchiveSkipSet 是压缩包要跳过的文件：数据库本体与它的附属文件

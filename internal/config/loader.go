@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -76,16 +77,97 @@ func errorf(format string, arguments ...any) *Error {
 type Loader struct {
 	// Resolver 提供「相对 project_root」的路径策略（AGENTS.md §4.3）。
 	Resolver paths.Resolver
+	// Bootstrapped 记录本次补齐过的文件（配置文件缺失时从 defaults/ 复制过来的），
+	// 交给启动日志说明情况。
+	Bootstrapped []string
+}
+
+// DefaultsDirectory 是发布包里默认配置所在子目录：config/defaults/*.yaml。
+// 发布包只带默认文件，正式名文件由第一次运行按需生成 —— 这样解压覆盖升级
+// 永远不会覆盖用户改过的配置。
+const DefaultsDirectory = "defaults"
+
+// ConfigFileNames 是四份 YAML 的固定名字（顺序即启动校验顺序）。
+var ConfigFileNames = []string{
+	SettingFile, ImportMappingFile, ConsolidationMappingFile, LogColumnsFile,
 }
 
 // NewLoader 用与 Python 版相同的规则解析配置目录：显式参数 > UDI_CONFIG_DIR >
 // 可执行文件同级的 config/。
+//
+// 解析完成后会先补齐缺失的配置文件（见 ensureConfigFiles）：只补"不存在"的，
+// 存在但读不懂的一律留着让 ValidateAll 报错，绝不覆盖用户改过的内容。
 func NewLoader(explicitConfigDir string) (*Loader, error) {
 	resolver, err := paths.New(explicitConfigDir)
 	if err != nil {
 		return nil, err
 	}
-	return &Loader{Resolver: resolver}, nil
+	loader := &Loader{Resolver: resolver}
+	bootstrapped, err := loader.ensureConfigFiles()
+	if err != nil {
+		return nil, err
+	}
+	loader.Bootstrapped = bootstrapped
+	return loader, nil
+}
+
+// ensureConfigFiles 把缺失的配置文件从默认文件复制出来，返回补齐的文件名列表。
+//
+// 判据只有一条：**文件不存在**。存在但解析/校验失败的文件不动 —— 那种情况要按
+// R24 报错并拒绝启动，而不是悄悄用默认值覆盖用户改过的内容。
+// 默认文件按两级找：配置目录里的 defaults/ → 可执行文件同级 config/defaults/
+// （UDI_CONFIG_DIR 指到别处时，默认文件仍来自程序自带的这一份）。
+func (loader *Loader) ensureConfigFiles() ([]string, error) {
+	missing := make([]string, 0, len(ConfigFileNames))
+	for _, name := range ConfigFileNames {
+		if _, err := os.Stat(loader.Resolver.ConfigFile(name)); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return nil, errorf("Configuration file not readable: %s: %v", loader.Resolver.ConfigFile(name), err)
+			}
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) == 0 {
+		return nil, nil
+	}
+	defaultsDirectory, ok := loader.defaultsDirectory()
+	if !ok {
+		// 没有默认文件可补：保持原来的"缺文件就报错"行为，由 LoadYAML 给出准确文案。
+		return nil, nil
+	}
+	bootstrapped := make([]string, 0, len(missing))
+	for _, name := range missing {
+		source := filepath.Join(defaultsDirectory, name)
+		content, err := os.ReadFile(source)
+		if err != nil {
+			// 默认文件本身缺了：同样交给 LoadYAML 报"配置找不到"。
+			continue
+		}
+		target := loader.Resolver.ConfigFile(name)
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return nil, errorf("Failed to create configuration folder: %v", err)
+		}
+		if err := os.WriteFile(target, content, 0o644); err != nil {
+			return nil, errorf("Failed to write configuration file %s: %v", target, err)
+		}
+		bootstrapped = append(bootstrapped, name)
+	}
+	return bootstrapped, nil
+}
+
+// defaultsDirectory 找默认配置目录：配置目录里的 defaults/ 优先，
+// 其次看程序自带的那一份（可执行文件同级的 config/defaults/）。
+func (loader *Loader) defaultsDirectory() (string, bool) {
+	candidates := []string{filepath.Join(loader.Resolver.ConfigDir, DefaultsDirectory)}
+	if base := paths.BaseDirectory(); base != "" && base != loader.Resolver.ProjectRoot {
+		candidates = append(candidates, filepath.Join(base, "config", DefaultsDirectory))
+	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate, true
+		}
+	}
+	return "", false
 }
 
 // ConfigDir 是四份 YAML 所在目录。

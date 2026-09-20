@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/jiegun314/ssr-go/internal/config"
 )
 
 // TestReleaseArchiveLeavesTheDatabaseBehind 固定「发布压缩包不带数据库」的口径：
@@ -61,6 +63,38 @@ func TestReleaseArchiveSkipSetFollowsTheConfiguredDatabasePath(t *testing.T) {
 	}
 	if empty := releaseArchiveSkipSet(""); len(empty) != 0 {
 		t.Errorf("配置里没有库路径时不该跳过任何文件：%v", empty)
+	}
+}
+
+// TestReleaseShipsOnlyDefaultConfigFiles 固定"升级不覆盖用户配置"的做法：
+// 发布目录里只有 config/defaults/*.yaml，没有正式名的 config/*.yaml ——
+// 正式名文件由程序第一次运行按需生成，解压覆盖升级碰不到用户改过的文件。
+func TestReleaseShipsOnlyDefaultConfigFiles(t *testing.T) {
+	projectRoot := t.TempDir()
+	configDir := filepath.Join(projectRoot, "config")
+	for _, name := range config.ConfigFileNames {
+		writeReleaseFile(t, filepath.Join(configDir, name), "# "+name+"\n")
+	}
+	writeReleaseFile(t, filepath.Join(configDir, "notes.txt"), "不该被复制")
+
+	releaseRoot := filepath.Join(t.TempDir(), "SingleSourceReady")
+	if err := os.MkdirAll(releaseRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyConfigDefaults(projectRoot, releaseRoot); err != nil {
+		t.Fatalf("复制默认配置失败：%v", err)
+	}
+
+	for _, name := range config.ConfigFileNames {
+		if _, err := os.Stat(filepath.Join(releaseRoot, "config", name)); err == nil {
+			t.Errorf("发布目录里不该出现正式名配置：config/%s", name)
+		}
+		if _, err := os.Stat(filepath.Join(releaseRoot, "config", config.DefaultsDirectory, name)); err != nil {
+			t.Errorf("发布目录里缺少默认配置：config/defaults/%s（%v）", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(releaseRoot, "config", config.DefaultsDirectory, "notes.txt")); err == nil {
+		t.Error("非 YAML 文件不该进默认配置目录")
 	}
 }
 

@@ -82,6 +82,18 @@ func (app *App) startup(ctx context.Context) {
 		app.fail("Configuration error: " + err.Error())
 		return
 	}
+	// 补齐过默认配置就留一行日志：用户升级后第一次运行会看到"某份配置是刚生成的"。
+	for _, name := range loader.Bootstrapped {
+		app.appendLog(fmt.Sprintf(
+			"Created %s from %s", filepath.Join(loader.Resolver.ConfigDir, name),
+			filepath.Join("config", config.DefaultsDirectory, name)))
+	}
+	// 兜一层配置快照：默认文件只解决"缺失"，改坏了还得能回退。
+	if snapshot, err := snapshotUserConfig(loader.Resolver.ConfigDir, time.Now()); err != nil {
+		app.appendLog("Failed to snapshot configuration: " + err.Error())
+	} else if snapshot != "" {
+		app.appendLog("Configuration snapshot saved: " + snapshot)
+	}
 	if err := loader.ValidateAll(); err != nil {
 		app.fail("Configuration error: " + err.Error())
 		return
