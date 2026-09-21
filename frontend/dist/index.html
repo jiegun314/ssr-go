@@ -283,15 +283,31 @@ dialog form{display:flex;justify-content:flex-end;gap:8px;padding:8px 16px 16px}
 dialog form button{color:var(--md-primary);font-weight:500}
 dialog .tblwrap{margin:0 24px 8px}
 /* 关于窗口：图标 + 名称 + 一行版本号（commit 与构建时间在版本号的 tooltip 里），
-   小对话框、固定内容 —— 与 Qt 版的 AboutWindow 一致 */
-.about{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 32px 8px;text-align:center}
+   小对话框、固定内容 —— 与 Qt 版的 AboutWindow 一致。
+   尺寸固定 323×323（与原版一致），左右内边距收紧到 24px：Windows 字体下行更长，
+   32px 会让说明段多折一行、把高度顶出窗口。 */
+.about{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 24px 8px;text-align:center}
 .about img{width:48px;height:48px;border-radius:8px}
 .about .name{font-size:16px;font-weight:500;line-height:24px}
 .about .version{color:var(--md-on-surface-medium);font-size:12px;line-height:18px}
 /* 说明段：原文是四行（含换行），保留原样换行 */
 .about .intro{white-space:pre-wrap;color:var(--md-on-surface-medium);font-size:12px;line-height:18px}
-/* 附加窗口：标题 🐶Puppy Approved!🐾 + 图片 */
-#puppy-dialog img{display:block;max-width:323px;max-height:323px;margin:0 24px 8px;border-radius:8px}
+/* 展示型窗口（关于 / 附加窗口）：关闭方式＝右上角图标按钮 + Esc（原生）+ 点遮罩，
+   底部不再放按钮行 —— 这两个窗口除了"看一眼就关"没有别的动作。
+   参数设定那种带真实动作（保存/取消）的窗口保持底部按钮，也不支持点遮罩关闭，
+   免得把正在编辑的 YAML 意外关掉。 */
+.dialog-close{position:absolute;top:8px;right:8px;z-index:2}
+#about{width:323px;height:323px;max-width:323px;padding:0;overflow:auto}
+#about h3{padding-right:56px}
+/* 附加窗口＝323×323 的图片本身（与原版一致）：标题与关闭按钮叠在图片上，
+   所以图片必须铺满整张卡片。 */
+#puppy-dialog{width:323px;height:323px;max-width:323px;padding:0;overflow:hidden;position:relative}
+#puppy-dialog img{display:block;width:323px;height:323px;object-fit:cover;margin:0}
+#puppy-dialog h3{position:absolute;left:0;right:0;top:0;margin:0;padding:10px 56px 10px 16px;
+  font-size:14px;color:#fff;background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,0));
+  text-shadow:0 1px 2px rgba(0,0,0,.55)}
+#puppy-dialog .dialog-close{color:#fff;background:rgba(0,0,0,.32)}
+#puppy-dialog .dialog-close:hover:not(:disabled){color:#fff;background:rgba(0,0,0,.5)}
 </style>
 </head>
 <body>
@@ -395,6 +411,9 @@ dialog .tblwrap{margin:0 24px 8px}
 <!-- 关于窗口（菜单「关于」打开）：图标 + 名称 + 版本号 -->
 <dialog id="about">
   <h3>About</h3>
+  <button class="icon-btn dialog-close" data-dialog-close aria-label="关闭" title="关闭">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+  </button>
   <div class="about">
     <img id="about-icon" src="logo.png" alt="SingleSourceReady" title="关于" />
     <!-- 以下三段文字与 ui/forms/about_dialog.ui 逐字一致 -->
@@ -408,14 +427,15 @@ Developed by
 Greater China Supply Chain &amp; RA Team
 © 2026 JJMT</div>
   </div>
-  <form method="dialog"><button>确定</button></form>
 </dialog>
 
 <!-- 附加窗口（原版是独立窗口，标题就是下面这行） -->
 <dialog id="puppy-dialog">
   <h3>🐶Puppy Approved!🐾</h3>
+  <button class="icon-btn dialog-close" data-dialog-close aria-label="关闭" title="关闭">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+  </button>
   <img src="puppy.png" alt="🐶Puppy Approved!🐾" />
-  <form method="dialog"><button>关闭</button></form>
 </dialog>
 <!-- 附加窗口的声音：loop 表示窗口开着就一直响；开关逻辑见 app.js -->
 <audio id="puppy-voice" src="puppy-voice.mp3" loop preload="auto"></audio>

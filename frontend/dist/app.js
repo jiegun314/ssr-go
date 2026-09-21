@@ -447,6 +447,25 @@ function stopPuppyVoice() {
   voice.currentTime = 0;
 }
 
+// 展示型窗口（关于 / 附加窗口）的关闭路径：右上角 X、点遮罩、Esc（<dialog> 原生行为）。
+// 只挂这两个窗口 —— 参数设定里有正在编辑的 YAML，点到外面就关掉会丢内容。
+function setupOverlayDialogs() {
+  for (const id of ["about", "puppy-dialog"]) {
+    const dialog = document.getElementById(id);
+    if (!dialog) continue;
+    const close = () => {
+      // 附加窗口的声音要立刻停：不能只靠 close 事件（个别引擎下会延迟派发）
+      if (dialog.id === "puppy-dialog") stopPuppyVoice();
+      dialog.close();
+    };
+    const button = dialog.querySelector("[data-dialog-close]");
+    if (button) button.addEventListener("click", close);
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) close(); // 点在遮罩上（卡片以外的部分）
+    });
+  }
+}
+
 // 操作日志的高度可以拖动上沿调整（§6.5 界面微调）：
 //   向上拖 = 拉高日志，最多拉到左侧「数据导入 / 记录导出」之间只剩最小间隔（.spacer 的 12px）；
 //   向下拖 = 压回默认高度，不能比默认更矮。
@@ -583,14 +602,13 @@ document.addEventListener("DOMContentLoaded", () => {
       startPuppyVoice();
     }
   });
-  // 关闭附加窗口的三条路径都要停声音：点「关闭」（form method=dialog）、按 Esc（cancel）、
-  // 以及 close 事件本身（兜底）。只挂 close 会依赖事件派发时机，用户按下去就该立刻安静。
+  // 附加窗口的关闭路径都要停声音：右上角 X 与点遮罩在 setupOverlayDialogs 里统一接线，
+  // 这里再补 Esc（cancel）与 close 事件兜底 —— 只挂 close 会依赖事件派发时机。
+  setupOverlayDialogs();
   const puppyDialog = document.getElementById("puppy-dialog");
   if (puppyDialog) {
     puppyDialog.addEventListener("close", stopPuppyVoice);
     puppyDialog.addEventListener("cancel", stopPuppyVoice);
-    const voiceCloseButton = puppyDialog.querySelector("form button");
-    if (voiceCloseButton) voiceCloseButton.addEventListener("click", stopPuppyVoice);
   }
   // 菜单「关于」由 Go 侧发事件（runtime.EventsEmit("show-about")）
   if (window.runtime && window.runtime.EventsOn) {

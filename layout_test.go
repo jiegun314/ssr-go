@@ -199,10 +199,76 @@ func TestTheHiddenWindowSoundShipsInsideTheApp(t *testing.T) {
 		"startPuppyVoice();",
 		`puppyDialog.addEventListener("close", stopPuppyVoice)`,
 		`puppyDialog.addEventListener("cancel", stopPuppyVoice)`,
-		`voiceCloseButton.addEventListener("click", stopPuppyVoice)`,
+		`if (dialog.id === "puppy-dialog") stopPuppyVoice();`,
 	} {
 		if !strings.Contains(script, wanted) {
 			t.Errorf("app.js 里缺少声音控制：%s", wanted)
 		}
 	}
+}
+
+// TestTheDisplayDialogsCloseFromTheTopRightIcon 固定两个展示型窗口（关于 / 彩蛋）的关闭方式：
+// 底部不再有按钮行，改成右上角图标按钮；关闭路径＝X、点遮罩、Esc（<dialog> 原生）。
+// 尺寸固定 323×323（与原版一致）：关于窗口去掉按钮行后正好装得下，彩蛋窗口是 323×323 的图片本身。
+func TestTheDisplayDialogsCloseFromTheTopRightIcon(t *testing.T) {
+	html := readFrontendFile(t, "index.html")
+	script := readFrontendFile(t, "app.js")
+
+	for _, id := range []string{"about", "puppy-dialog"} {
+		block := htmlBlock(t, html, `<dialog id="`+id+`">`, "</dialog>")
+		if !strings.Contains(block, "data-dialog-close") {
+			t.Errorf("#%s 缺少右上角关闭按钮", id)
+		}
+		if !strings.Contains(block, `aria-label="关闭"`) {
+			t.Errorf("#%s 的关闭按钮缺少可读名称", id)
+		}
+		if strings.Contains(block, "<form") {
+			t.Errorf("#%s 不该再有底部按钮行", id)
+		}
+		body := styleRule(t, html, "#"+id+"{")
+		if !strings.Contains(body, "width:323px") || !strings.Contains(body, "height:323px") {
+			t.Errorf("#%s 不是固定的 323×323：%s", id, body)
+		}
+		if !strings.Contains(body, "padding:0") {
+			t.Errorf("#%s 需要去掉卡片内边距（X 与内容自己定位）：%s", id, body)
+		}
+	}
+	// 彩蛋窗口：图片铺满（标题与 X 叠在图上），所以图片必须是 323×323 且不留外边距
+	image := styleRule(t, html, "#puppy-dialog img{")
+	for _, wanted := range []string{"width:323px", "height:323px", "object-fit:cover", "margin:0"} {
+		if !strings.Contains(image, wanted) {
+			t.Errorf("彩蛋图片没有铺满卡片，缺少 %s：%s", wanted, image)
+		}
+	}
+	// 关闭路径的接线：X 与遮罩走同一个 close 函数，彩蛋窗口顺手停声音
+	for _, wanted := range []string{
+		"function setupOverlayDialogs()",
+		"setupOverlayDialogs();",
+		`dialog.querySelector("[data-dialog-close]")`,
+		"if (event.target === dialog) close();",
+		`if (dialog.id === "puppy-dialog") stopPuppyVoice();`,
+	} {
+		if !strings.Contains(script, wanted) {
+			t.Errorf("app.js 里缺少展示型窗口的关闭接线：%s", wanted)
+		}
+	}
+	// 参数设定这类带动作的窗口不能被遮罩点击关掉（里面有正在编辑的 YAML）
+	if strings.Contains(script, `"settings"`) && strings.Contains(script, `for (const id of ["about", "puppy-dialog", "settings"])`) {
+		t.Error("参数设定窗口不该进遮罩关闭的名单")
+	}
+}
+
+// htmlBlock 取出从 start 到第一个 end 之间的片段（用于检查某个对话框自己的结构）。
+func htmlBlock(t *testing.T, html string, start string, end string) string {
+	t.Helper()
+	from := strings.Index(html, start)
+	if from < 0 {
+		t.Fatalf("界面里找不到 %s", start)
+	}
+	rest := html[from+len(start):]
+	to := strings.Index(rest, end)
+	if to < 0 {
+		t.Fatalf("%s 没有闭合标记 %s", start, end)
+	}
+	return rest[:to]
 }
