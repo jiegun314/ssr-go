@@ -8,10 +8,11 @@ import (
 )
 
 // TestTheMenuOnlyKeepsTheWorkingEntries 固定菜单结构：
-// 删掉没有实际用途的「文件」菜单，只保留「设置 → 参数设定」「工具 → 打开目录 / 备份数据库」
-// 与「关于 → 关于」；macOS 额外有系统应用菜单与编辑菜单。
-// 回归点：「文件 → 打开」走的是"按文件名猜来源"的启发式路径（逐个来源试导入），
-// 界面里每个来源都有自己的导入按钮，这个入口既多余又容易导错来源。
+// 「文件 → 退出」在最左（macOS 上系统应用菜单在它左边，这是系统固定的位置），
+// 然后是「设置 → 参数设定」「工具 → 打开目录 / 备份数据库」「关于 → 关于」；
+// macOS 额外有系统应用菜单与编辑菜单。
+// 回归点：「文件」里只保留「退出」——曾经那个「打开」是按文件名猜来源的启发式路径
+// （逐个来源试导入），界面里每个来源都有自己的导入按钮，既多余又容易导错来源。
 func TestTheMenuOnlyKeepsTheWorkingEntries(t *testing.T) {
 	root := buildMenu(NewApp(nil))
 
@@ -32,7 +33,8 @@ func TestTheMenuOnlyKeepsTheWorkingEntries(t *testing.T) {
 		submenus[item.Label] = item.SubMenu
 	}
 
-	want := []string{"设置", "工具", "关于"}
+	// 顺序：文件在最左（macOS 上系统应用菜单固定占据它左边那一格）
+	want := []string{"文件", "设置", "工具", "关于"}
 	if len(labels) != len(want) {
 		t.Fatalf("菜单项 = %v；want %v", labels, want)
 	}
@@ -41,24 +43,23 @@ func TestTheMenuOnlyKeepsTheWorkingEntries(t *testing.T) {
 			t.Errorf("第 %d 个菜单 = %q；want %q", index+1, labels[index], label)
 		}
 	}
-	if _, exists := submenus["文件"]; exists {
-		t.Error("「文件」菜单应已删除")
+	expectedSubmenus := map[string][]string{
+		"文件": {"退出"},
+		"设置": {"参数设定"},
+		"工具": {"打开配置目录", "打开导出目录", "打开数据目录", "", "备份数据库…"},
+		"关于": {"关于"},
 	}
-	if items := menuLabels(submenus["设置"]); len(items) != 1 || items[0] != "参数设定" {
-		t.Errorf("「设置」下的菜单项 = %v；want [参数设定]", items)
-	}
-	tools := menuLabels(submenus["工具"])
-	wantTools := []string{"打开配置目录", "打开导出目录", "打开数据目录", "", "备份数据库…"}
-	if len(tools) != len(wantTools) {
-		t.Fatalf("「工具」下的菜单项 = %v；want %v", tools, wantTools)
-	}
-	for index, label := range wantTools {
-		if tools[index] != label {
-			t.Errorf("「工具」第 %d 项 = %q；want %q", index+1, tools[index], label)
+	for label, wantItems := range expectedSubmenus {
+		gotItems := menuLabels(submenus[label])
+		if len(gotItems) != len(wantItems) {
+			t.Errorf("「%s」下的菜单项 = %v；want %v", label, gotItems, wantItems)
+			continue
 		}
-	}
-	if items := menuLabels(submenus["关于"]); len(items) != 1 || items[0] != "关于" {
-		t.Errorf("「关于」下的菜单项 = %v；want [关于]", items)
+		for index, item := range wantItems {
+			if gotItems[index] != item {
+				t.Errorf("「%s」第 %d 项 = %q；want %q", label, index+1, gotItems[index], item)
+			}
+		}
 	}
 }
 

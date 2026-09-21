@@ -50,16 +50,17 @@ func main() {
 	}
 }
 
-// buildMenu 复刻现有界面的菜单：编辑（仅 macOS，见下）、设置（参数设定）、
-// 工具（打开常用目录 / 备份数据库）、关于（关于）。
+// buildMenu 复刻现有界面的菜单：文件（退出）、编辑（仅 macOS，见下）、
+// 设置（参数设定）、工具（打开常用目录 / 备份数据库）、关于（关于）。
 //
-// 曾经的「文件」菜单已删除：它的「打开」走的是"按文件名猜来源"的启发式路径
+// 「文件」里只有「退出」：曾经的「打开」走的是"按文件名猜来源"的启发式路径
 // （四个来源的表头校验逐个试，容易把文件导进错的来源），而界面里每个来源都有自己的
-// 导入按钮；「退出」在 macOS 由系统应用菜单提供、Windows 直接关窗口即可。
+// 导入按钮，所以那个入口不再提供。
 func buildMenu(application *App) *menu.Menu {
 	root := menu.NewMenu()
 	// macOS 会把第一个子菜单当作「应用菜单」：先补上系统应用菜单，
-	// 我们的「设置」「关于」才会作为独立菜单出现在菜单栏里（否则第一个会变成应用菜单本身）。
+	// 我们的「文件」「设置」等才会作为独立菜单出现在菜单栏里（否则第一个会变成应用菜单本身，
+	// 而系统应用菜单永远是菜单栏最左边那一项，我们的「文件」跟在它后面）。
 	if runtime.GOOS == "darwin" {
 		root.Append(menu.AppMenu())
 		// 编辑菜单只在 macOS 加：WKWebView 的 ⌘C/⌘V/⌘A 要靠菜单项才能路由到原生行为，
@@ -69,6 +70,10 @@ func buildMenu(application *App) *menu.Menu {
 		// Windows（WebView2）本来就直接支持这些快捷键，加了反而会出现空标题的菜单项，所以不加。
 		root.Append(menu.EditMenu())
 	}
+	file := root.AddSubmenu("文件")
+	file.AddText("退出", nil, func(*menu.CallbackData) {
+		application.Quit()
+	})
 	settings := root.AddSubmenu("设置")
 	settings.AddText("参数设定", nil, func(*menu.CallbackData) {
 		application.ShowSettings()
