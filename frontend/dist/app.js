@@ -419,7 +419,7 @@ async function openAbout() {
   const version = document.getElementById("about-version");
   version.textContent = about.version;
   version.title = about.detail || "";
-  document.getElementById("about").showModal();
+  showOverlayDialog(document.getElementById("about"));
 }
 
 // 关于窗口图标上的点击计数：阈值与时间窗沿用原版，属行为契约，不要改这两个数值。
@@ -449,6 +449,13 @@ function stopPuppyVoice() {
 
 // 展示型窗口（关于 / 附加窗口）的关闭路径：右上角 X、点遮罩、Esc（<dialog> 原生行为）。
 // 只挂这两个窗口 —— 参数设定里有正在编辑的 YAML，点到外面就关掉会丢内容。
+// 打开用 showOverlayDialog：showModal 会把焦点交给对话框里第一个可聚焦元素（也就是
+// 右上角那个 X），一开窗就亮着焦点环，看起来像"被选中"了 —— 所以把焦点收回对话框本身。
+function showOverlayDialog(dialog) {
+  dialog.showModal();
+  dialog.focus();
+}
+
 function setupOverlayDialogs() {
   for (const id of ["about", "puppy-dialog"]) {
     const dialog = document.getElementById(id);
@@ -598,7 +605,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (aboutClicks.length >= ICON_CLICK_COUNT) {
       aboutClicks = [];
       document.getElementById("about").close();
-      document.getElementById("puppy-dialog").showModal();
+      showOverlayDialog(document.getElementById("puppy-dialog"));
       startPuppyVoice();
     }
   });

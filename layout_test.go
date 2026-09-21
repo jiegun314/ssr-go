@@ -272,3 +272,31 @@ func htmlBlock(t *testing.T, html string, start string, end string) string {
 	}
 	return rest[:to]
 }
+
+// TestOverlayDialogsDoNotStealFocusToTheCloseButton 固定"开窗时不要看起来像被选中"：
+// showModal() 会把焦点交给对话框里第一个可聚焦元素，也就是右上角那个 X，
+// 于是 :focus-visible 的焦点环一开窗就亮着。两个展示型窗口一律走 showOverlayDialog
+// （showModal 之后把焦点收回对话框本身），键盘用户按 Tab 仍能看到焦点环。
+func TestOverlayDialogsDoNotStealFocusToTheCloseButton(t *testing.T) {
+	script := readFrontendFile(t, "app.js")
+	if !strings.Contains(script, "function showOverlayDialog(dialog)") ||
+		!strings.Contains(script, "dialog.showModal();\n  dialog.focus();") {
+		t.Error("缺少 showOverlayDialog（showModal 后把焦点收回对话框本身）")
+	}
+	for _, wanted := range []string{
+		`showOverlayDialog(document.getElementById("about"))`,
+		`showOverlayDialog(document.getElementById("puppy-dialog"))`,
+	} {
+		if !strings.Contains(script, wanted) {
+			t.Errorf("展示型窗口没有走 showOverlayDialog：%s", wanted)
+		}
+	}
+	for _, forbidden := range []string{
+		`document.getElementById("about").showModal()`,
+		`document.getElementById("puppy-dialog").showModal()`,
+	} {
+		if strings.Contains(script, forbidden) {
+			t.Errorf("展示型窗口不该直接用 showModal 打开（会把焦点给 X）：%s", forbidden)
+		}
+	}
+}
