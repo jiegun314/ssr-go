@@ -45,8 +45,8 @@ func TestConfigurationDocumentRendersFourTabs(t *testing.T) {
 		if len(tab.HTML) < 200 {
 			t.Errorf("%s 渲染内容过短（%d 字节）", tab.Key, len(tab.HTML))
 		}
-		if !strings.Contains(tab.HTML, "md-") {
-			t.Errorf("%s 没有渲染成 Markdown 风格结构", tab.Key)
+		if !strings.Contains(tab.HTML, "tree-") {
+			t.Errorf("%s 没有渲染成树状结构", tab.Key)
 		}
 	}
 	// 抽查每份配置里的代表性键都出现在对应页签
@@ -63,11 +63,15 @@ func TestConfigurationDocumentRendersFourTabs(t *testing.T) {
 			}
 		}
 	}
-	// 逐级缩进：嵌套层级要带深度类（CSS 用 md-d0/1/2… 控制缩进）
+	// 树状结构：嵌套节点要带深度标记（data-depth），标量按类型着色
 	nested := tabs[1].HTML // excel_import_mapping.yaml 结构最深
-	for _, wanted := range []string{"md-d1", "md-d2", "md-d3"} {
+	for _, wanted := range []string{
+		`<details class="tree-node" data-depth="0"`,
+		`data-depth="4"`,
+		`class="tree-value type-string"`,
+	} {
 		if !strings.Contains(nested, wanted) {
-			t.Errorf("嵌套内容缺少深度类 %s", wanted)
+			t.Errorf("树状结构里缺少 %s", wanted)
 		}
 	}
 	// 转义：渲染结果里不能出现未转义的可执行标签
@@ -76,11 +80,12 @@ func TestConfigurationDocumentRendersFourTabs(t *testing.T) {
 	}
 }
 
-// TestSettingsHTMLCarriesAnIndentForEveryDepth 固定缩进的写法：每个带层级类的
-// 元素都要在 style 里带上本层的缩进基准（--md-indent = 层数 × 12px）。
-// 回归点：CSS 里曾经只定义 md-d0…md-d5 六个基准，整合映射的
-// merge_rules.sources.*.duplicates.compare_by（第 6 层）取不到值，列表项顶到最左边。
-func TestSettingsHTMLCarriesAnIndentForEveryDepth(t *testing.T) {
+// TestSettingsHTMLCarriesTheTreeStructure 固定树状渲染的契约：
+// 容器节点用 <details class="tree-node" data-depth="N">，标量行用
+// <div class="tree-row tree-leaf" data-depth="N">，值按 YAML 类型着色。
+// 回归点：以前是 Markdown 风格的扁平排版（md-* 类），深层内容缩进曾经顶头；
+// 现在缩进靠嵌套的 <details> 累加，深度没有上限。
+func TestSettingsHTMLCarriesTheTreeStructure(t *testing.T) {
 	workspace := t.TempDir()
 	copyDirectoryForTest(t, "config", filepath.Join(workspace, "config"))
 	loader, err := config.NewLoader(filepath.Join(workspace, "config"))
@@ -90,87 +95,83 @@ func TestSettingsHTMLCarriesAnIndentForEveryDepth(t *testing.T) {
 	app := NewApp(nil)
 	app.loader = loader
 
-	depthClass := regexp.MustCompile(`<(h[3-6]|div|ul|li) class="([^"]*md-d(\d+)[^"]*)"([^>]*)>`)
+	tabs := app.ConfigurationDocument()
+	depthAttribute := regexp.MustCompile(`data-depth="(\d+)"`)
 	maxDepth := -1
-	for _, tab := range app.ConfigurationDocument() {
-		for _, match := range depthClass.FindAllStringSubmatch(tab.HTML, -1) {
-			depth, convErr := strconv.Atoi(match[3])
+	for _, tab := range tabs {
+		for _, match := range depthAttribute.FindAllStringSubmatch(tab.HTML, -1) {
+			depth, convErr := strconv.Atoi(match[1])
 			if convErr != nil {
-				t.Fatalf("层数不是数字：%q", match[0])
+				t.Fatalf("深度不是数字：%q", match[0])
 			}
 			if depth > maxDepth {
 				maxDepth = depth
 			}
-			if match[1] == "li" {
-				continue // 列表项不消费缩进变量（缩进由它所属的 ul 提供）
-			}
-			wanted := `style="--md-indent:` + strconv.Itoa(depth*12) + `px"`
-			if !strings.Contains(match[4], wanted) {
-				t.Errorf("%s: 第 %d 层元素缺少缩进基准 %s：%s", tab.Key, depth, wanted, match[0])
-			}
+		}
+		if strings.Contains(tab.HTML, "md-h") || strings.Contains(tab.HTML, "md-kv") {
+			t.Errorf("%s 里还有 Markdown 风格的旧排版残留", tab.Key)
 		}
 	}
 	if maxDepth < 6 {
 		t.Fatalf("最深层级 = %d；配置里最少有第 6 层（compare_by），用例没有覆盖到这个回归点", maxDepth)
 	}
+	// 前两层默认展开，再深的默认折叠：一千多行的配置不至于一上来铺满整屏
+	importTab := tabs[1].HTML
+	if !strings.Contains(importTab, `<details class="tree-node" data-depth="0" open>`) {
+		t.Error("顶层节点应该默认展开")
+	}
+	if !strings.Contains(importTab, `<details class="tree-node" data-depth="2">`) {
+		t.Error("第 2 层及更深的节点应该默认折叠")
+	}
+	// 容器节点带子项数量标注：映射 {n}、列表 [n]
+	if !strings.Contains(importTab, `class="tree-meta">{`) || !strings.Contains(importTab, `class="tree-meta">[`) {
+		t.Error("容器节点缺少 {n} / [n] 数量标注")
+	}
+	// 空集合要有占位说明，而不是一片空白（用一份临时配置验证，不动真实配置）
+	emptyDir := t.TempDir()
+	copyDirectoryForTest(t, "config", emptyDir)
+	emptyPath := filepath.Join(emptyDir, config.ImportMappingFile)
+	if err := os.WriteFile(emptyPath, []byte("version: \"1.0\"\nglobal_settings: {}\nsources: {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	emptyLoader, err := config.NewLoader(emptyDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	emptyApp := NewApp(nil)
+	emptyApp.loader = emptyLoader
+	emptyTab := emptyApp.ConfigurationDocument()[1]
+	if !strings.Contains(emptyTab.HTML, "（空 object）") {
+		t.Errorf("空映射没有占位说明：%s", emptyTab.HTML)
+	}
 }
 
-// TestSettingsStylesConsumeTheIndentVariable 固定样式表与渲染器的分工：
-// 缩进基准由渲染器写到元素上，CSS 只负责消费 —— 不能再出现"按层级写死的
-// padding-left 清单"（那正是深层内容顶头的原因）。
-func TestSettingsStylesConsumeTheIndentVariable(t *testing.T) {
+// TestSettingsTreeStylesNestTheIndent 固定样式侧的口径：
+// 缩进由嵌套的 .tree-children 提供（不再需要"按层级写死 padding"或 CSS 变量），
+// 值按类型着色 —— 四种类型都必须有各自的颜色。
+func TestSettingsTreeStylesNestTheIndent(t *testing.T) {
 	style := readFrontendStyles(t)
 
-	for _, rule := range []string{
-		".settings-body .md-h{",
-		".settings-body .md-kv{",
-		".settings-body .md-list{",
+	if body := styleRule(t, style, ".tree-children{"); !strings.Contains(body, "padding-left:") {
+		t.Errorf("树的缩进应由 .tree-children 提供：%s", body)
+	}
+	for rule, want := range map[string]string{
+		".tree-value.type-string{": "#1B7F3B",
+		".tree-value.type-number{": "#A4262C",
+		".tree-value.type-bool{":   "#B26A00",
 	} {
-		body := styleRule(t, style, rule)
-		if !strings.Contains(body, "var(--md-indent") {
-			t.Errorf("%s 没有消费缩进变量：%s", rule, body)
+		if body := styleRule(t, style, rule); !strings.Contains(body, want) {
+			t.Errorf("%s 缺少颜色 %s：%s", rule, want, body)
 		}
 	}
-	// 一级块之间的淡分隔线
-	if !strings.Contains(style, ".settings-body h3.md-h:not(:first-child){border-top:1px solid rgba(0,0,0,.12)") {
-		t.Error("样式里缺少一级块之间的分隔线")
+	if body := styleRule(t, style, ".tree-value.type-null{"); !strings.Contains(body, "var(--md-on-surface-medium)") {
+		t.Errorf("空值应该用正文灰：%s", body)
 	}
-	// 按层级写死缩进的清单必须已经删掉（否则会与变量方案互相打架）
-	if matched, _ := regexp.MatchString(`\.md-d\d+\{padding-left`, style); matched {
-		t.Error("样式里还有按层级写死的 padding-left 清单")
-	}
-}
-
-// TestSettingsColorsStayThreeToned 固定颜色层级：参数设定里只允许三种颜色 ——
-// 一级标题＝品牌红、二级标题＝正文黑、其余内容（键名、键值对的值、列表项）
-// ＝一种正文灰。回归点：键值对的值 .md-v 与列表项 li 曾经没有跟随灰色，
-// 结果同一份配置里"键是灰的、值/列表是黑的"。
-func TestSettingsColorsStayThreeToned(t *testing.T) {
-	style := readFrontendStyles(t)
-
-	gray := "color:var(--md-on-surface-medium)"
-	black := "color:var(--md-on-surface)"
-
-	if body := styleRule(t, style, ".settings-body{"); !strings.Contains(body, gray) {
-		t.Errorf("参数设定的基准色不是正文灰：%s", body)
-	}
-	// 一级、二级标题各自覆盖基准色，保留红色与黑色
-	if body := styleRule(t, style, ".settings-body h3.md-h{"); !strings.Contains(body, "color:var(--md-primary)") {
-		t.Errorf("一级标题不是品牌红：%s", body)
-	}
-	if body := styleRule(t, style, ".settings-body h4.md-h{"); !strings.Contains(body, black) {
-		t.Errorf("二级标题不是正文黑：%s", body)
-	}
-	// 三级及更深的标题、键值对的值都不能再自己指定黑色（否则会脱离正文灰）
-	for _, rule := range []string{".settings-body .md-h{", ".settings-body .md-v{"} {
-		body := styleRule(t, style, rule)
-		if strings.Contains(body, black) {
-			t.Errorf("%s 不应指定正文黑，应跟随基准灰：%s", rule, body)
+	// 旧的分层排版清单必须已经删干净（否则两套规则会互相打架）
+	for _, gone := range []string{".settings-body .md-h{", ".settings-body .md-kv{", ".settings-body .md-list{"} {
+		if strings.Contains(style, gone) {
+			t.Errorf("样式里还留着旧的 Markdown 排版规则 %s", gone)
 		}
-	}
-	// 列表项自己不设颜色，跟随 .settings-body 的基准灰
-	if body := styleRule(t, style, ".settings-body .md-list{"); strings.Contains(body, "color:") {
-		t.Errorf("列表不应单独指定颜色，应跟随基准灰：%s", body)
 	}
 }
 

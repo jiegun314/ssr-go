@@ -68,6 +68,60 @@ function renderSettingsTab(index) {
     `${tab.title}（${tab.path}）${tab.note ? " · " + tab.note : ""}`;
   document.getElementById("settings-edit").textContent = "编辑原文";
   document.getElementById("settings-body").innerHTML = tab.html || "";
+  setSettingsPath([]); // 换页签后路径条清空，等用户点到具体一行再显示
+}
+
+// 树状结构的两条交互：点/聚焦某一行时在顶部显示"从根到这里"的路径；
+// 全部展开/折叠按需切换。折叠本身由原生 <details> 负责，这里只做批量开关。
+function setSettingsPath(parts) {
+  const bar = document.getElementById("settings-path");
+  if (!bar) return;
+  bar.textContent = "";
+  parts.forEach((part, index) => {
+    if (index > 0) {
+      const sep = document.createElement("span");
+      sep.className = "crumb-sep";
+      sep.textContent = "▸";
+      bar.appendChild(sep);
+    }
+    bar.appendChild(document.createTextNode(part));
+  });
+}
+
+// 从一个树行往上收集路径：自己的键 + 每一层祖先 <details> 的键。
+function settingsPathFor(row) {
+  const parts = [];
+  const ownKey = row.querySelector(".tree-key");
+  if (ownKey) parts.push(ownKey.textContent);
+  let node = row.closest("details.tree-node");
+  const body = document.getElementById("settings-body");
+  while (node && node !== body) {
+    const summaryKey = node.querySelector(":scope > summary .tree-key");
+    if (summaryKey) parts.unshift(summaryKey.textContent);
+    node = node.parentElement ? node.parentElement.closest("details.tree-node") : null;
+  }
+  return parts;
+}
+
+function setupSettingsTree() {
+  const body = document.getElementById("settings-body");
+  if (!body) return;
+  const show = (event) => {
+    const row = event.target.closest(".tree-row");
+    if (!row || !body.contains(row)) return;
+    setSettingsPath(settingsPathFor(row));
+  };
+  body.addEventListener("click", show);
+  body.addEventListener("focusin", show);
+  const toggleAll = (open) => {
+    for (const node of document.querySelectorAll("#settings-body details.tree-node")) {
+      node.open = open;
+    }
+  };
+  const expand = document.getElementById("settings-expand");
+  if (expand) expand.addEventListener("click", () => toggleAll(true));
+  const collapse = document.getElementById("settings-collapse");
+  if (collapse) collapse.addEventListener("click", () => toggleAll(false));
 }
 
 // 「编辑原文」：直接编辑 YAML 原文并原样保存（Go 侧只做语法与整体校验，失败会还原）
@@ -76,6 +130,7 @@ function renderSettingsEditor() {
   if (!tab) return;
   settingsEditing = true;
   document.getElementById("settings-edit").textContent = "结束编辑";
+  setSettingsPath([]); // 编辑原文时没有树，路径条清空
   document.getElementById("settings-body").innerHTML =
     `<textarea id="settings-editor" spellcheck="false"></textarea>
      <div class="settings-edit-actions">
@@ -630,6 +685,8 @@ document.addEventListener("DOMContentLoaded", () => {
       showModal(payload.title || "Info", payload.message || "");
     });
   }
+  // 参数设定的树：路径条 + 全部展开/折叠
+  setupSettingsTree();
 });
 
 (async () => {

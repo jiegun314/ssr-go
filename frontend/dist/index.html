@@ -146,37 +146,32 @@ body.log-resizing .log-resizer::before{background:var(--md-primary);transform:sc
 .settings-edit-actions{display:flex;justify-content:flex-end;gap:8px;padding:8px 0 0}
 .settings-body{max-height:56vh;overflow:auto;padding:0 24px 8px;
   color:var(--md-on-surface-medium)}
-/* 参数设定的排版：红色标题层全大写、居左；每深入一层多缩进一级 */
-/* 分层排版：一级＝红色大写加粗；二级＝黑色加粗；三级及更深＝与正文一致（不加粗不放大），
-   只靠左侧缩进体现层级。
-   颜色只有三种：一级＝品牌红、二级＝正文黑、其余（含键值对的值与列表项）＝正文灰 ——
-   灰色写在 .settings-body 上作为基准色，深层内容默认继承，避免再出现"某个层级忘了改"。
-   缩进用 CSS 变量 --md-indent 作为"本层基准"（渲染器写在元素上，每层 +12px），
-   各元素在此基础上叠加自己的内边距——这样深度规则与基础规则的先后顺序不会互相覆盖，
-   缩进也没有深度上限（之前用 md-d0…md-d5 固定清单，第 6 层取不到基准值，内容会顶头）。 */
-.settings-body .md-h{margin:12px 0 4px;text-align:left;font-weight:400;
-  font-size:12px;color:var(--md-on-surface-medium);text-transform:none;letter-spacing:normal;
-  padding-left:calc(var(--md-indent, 0px) + 0px)}
-.settings-body h3.md-h{font-size:14px;font-weight:600;color:var(--md-primary);
-  text-transform:uppercase;letter-spacing:.4px}
-.settings-body h4.md-h{font-size:13px;font-weight:600;color:var(--md-on-surface)}
-.settings-body h5.md-h,
-.settings-body h6.md-h{font-size:12px;font-weight:400;color:var(--md-on-surface-medium)}
-/* 每个一级块之间一条淡分隔线，长内容更好读 */
-.settings-body h3.md-h:not(:first-child){border-top:1px solid rgba(0,0,0,.12);
-  margin-top:16px;padding-top:12px}
-.settings-body .md-kv{display:flex;gap:12px;font-size:12px;line-height:18px;
-  padding:2px 0 2px calc(var(--md-indent, 0px) + 8px)}
-.settings-body .md-k{flex:0 0 auto;min-width:180px;color:var(--md-on-surface-medium)}
-/* 值文本与界面同一套字体栈：参数里会夹中文，等宽栈在 Windows 上同样会退化成
-   Consolas + 微软雅黑混排（键名与值的区分由左侧固定键列和缩进负责，不靠字体）。 */
-.settings-body .md-v{flex:1 1 auto;word-break:break-word;color:inherit;
-  font-family:"Segoe UI",-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif}
-.settings-body .md-list{margin:2px 0 6px;font-size:12px;line-height:18px;
-  padding-left:calc(var(--md-indent, 0px) + 24px)}
-.settings-body .md-list li{padding-left:0}
-.settings-body .md-list li{margin:2px 0}
-.settings-body .md-item-block{list-style:none;margin-left:-16px}
+/* 参数设定的排版：把 YAML 渲染成树状展开结构（原生 <details>，键盘也能操作）。
+   缩进靠嵌套的 .tree-children 自然累加，所以没有深度上限；容器节点标注子项数量
+   （映射 {n}、列表 [n]），标量按类型着色 —— 沿用界面里已有的语义色：
+   绿＝字符串、红＝数字、琥珀＝布尔、灰＝空值。 */
+.settings-path{display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  padding:0 24px;margin:0 0 6px;font-size:11px;line-height:16px;min-height:16px;
+  color:var(--md-on-surface-medium)}
+.settings-path .crumb-sep{color:var(--md-on-surface-disabled)}
+.tree-node{margin:0}
+.tree-row{display:flex;align-items:baseline;gap:6px;padding:1px 0;
+  font-size:12px;line-height:18px}
+.tree-node>summary{cursor:pointer;border-radius:3px}
+.tree-node>summary::marker{color:var(--md-on-surface-medium);font-size:10px}
+.tree-node>summary:hover{background:rgba(0,0,0,.04)}
+.tree-row:focus-visible{outline:2px solid var(--md-primary);outline-offset:-1px}
+.tree-children{padding-left:16px}
+.tree-key{color:var(--md-on-surface)}
+.tree-sep{color:var(--md-on-surface-medium)}
+.tree-meta{color:var(--md-on-surface-disabled);font-size:11px}
+.tree-value{word-break:break-all}
+.tree-value.type-string{color:#1B7F3B}
+.tree-value.type-number{color:#A4262C}
+.tree-value.type-bool{color:#B26A00}
+.tree-value.type-null{color:var(--md-on-surface-medium);font-style:italic}
+.tree-empty{padding-left:16px;font-size:12px;font-style:italic;
+  color:var(--md-on-surface-disabled)}
 .settings-body .empty{color:var(--md-on-surface-medium)}
 </style>
 <!-- Material Design 主题层：只覆盖视觉（颜色/字体/圆角/阴影/控件外观），
@@ -383,8 +378,11 @@ dialog .tblwrap{margin:0 24px 8px}
   <div class="tabs" id="settings-tabs" role="tablist"></div>
   <div class="settings-head">
     <div class="settings-note" id="settings-note"></div>
+    <button type="button" id="settings-expand">全部展开</button>
+    <button type="button" id="settings-collapse">全部折叠</button>
     <button type="button" id="settings-edit">编辑原文</button>
   </div>
+  <div class="settings-path" id="settings-path" aria-live="polite"></div>
   <div class="settings-body" id="settings-body"></div>
   <form method="dialog"><button>关闭</button></form>
 </dialog>

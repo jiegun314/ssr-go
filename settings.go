@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -74,12 +75,17 @@ func (app *App) ShowSettings() {
 	runtime.EventsEmit(app.context, "show-settings", nil)
 }
 
-// yamlNodeToHTML 把 YAML 节点渲染成 Markdown 风格的结构化 HTML：
-// 映射与列表的键变成标题，标量变成「键 / 值」行或条目。
+// yamlNodeToHTML 把 YAML 节点渲染成**树状展开结构**（可折叠、按类型着色）：
 //
-// 每个带层级类的元素都会带上本层的缩进基准 --md-indent（见 indentStyle）：
-// CSS 只负责消费这个变量，所以缩进没有深度上限 —— 之前用 md-d0…md-d5 六个
-// 固定类，深度 ≥6 的元素取不到基准值，会退回 0 并顶到最左边。
+//	<details class="tree-node" open>
+//	  <summary class="tree-row"><span class="tree-key">excel</span>
+//	    <span class="tree-meta">{5}</span></summary>
+//	  <div class="tree-children">…子节点…</div>
+//	</details>
+//
+// 用原生 <details>/<summary> 而不是自己写 JS：折叠/展开由浏览器负责，键盘也能操作，
+// 缩进靠嵌套的 .tree-children 自然累加，深度没有上限。
+// 容器节点标注子项数量（映射 {n}、列表 [n]），标量按类型着色（string/number/bool/null）。
 func yamlNodeToHTML(node *yaml.Node, depth int) string {
 	switch node.Kind {
 	case yaml.DocumentNode:
@@ -90,53 +96,81 @@ func yamlNodeToHTML(node *yaml.Node, depth int) string {
 	case yaml.MappingNode:
 		var builder strings.Builder
 		for index := 0; index+1 < len(node.Content); index += 2 {
-			key := node.Content[index].Value
-			value := node.Content[index+1]
-			if value.Kind == yaml.MappingNode || value.Kind == yaml.SequenceNode {
-				level := depth + 3
-				if level > 6 {
-					level = 6
-				}
-				fmt.Fprintf(&builder, "<h%d class=\"md-h md-d%d\"%s>%s</h%d>\n",
-					level, depth, indentStyle(depth), html.EscapeString(key), level)
-				builder.WriteString(yamlNodeToHTML(value, depth+1))
-				continue
-			}
-			fmt.Fprintf(&builder,
-				"<div class=\"md-kv md-d%d\"%s><span class=\"md-k\">%s</span>"+
-					"<span class=\"md-v\">%s</span></div>\n",
-				depth, indentStyle(depth), html.EscapeString(key), html.EscapeString(value.Value))
+			builder.WriteString(yamlEntryToHTML(node.Content[index].Value, node.Content[index+1], depth))
 		}
 		return builder.String()
 	case yaml.SequenceNode:
 		var builder strings.Builder
-		fmt.Fprintf(&builder, "<ul class=\"md-list md-d%d\"%s>\n", depth, indentStyle(depth))
-		for _, item := range node.Content {
-			if item.Kind == yaml.MappingNode || item.Kind == yaml.SequenceNode {
-				builder.WriteString("<li class=\"md-item-block\">")
-				builder.WriteString(yamlNodeToHTML(item, depth+1))
-				builder.WriteString("</li>\n")
-				continue
-			}
-			builder.WriteString("<li class=\"md-d" + fmt.Sprint(depth) + "\">" +
-				html.EscapeString(item.Value) + "</li>\n")
+		for index, item := range node.Content {
+			builder.WriteString(yamlEntryToHTML(strconv.Itoa(index), item, depth))
 		}
-		builder.WriteString("</ul>\n")
 		return builder.String()
 	default:
-		return "<div class=\"md-kv\"><span class=\"md-v\">" +
-			html.EscapeString(node.Value) + "</span></div>\n"
+		return treeValueRow("", node, depth)
 	}
 }
 
-// indentStyle 输出本层的缩进基准：每深入一层多 12px。
-// 基准值写在元素上（而不是靠 CSS 里 md-d0…md-d5 的固定清单），
-// 这样任意深度的配置都能正确缩进。
-func indentStyle(depth int) string {
-	if depth < 0 {
-		depth = 0
+// yamlEntryToHTML 渲染一个"键/下标 + 值"的条目：容器变成可折叠节点，标量变成一行。
+func yamlEntryToHTML(label string, value *yaml.Node, depth int) string {
+	key := html.EscapeString(label)
+	switch value.Kind {
+	case yaml.MappingNode, yaml.SequenceNode:
+		// 映射的 Content 是「键、值」成对存的，子项数要除以 2；列表的 Content 就是元素。
+		annotation := "{" + strconv.Itoa(len(value.Content)/2) + "}"
+		child := ""
+		if value.Kind == yaml.SequenceNode {
+			annotation = "[" + strconv.Itoa(len(value.Content)) + "]"
+		}
+		child = yamlNodeToHTML(value, depth+1)
+		if strings.TrimSpace(child) == "" {
+			kind := "object"
+			if value.Kind == yaml.SequenceNode {
+				kind = "array"
+			}
+			child = fmt.Sprintf("<div class=\"tree-empty\">（空 %s）</div>\n", kind)
+		}
+		// 前两层默认展开：打开参数设定就能看到顶层键与来源/字段列表的轮廓，
+		// 再深的内容点开看 —— 一千多行的配置不至于一上来铺满整屏。
+		open := ""
+		if depth < 2 {
+			open = " open"
+		}
+		return fmt.Sprintf(
+			"<details class=\"tree-node\" data-depth=\"%d\"%s>"+
+				"<summary class=\"tree-row\"><span class=\"tree-key\">%s</span>"+
+				"<span class=\"tree-meta\">%s</span></summary>"+
+				"<div class=\"tree-children\">\n%s</div></details>\n",
+			depth, open, key, annotation, child)
+	default:
+		return treeValueRow(label, value, depth)
 	}
-	return fmt.Sprintf(" style=\"--md-indent:%dpx\"", depth*12)
+}
+
+// treeValueRow 渲染一行标量：键 + 冒号 + 按类型着色的值。
+func treeValueRow(label string, value *yaml.Node, depth int) string {
+	key := html.EscapeString(label)
+	kind, text := scalarKind(value)
+	return fmt.Sprintf(
+		"<div class=\"tree-row tree-leaf\" data-depth=\"%d\">"+
+			"<span class=\"tree-key\">%s</span><span class=\"tree-sep\">:</span>"+
+			"<span class=\"tree-value type-%s\">%s</span></div>\n",
+		depth, key, kind, html.EscapeString(text))
+}
+
+// scalarKind 判定标量类型（决定着色）并给出显示文本。
+// 判定用 YAML 自己的 tag：配置里写 true / 1 / null 的写法要分别显示成布尔 / 数字 / 空。
+func scalarKind(value *yaml.Node) (string, string) {
+	tag := strings.TrimPrefix(value.Tag, "!!")
+	switch tag {
+	case "int", "float":
+		return "number", value.Value
+	case "bool":
+		return "bool", value.Value
+	case "null":
+		return "null", "null"
+	default:
+		return "string", value.Value
+	}
 }
 
 // SettingsSaveResult 是「参数设定」里保存一份配置的结果。

@@ -162,13 +162,19 @@ func TestTheOperationLogUsesTheUIFontFamily(t *testing.T) {
 			t.Errorf("操作日志字体栈里缺少 %s：%s", wanted, rule)
 		}
 	}
-	// 参数设定的值文本同理（参数里会夹中文）
-	value := styleRule(t, readFrontendFile(t, "index.html"), ".settings-body .md-v{")
-	if strings.Contains(value, "monospace") {
-		t.Errorf("参数设定的值文本不应使用等宽字体：%s", value)
+	// 参数设定的值文本同理（参数里会夹中文）：树状结构下键与值都用界面的基准字体，
+	// 所以基准（body 的字体栈）里不能有等宽字体，且必须包含跨平台的中文字体。
+	style := readFrontendFile(t, "index.html")
+	// 界面基准字体栈（body 里声明，树状结构继承它）：跨平台 + 含中文字体，不是等宽
+	const baseStack = `font-family:Roboto,-apple-system,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif`
+	if !strings.Contains(style, baseStack) {
+		t.Error("界面的基准字体栈被改动了（应保持跨平台、含微软雅黑）")
 	}
-	if !strings.Contains(value, `"Microsoft YaHei"`) {
-		t.Errorf("参数设定的值文本缺少跨平台字体栈：%s", value)
+	if body := styleRule(t, style, ".settings-body{"); strings.Contains(body, "monospace") {
+		t.Errorf("参数设定的值文本不应使用等宽字体：%s", body)
+	}
+	if strings.Contains(style, ".settings-body .md-v{") {
+		t.Error("旧的 .md-v 规则应该已经随 Markdown 排版一起删掉")
 	}
 }
 
