@@ -263,13 +263,13 @@ func defaultValue(column map[string]any, sourceName string, rowIndex int) any {
 	for key := range valueMapping {
 		mappedAway[key] = true
 	}
-	allowedValues, _ := column["allowed_values"].([]any)
+	allowedValues, _ := sampleHint(column, "allowed_values").([]any)
 	for _, allowed := range allowedValues {
 		if text, ok := allowed.(string); ok && !mappedAway[text] {
 			return text
 		}
 	}
-	dataType := textValue(column["data_type"])
+	dataType := textValue(sampleHint(column, "data_type"))
 	if value, present := typeValues[dataType]; present {
 		return value
 	}
@@ -277,6 +277,19 @@ func defaultValue(column map[string]any, sourceName string, rowIndex int) any {
 }
 
 // writeSourceSet 写一套工作簿（每个来源一份）。
+// sampleHint 取"只给样本工厂用"的列元数据（english_name / data_type / allowed_values）。
+//
+// 新配置把它们收在列的 sample: 子块里（一眼能看出导入不读）；老配置是平铺在列上的，
+// 所以这里优先读子块、读不到再回退顶层 —— 用户目录里那份没被升级覆盖的旧配置照样能用。
+func sampleHint(column map[string]any, key string) any {
+	if hints, ok := column["sample"].(map[string]any); ok {
+		if value, present := hints[key]; present {
+			return value
+		}
+	}
+	return column[key]
+}
+
 func writeSourceSet(
 	directory string,
 	sources map[string]any,
@@ -345,7 +358,7 @@ func writeSourceWorkbook(
 			return err
 		}
 		if hasEnglish {
-			if englishName := textValue(column["english_name"]); englishName != "" {
+			if englishName := textValue(sampleHint(column, "english_name")); englishName != "" {
 				englishCell, err := excelize.CoordinatesToCellName(number, englishHeaderRow)
 				if err != nil {
 					return err
