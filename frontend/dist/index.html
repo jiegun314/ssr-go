@@ -157,8 +157,15 @@ body.log-resizing .log-resizer::before{background:var(--md-primary);transform:sc
 .tree-node{margin:0}
 .tree-row{display:flex;align-items:baseline;gap:6px;padding:1px 0;
   font-size:12px;line-height:18px}
-.tree-node>summary{cursor:pointer;border-radius:3px}
-.tree-node>summary::marker{color:var(--md-on-surface-medium);font-size:10px}
+/* 展开/折叠指示：summary 是 flex 容器，会吃掉浏览器原生的三角标记，
+   所以自己画一个 —— 折叠 ▸、展开 ▾，占位宽度固定（10px + 6px 间距），
+   子节点的缩进正好对齐父节点的键名。 */
+.tree-node>summary{cursor:pointer;border-radius:3px;list-style:none}
+.tree-node>summary::-webkit-details-marker{display:none}
+.tree-node>summary::marker{content:""}
+.tree-node>summary::before{content:"▸";flex:0 0 auto;width:10px;text-align:center;
+  color:var(--md-on-surface-medium);font-size:10px;line-height:18px}
+.tree-node[open]>summary::before{content:"▾"}
 .tree-node>summary:hover{background:rgba(0,0,0,.04)}
 .tree-row:focus-visible{outline:2px solid var(--md-primary);outline-offset:-1px}
 .tree-children{padding-left:16px}

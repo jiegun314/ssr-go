@@ -146,6 +146,38 @@ func TestSettingsHTMLCarriesTheTreeStructure(t *testing.T) {
 	}
 }
 
+// TestTheTreeShowsACollapsedAndExpandedTriangle 固定展开/折叠指示：
+// summary 是 flex 容器，会吃掉浏览器原生的三角标记 —— 所以自己画一个：
+// 折叠 ▸、展开 ▾，并且要隐藏原生标记（否则会出现两个三角）。
+// 回归点：一开始只给原生 ::marker 上色，结果是"没有三角可看"。
+func TestTheTreeShowsACollapsedAndExpandedTriangle(t *testing.T) {
+	style := readFrontendStyles(t)
+
+	collapsed := styleRule(t, style, ".tree-node>summary::before{")
+	if !strings.Contains(collapsed, `content:"▸"`) {
+		t.Errorf("折叠状态的三角指示不对：%s", collapsed)
+	}
+	expanded := styleRule(t, style, ".tree-node[open]>summary::before{")
+	if !strings.Contains(expanded, `content:"▾"`) {
+		t.Errorf("展开状态的三角指示不对：%s", expanded)
+	}
+	// 两个状态必须真的不同（免得改成一个字符后回归）
+	if collapsed == expanded {
+		t.Error("折叠与展开的指示完全相同，用户看不出哪一节能展开")
+	}
+	// 原生标记要藏掉，避免和自绘的重叠
+	if body := styleRule(t, style, ".tree-node>summary::-webkit-details-marker{"); !strings.Contains(body, "display:none") {
+		t.Errorf("没有隐藏 Chromium/WebKit 的原生三角：%s", body)
+	}
+	if body := styleRule(t, style, ".tree-node>summary{"); !strings.Contains(body, "list-style:none") {
+		t.Errorf("没有关掉原生列表标记（Firefox 会多出一个三角）：%s", body)
+	}
+	// 占位宽度固定，子节点缩进才能和父节点键名对齐
+	if !strings.Contains(collapsed, "width:10px") {
+		t.Errorf("三角占位宽度没固定：%s", collapsed)
+	}
+}
+
 // TestSettingsTreeStylesNestTheIndent 固定样式侧的口径：
 // 缩进由嵌套的 .tree-children 提供（不再需要"按层级写死 padding"或 CSS 变量），
 // 值按类型着色 —— 四种类型都必须有各自的颜色。
