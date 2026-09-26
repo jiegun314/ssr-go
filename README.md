@@ -189,9 +189,9 @@ Windows `wails build -platform windows/amd64`、Linux `wails build -tags webkit2
 
 **运行行为**
 
-7. **启动清理默认开启**：会删除 `ra_input_staging`、`global_udi_input_staging`、
-   `product_category_staging` 与 `consolidation_staging`；`medical_insurance_code` 与 `operation_log`
-   跨会话保留。调试时用 `SSR_CLEANUP_ON_STARTUP=false` 临时关掉（不要改发布包的配置）；
+7. **重启不清空导入数据（默认）**：`setting.yaml` 的 `startup.cleanup_on_startup` 默认是
+   `false`，四张来源表（含医保编码）与整合暂存表都跨会话保留；需要"每次启动都从空表开始"时，
+   把它改成 `true`，或用 `SSR_CLEANUP_ON_STARTUP=true` 覆盖一次运行；
 8. **「清空导入数据」范围更窄**：只清来源表，医保编码、整合结果与操作日志都不动；
 9. **导出会在 `output/export/` 留副本**：这是刻意设计，长期使用可定期清理该目录；
 10. **重复导出的行不会再次导出**：已一致的记录是 `Duplicate`；需要重发历史数据时只能改来源数据或清理
@@ -201,7 +201,7 @@ Windows `wails build -platform windows/amd64`、Linux `wails build -tags webkit2
 **配置与维护**
 
 12. **`config/` 是唯一行为来源**：表名、字段、规则都在 YAML 里；`setting.yaml` 的
-    `startup.cleanup_on_startup` 在发布包中必须保持 `true`；
+    `startup.cleanup_on_startup` 默认 `false`（重启保留数据），可按现场需要改成 `true`；
 13. **`config/log_columns.yaml` 是生成物**：不要手改，改模板或 `setting.yaml` 后运行
     `genlogcolumns` 重新生成（`--check` 可用于流水线守卫）；
 14. **`operation_log` 不会自动迁移**：升级后需要对齐旧库时运行 `alignlogcolumns`（自动备份）；

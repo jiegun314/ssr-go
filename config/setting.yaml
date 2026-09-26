@@ -49,4 +49,8 @@ tables:
 # imported data of an earlier run overrides it with SSR_CLEANUP_ON_STARTUP=false
 # for that single run instead of editing this tracked file.
 startup:
-  cleanup_on_startup: true
+  # 默认不清理：重启后四张来源表（含医保编码）与整合暂存表都原样保留，
+  # 导入的数据不会因为关一次程序就没了。需要"每次启动都从空表开始"时，
+  # 把这里改成 true，或用环境变量 SSR_CLEANUP_ON_STARTUP=true 临时覆盖一次运行。
+  # 界面的「清空导入数据」按钮不受这里影响，任何时候都能手动清。
+  cleanup_on_startup: false

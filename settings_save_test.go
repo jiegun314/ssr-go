@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -82,7 +83,8 @@ func TestSaveConfigurationFileRollsBackWhenValidationFails(t *testing.T) {
 	path := filepath.Join(configDir, config.SettingFile)
 	original, _ := os.ReadFile(path)
 	// 语法合法但配置非法：cleanup_on_startup 必须是布尔
-	edited := strings.Replace(string(original), "\n  cleanup_on_startup: true", "\n  cleanup_on_startup: \"yes\"", 1)
+	edited := regexp.MustCompile(`(?m)^\s*cleanup_on_startup:\s*(true|false)\s*$`).
+		ReplaceAllString(string(original), "  cleanup_on_startup: \"yes\"")
 	if edited == string(original) {
 		t.Fatal("测试预期 cleanup_on_startup 键存在")
 	}

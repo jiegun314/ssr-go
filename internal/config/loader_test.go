@@ -131,6 +131,9 @@ func TestR9CleanupSwitchIsOverriddenByTheEnvironmentForOneRun(t *testing.T) {
 	}
 }
 
+// TestR9CleanupSwitchDefaultsToTheConfigurationFile 固定发布包的默认行为：
+// 默认**不**清理暂存表 —— 重启后导入的数据要还在（用户要求）。需要老行为时，
+// 改 setting.yaml 或临时用 SSR_CLEANUP_ON_STARTUP=true 覆盖（见上一个用例）。
 func TestR9CleanupSwitchDefaultsToTheConfigurationFile(t *testing.T) {
 	loader, _ := newTempLoader(t)
 	os.Unsetenv(CleanupOnStartupEnv)
@@ -139,8 +142,8 @@ func TestR9CleanupSwitchDefaultsToTheConfigurationFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("读配置失败：%v", err)
 	}
-	if !enabled {
-		t.Fatal("发布包的 setting.yaml 必须是 cleanup_on_startup: true")
+	if enabled {
+		t.Fatal("发布包的 setting.yaml 默认应为 cleanup_on_startup: false（重启不清理导入数据）")
 	}
 }
 
