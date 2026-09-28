@@ -3,7 +3,7 @@
   "name": "SingleSourceReady",
   "outputfilename": "ssr",
   "frontend:install": "",
-  "frontend:build": "",
+  "frontend:build": "npm run build",
   "frontend:dev:watcher": "",
   "frontend:dev:serverUrl": "",
   "author": {

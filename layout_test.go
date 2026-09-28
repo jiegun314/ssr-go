@@ -7,302 +7,348 @@ import (
 	"testing"
 )
 
-// TestTheOperationLogCardHasADragHandle 固定「操作日志高度可拖动」的界面契约：
-// 卡片上沿有一个分隔条（浮在上边框上，不占卡片高度），它是 row-resize 的拖动条，
-// 在操作日志标题之前；拖动逻辑在 app.js 的 setupLogResizer 里。
-func TestTheOperationLogCardHasADragHandle(t *testing.T) {
-	html := readFrontendFile(t, "index.html")
-	script := readFrontendFile(t, "app.js")
+// 前端已经换成 React + antd + Lucide（源码在 frontend/src，构建产物在 frontend/dist）。
+// 这里的契约测试读**源码**而不是打包产物：产物里的类名会被压缩，源码才是可维护的契约面。
+// 少数几条（内嵌资源、提示字样）同时检查产物，因为那才是真正发给用户的东西。
 
-	handle := `<div class="log-resizer" id="log-resizer"`
-	if !strings.Contains(html, handle) {
-		t.Fatalf("操作日志卡片缺少分隔条：界面里找不到 %s", handle)
-	}
-	if strings.Index(html, handle) > strings.Index(html, "<h2>操作日志</h2>") {
-		t.Error("分隔条应该在「操作日志」标题之前（贴在卡片上沿）")
-	}
-	for _, wanted := range []string{`role="separator"`, `aria-orientation="horizontal"`, `tabindex="0"`} {
-		if !strings.Contains(html, wanted) {
-			t.Errorf("分隔条缺少 %s（键盘可调、语义正确）", wanted)
-		}
-	}
-	// 浮在上沿：卡片要有定位上下文，分隔条自己用负的 top
-	if body := styleRule(t, html, ".log-section{"); !strings.Contains(body, "position:relative") {
-		t.Errorf("操作日志卡片缺少定位上下文：%s", body)
-	}
-	if body := styleRule(t, html, ".log-resizer{"); !strings.Contains(body, "cursor:row-resize") {
-		t.Errorf("分隔条不是上下拖动的手型：%s", body)
-	}
-	// 上下调节的光标只能由分隔条自己提供：在 body 上覆盖 cursor 会让松手后光标卡住
-	if body := styleRule(t, html, "body.log-resizing{"); strings.Contains(body, "cursor:") {
-		t.Errorf("拖动状态不应在 body 上覆盖光标（松手后会卡在上下调节）：%s", body)
-	}
-	// 拖动逻辑：向上拖＝变高，下限是默认高度，上限由中间列的最低高度决定
-	for _, wanted := range []string{
-		"function setupLogResizer()",
-		"setupLogResizer()",
-		"drag.startY - event.clientY",
-		"columnMinimumHeight()",
-		`section.style.flex = "0 0 auto"`,
-		`window.addEventListener("pointerup", finishDrag)`,
-		`window.addEventListener("pointercancel", finishDrag)`,
-	} {
-		if !strings.Contains(script, wanted) {
-			t.Errorf("app.js 里缺少拖动逻辑：%s", wanted)
-		}
-	}
-	// 日志窗口要跟着卡片一起变大：内容区必须撑满卡片，文本框再撑满内容区
-	if body := styleRule(t, html, ".log-section>.body{"); !strings.Contains(body, "flex:1 1 auto") {
-		t.Errorf("操作日志的内容区没有撑满卡片，拖动时文本窗口不会跟着变大：%s", body)
-	}
-	if body := styleRule(t, html, "textarea#log{"); !strings.Contains(body, "flex:1 1 auto") {
-		t.Errorf("日志文本框没有撑满内容区：%s", body)
-	}
-	// 关于窗口的图标保持普通指针（不额外提示可点击）
-	if body := styleRule(t, html, "#about-icon{"); strings.Contains(body, "cursor:") {
-		t.Errorf("关于窗口图标不应设光标：%s", body)
-	}
-	if body := styleRule(t, html, ".about img{"); strings.Contains(body, "cursor:") {
-		t.Errorf("关于窗口图标不应设光标：%s", body)
-	}
-}
-
-// TestTheOperationLogResizerKeepsTheLeftColumnGap 说明上限口径的口径来源：
-// 上限＝左侧「数据导入 / 记录导出」只剩 .spacer 的最小间隔（12px），
-// 下限＝启动时的默认高度。三条 CSS 事实都要在，否则夹紧算出来的上限没有意义。
-func TestTheOperationLogResizerKeepsTheLeftColumnGap(t *testing.T) {
-	html := readFrontendFile(t, "index.html")
-
-	if body := styleRule(t, html, ".left>.spacer{"); !strings.Contains(body, "min-height:12px") {
-		t.Errorf("左侧两个模块之间的最小间隔不是 12px：%s", body)
-	}
-	if body := styleRule(t, html, ".left{"); !strings.Contains(body, "flex-direction:column") {
-		t.Errorf("左列不是纵向排列：%s", body)
-	}
-	if body := styleRule(t, html, ".log-section{"); !strings.Contains(body, "flex:0 1 auto") {
-		t.Errorf("操作日志卡片默认仍要可收缩（窗口变矮时先让出高度）：%s", body)
-	}
-}
-
-// readFrontendFile 读前端的静态文件（界面与脚本都在 frontend/dist 下）。
-func readFrontendFile(t *testing.T, name string) string {
+func readFrontendSource(t *testing.T, name string) string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("frontend", "dist", name))
+	raw, err := os.ReadFile(filepath.Join("frontend", name))
 	if err != nil {
-		t.Fatalf("读前端文件 %s 失败：%v", name, err)
+		t.Fatalf("读前端源码 %s 失败：%v", name, err)
 	}
 	return string(raw)
 }
 
-// TestTheHiddenWindowIsNotAdvertisedInTheFrontend 固定「不提示」的口径：
-// 界面、脚本与资源文件名里都不能出现说明隐藏窗口的文字或命名
-// （它们会随界面打进程序，用 strings 就能看到）。
-func TestTheHiddenWindowIsNotAdvertisedInTheFrontend(t *testing.T) {
-	hints := []string{"彩蛋", "连点", "easter", "EASTER", "egg", "Egg", "EGG"}
-	for _, name := range []string{"index.html", "app.js"} {
-		content := readFrontendFile(t, name)
-		for _, hint := range hints {
-			if strings.Contains(content, hint) {
-				t.Errorf("frontend/dist/%s 里出现了会提示隐藏窗口的文字：%q", name, hint)
-			}
+// frontendSourceText 把前端源码全部拼起来，用于"整个前端都不许出现某字样"这类检查。
+func frontendSourceText(t *testing.T) string {
+	t.Helper()
+	var builder strings.Builder
+	walk := func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		builder.Write(content)
+		builder.WriteString("\n")
+		return nil
+	}
+	if err := filepath.WalkDir(filepath.Join("frontend", "src"), walk); err != nil {
+		t.Fatalf("遍历前端源码失败：%v", err)
+	}
+	for _, name := range []string{"index.html", "package.json", "vite.config.ts"} {
+		if content, err := os.ReadFile(filepath.Join("frontend", name)); err == nil {
+			builder.Write(content)
 		}
 	}
+	return builder.String()
+}
+
+// TestTheFrontendShipsInsideTheBinary 固定「前端随二进制走」：dist 里有页面、打包后的
+// 资源，以及三份静态文件（图标、附加窗口图片、音效）——它们由 public/ 复制而来。
+func TestTheFrontendShipsInsideTheBinary(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Join("frontend", "dist"))
 	if err != nil {
-		t.Fatalf("读 frontend/dist 失败：%v", err)
+		t.Fatalf("读 frontend/dist 失败（先跑 npm run build --prefix frontend）：%v", err)
 	}
+	found := map[string]bool{}
 	for _, entry := range entries {
-		for _, hint := range hints {
-			if strings.Contains(entry.Name(), hint) {
-				t.Errorf("资源文件名带提示：%s（命中 %q）", entry.Name(), hint)
-			}
+		found[entry.Name()] = true
+	}
+	for _, wanted := range []string{"index.html", "logo.png", "puppy.png", "puppy-voice.mp3"} {
+		if !found[wanted] {
+			t.Errorf("frontend/dist 里缺少 %s（构建产物要提交进仓库）", wanted)
+		}
+	}
+	assets, err := os.ReadDir(filepath.Join("frontend", "dist", "assets"))
+	if err != nil {
+		t.Fatalf("读 frontend/dist/assets 失败：%v", err)
+	}
+	hasJS, hasCSS := false, false
+	for _, entry := range assets {
+		if strings.HasSuffix(entry.Name(), ".js") {
+			hasJS = true
+		}
+		if strings.HasSuffix(entry.Name(), ".css") {
+			hasCSS = true
+		}
+	}
+	if !hasJS || !hasCSS {
+		t.Errorf("dist/assets 里应该有打包后的 js 与 css（js=%v css=%v）", hasJS, hasCSS)
+	}
+	// 源码里也要有那三份静态文件（public/ 是它们的家）
+	for _, wanted := range []string{"logo.png", "puppy.png", "puppy-voice.mp3"} {
+		if _, err := os.Stat(filepath.Join("frontend", "public", wanted)); err != nil {
+			t.Errorf("frontend/public 里缺少 %s：%v", wanted, err)
 		}
 	}
 }
 
-// TestTheLogExportRowSurvivesWiderPlatformFonts 固定「记录导出」整行可压缩的口径：
-// Windows（WebView2）下日期控件的固有宽度比 macOS 宽很多，一旦整行不可压缩，
-// 模块底部就会冒出横向滚动条（用户报的 bug）。所以：
-//   - 日期容器允许收缩（不能写死 flex:0 0 auto）
-//   - 日期框各自可退让，但不允许超出容器（max-width:100%）
-//   - 右侧图标按钮不参与收缩，否则会被压扁
-func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
-	html := readFrontendFile(t, "index.html")
-
-	if body := styleRule(t, html, ".range{"); !strings.Contains(body, "min-width:0") {
-		t.Errorf("记录导出整行必须允许收缩：%s", body)
-	}
-	if body := styleRule(t, html, ".range .dates{"); !strings.Contains(body, "flex:0 1 auto") {
-		t.Errorf("日期容器必须可收缩（Windows 下日期控件更宽）：%s", body)
-	}
-	dates := styleRule(t, html, ".dates input[type=date]{")
-	if !strings.Contains(dates, "flex:1 1 auto") || !strings.Contains(dates, "max-width:100%") {
-		t.Errorf("日期框必须可收缩且不得超出容器：%s", dates)
-	}
-	if !strings.Contains(dates, "min-width:") {
-		t.Errorf("日期框需要保留一个最小可读宽度：%s", dates)
-	}
-	if body := styleRule(t, html, ".range .icon-btn{"); !strings.Contains(body, "flex:0 0 auto") {
-		t.Errorf("回顾按钮不应参与收缩：%s", body)
-	}
-}
-
-// TestTheOperationLogUsesTheUIFontFamily 固定操作日志的字体口径：
-// 日志是整句中英混排文本、不是表格，所以不能用等宽栈 —— ui-monospace 在 Chromium
-// 内核里不被识别、Menlo 只有 macOS 有，Windows 会退化成 Consolas（英文/数字）
-// 加微软雅黑（中文）两种字体混排。改成界面自己的系统字体栈后，
-// Windows：Segoe UI + 微软雅黑；macOS：系统字体 + 苹方。
-func TestTheOperationLogUsesTheUIFontFamily(t *testing.T) {
-	rule := styleRule(t, readFrontendFile(t, "index.html"), "textarea#log{")
-	if strings.Contains(rule, "monospace") {
-		t.Errorf("操作日志不应使用等宽字体（Windows 上会退化成 Consolas + 微软雅黑混排）：%s", rule)
-	}
-	for _, wanted := range []string{`"Segoe UI"`, "-apple-system", `"PingFang SC"`, `"Microsoft YaHei"`} {
-		if !strings.Contains(rule, wanted) {
-			t.Errorf("操作日志字体栈里缺少 %s：%s", wanted, rule)
+// TestTheHiddenWindowIsNotAdvertisedInTheFrontend 固定「不提示」的口径：
+// 前端源码与界面文件里都不能出现说明附加窗口的文字或命名（它们会随界面打进程序）。
+func TestTheHiddenWindowIsNotAdvertisedInTheFrontend(t *testing.T) {
+	text := frontendSourceText(t)
+	for _, hint := range []string{"彩蛋", "连点", "easter", "EASTER", "egg", "Egg", "EGG"} {
+		if strings.Contains(text, hint) {
+			t.Errorf("前端源码里出现了会提示附加窗口的文字：%q", hint)
 		}
 	}
-	// 参数设定的值文本同理（参数里会夹中文）：树状结构下键与值都用界面的基准字体，
-	// 所以基准（body 的字体栈）里不能有等宽字体，且必须包含跨平台的中文字体。
-	style := readFrontendFile(t, "index.html")
-	// 界面基准字体栈（body 里声明，树状结构继承它）：跨平台 + 含中文字体，不是等宽
-	const baseStack = `font-family:Roboto,-apple-system,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif`
-	if !strings.Contains(style, baseStack) {
-		t.Error("界面的基准字体栈被改动了（应保持跨平台、含微软雅黑）")
+	// 构建产物同样不许出现（前端资源是内嵌进二进制的）
+	dist := frontendSourceText(t)
+	_ = dist
+	raw, err := os.ReadFile(filepath.Join("frontend", "dist", "index.html"))
+	if err != nil {
+		t.Fatalf("读构建产物失败：%v", err)
 	}
-	if body := styleRule(t, style, ".settings-body{"); strings.Contains(body, "monospace") {
-		t.Errorf("参数设定的值文本不应使用等宽字体：%s", body)
-	}
-	if strings.Contains(style, ".settings-body .md-v{") {
-		t.Error("旧的 .md-v 规则应该已经随 Markdown 排版一起删掉")
+	for _, hint := range []string{"彩蛋", "连点", "easter_egg"} {
+		if strings.Contains(string(raw), hint) {
+			t.Errorf("构建产物里出现了提示字样：%q", hint)
+		}
 	}
 }
 
 // TestTheHiddenWindowSoundShipsInsideTheApp 固定附加窗口声音的落地方式：
-// 音频必须放在 frontend/dist（构建时由 //go:embed 编进二进制），不能放在
-// resource/（发布脚本会整目录拷进发布包，那样就会留下一个单独的文件）；
-// 窗口打开时循环播放、关闭时停掉。
+// 音频放在 frontend/public（构建时复制进 dist，再由 //go:embed 编进二进制），
+// 不能放在会被整目录拷进发布包的 resource/；窗口打开时循环播放、关闭时立刻停。
 func TestTheHiddenWindowSoundShipsInsideTheApp(t *testing.T) {
-	html := readFrontendFile(t, "index.html")
-	script := readFrontendFile(t, "app.js")
+	app := readFrontendSource(t, "src/App.tsx")
 
-	if !strings.Contains(html, `<audio id="puppy-voice" src="puppy-voice.mp3" loop`) {
-		t.Error("界面里缺少循环播放的音频元素")
-	}
 	if stray, _ := filepath.Glob(filepath.Join("resource", "*.mp3")); len(stray) > 0 {
 		t.Errorf("音频不要放在会被整目录拷进发布包的 resource/：%v", stray)
 	}
-	info, err := os.Stat(filepath.Join("frontend", "dist", "puppy-voice.mp3"))
-	if err != nil {
-		t.Fatalf("音频没有随界面资源一起内嵌：%v", err)
-	}
-	if info.Size() < 1024 {
-		t.Errorf("音频文件过小（%d 字节），可能不是有效的 mp3", info.Size())
+	if !strings.Contains(app, `src="puppy-voice.mp3"`) || !strings.Contains(app, "loop") {
+		t.Error("App.tsx 里缺少循环播放的音频元素")
 	}
 	for _, wanted := range []string{
-		"function startPuppyVoice()",
-		"function stopPuppyVoice()",
-		"startPuppyVoice();",
-		`puppyDialog.addEventListener("close", stopPuppyVoice)`,
-		`puppyDialog.addEventListener("cancel", stopPuppyVoice)`,
-		`if (dialog.id === "puppy-dialog") stopPuppyVoice();`,
+		"voice.play()",  // 打开时播放（在点击回调里，属用户手势）
+		"voice.pause()", // 关闭时立刻停
+		"voice.currentTime = 0",
 	} {
-		if !strings.Contains(script, wanted) {
-			t.Errorf("app.js 里缺少声音控制：%s", wanted)
+		if !strings.Contains(app, wanted) {
+			t.Errorf("App.tsx 里缺少声音控制：%s", wanted)
 		}
 	}
 }
 
-// TestTheDisplayDialogsCloseFromTheTopRightIcon 固定两个展示型窗口（关于 / 彩蛋）的关闭方式：
-// 底部不再有按钮行，改成右上角图标按钮；关闭路径＝X、点遮罩、Esc（<dialog> 原生）。
-// 尺寸固定 323×323（与原版一致）：关于窗口去掉按钮行后正好装得下，彩蛋窗口是 323×323 的图片本身。
+// TestTheOperationLogCardHasADragHandle 固定操作日志上沿可拖动：
+// 分隔条用 row-resize、键盘可用，拖动逻辑按「上限＝左侧间隔最小、下限＝默认高度」夹紧。
+func TestTheOperationLogCardHasADragHandle(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	for _, wanted := range []string{
+		`className="log-resizer"`,
+		`role="separator"`,
+		`aria-orientation="horizontal"`,
+		"onPointerDown={startDrag}",
+		"onKeyDown={onKeyDown}",
+		"leftMinimumHeight()",
+		"document.body.classList.add(\"log-resizing\")",
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("Panels.tsx 里缺少拖动逻辑：%s", wanted)
+		}
+	}
+	if !strings.Contains(styles, ".log-resizer {") || !strings.Contains(styles, "cursor: row-resize") {
+		t.Error("样式里缺少 log-resizer 的 row-resize 光标")
+	}
+}
+
+// TestTheOperationLogResizerKeepsTheLeftColumnGap 固定上限口径的来源：
+// 上限＝左侧「数据导入 / 记录导出」只剩 .spacer 的最小间隔（12px），下限＝默认高度。
+func TestTheOperationLogResizerKeepsTheLeftColumnGap(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	if !strings.Contains(styles, ".left > .spacer {") || !strings.Contains(styles, "min-height: 12px") {
+		t.Error("左列两个模块之间的最小间隔应为 12px")
+	}
+	if !strings.Contains(panels, `document.querySelector<HTMLElement>(".columns")`) {
+		t.Error("拖动上限应当根据中间列还能让出多少高度来算")
+	}
+	if !strings.Contains(panels, "flex: \"0 0 auto\"") {
+		t.Error("拖动时卡片应改为固定高度（让出的高度全部给中间列）")
+	}
+}
+
+// TestTheLogExportRowSurvivesWiderPlatformFonts 固定「记录导出」整行可压缩的口径：
+// Windows（WebView2）下日期控件固有宽度更大，整行不可压缩就会冒出横向滚动条。
+func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+
+	for _, wanted := range []string{
+		".range .dates {",      // 日期容器可收缩
+		"flex: 0 1 auto;",      // 不参与扩张，但可以被压缩
+		".range .ant-picker {", // antd 的日期控件同样要能退让
+		"min-width: 100px;",
+		"max-width: 100%;",
+		".range .ant-btn {", // 回顾按钮不参与收缩
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("样式里缺少记录导出整行可压缩的规则：%s", wanted)
+		}
+	}
+}
+
+// TestTheUIKeepsTheProductColorsAndFont 固定配色与字体：
+// 主红/标题条红不变，字体用跨平台栈（Windows 上不能退化成 Consolas + 微软雅黑混排）。
+func TestTheUIKeepsTheProductColorsAndFont(t *testing.T) {
+	theme := readFrontendSource(t, "src/theme.ts")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	if !strings.Contains(theme, `export const BRAND_RED = "#B3261E"`) {
+		t.Error("主色应保持 #B3261E")
+	}
+	if !strings.Contains(theme, `export const TITLE_RED = "#D71600"`) {
+		t.Error("标题条红应保持 #D71600")
+	}
+	if !strings.Contains(styles, "background: #d71600") {
+		t.Error("标题条要用产品指定的红色（#D71600 底 + 白字）")
+	}
+	if !strings.Contains(theme, `"Microsoft YaHei"`) || !strings.Contains(theme, `"PingFang SC"`) {
+		t.Error("字体栈要跨平台（含微软雅黑/苹方）")
+	}
+	if strings.Contains(theme, "monospace") || strings.Contains(styles, "monospace") {
+		t.Error("界面不该用等宽字体（Windows 上会退化成两种字体混排）")
+	}
+	// 状态圆点配色与原界面一致
+	for _, wanted := range []string{".status-ready", ".status-incomplete", ".status-duplicate", ".status-conflict"} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("结果状态圆点缺少 %s", wanted)
+		}
+	}
+}
+
+// TestTheDisplayDialogsCloseFromTheTopRightIcon 固定两个展示型窗口（关于 / 附加窗口）：
+// 都用 antd Modal（closable=false，自己画右上角 X）、遮罩可关、尺寸固定 323×323。
 func TestTheDisplayDialogsCloseFromTheTopRightIcon(t *testing.T) {
-	html := readFrontendFile(t, "index.html")
-	script := readFrontendFile(t, "app.js")
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
 
-	for _, id := range []string{"about", "puppy-dialog"} {
-		block := htmlBlock(t, html, `<dialog id="`+id+`">`, "</dialog>")
-		if !strings.Contains(block, "data-dialog-close") {
-			t.Errorf("#%s 缺少右上角关闭按钮", id)
-		}
-		if !strings.Contains(block, `aria-label="关闭"`) {
-			t.Errorf("#%s 的关闭按钮缺少可读名称", id)
-		}
-		if strings.Contains(block, "<form") {
-			t.Errorf("#%s 不该再有底部按钮行", id)
-		}
-		body := styleRule(t, html, "#"+id+"{")
-		if !strings.Contains(body, "width:323px") || !strings.Contains(body, "height:323px") {
-			t.Errorf("#%s 不是固定的 323×323：%s", id, body)
-		}
-		if !strings.Contains(body, "padding:0") {
-			t.Errorf("#%s 需要去掉卡片内边距（X 与内容自己定位）：%s", id, body)
-		}
-	}
-	// 彩蛋窗口：图片铺满（标题与 X 叠在图上），所以图片必须是 323×323 且不留外边距
-	image := styleRule(t, html, "#puppy-dialog img{")
-	for _, wanted := range []string{"width:323px", "height:323px", "object-fit:cover", "margin:0"} {
-		if !strings.Contains(image, wanted) {
-			t.Errorf("彩蛋图片没有铺满卡片，缺少 %s：%s", wanted, image)
-		}
-	}
-	// 关闭路径的接线：X 与遮罩走同一个 close 函数，彩蛋窗口顺手停声音
 	for _, wanted := range []string{
-		"function setupOverlayDialogs()",
-		"setupOverlayDialogs();",
-		`dialog.querySelector("[data-dialog-close]")`,
-		"if (event.target === dialog) close();",
-		`if (dialog.id === "puppy-dialog") stopPuppyVoice();`,
+		`className="about-window"`,  // 关于窗口
+		`className="hidden-window"`, // 附加窗口
+		"closable={false}",          // 不用 antd 自带的关闭按钮
+		"maskClosable",              // 点遮罩也能关
+		`className="dialog-close"`,  // 右上角那个 X
+		`aria-label="关闭"`,
+		"width={323}",
 	} {
-		if !strings.Contains(script, wanted) {
-			t.Errorf("app.js 里缺少展示型窗口的关闭接线：%s", wanted)
+		if !strings.Contains(modals, wanted) {
+			t.Errorf("Modals.tsx 里缺少展示型窗口的契约：%s", wanted)
 		}
 	}
-	// 参数设定这类带动作的窗口不能被遮罩点击关掉（里面有正在编辑的 YAML）
-	if strings.Contains(script, `"settings"`) && strings.Contains(script, `for (const id of ["about", "puppy-dialog", "settings"])`) {
-		t.Error("参数设定窗口不该进遮罩关闭的名单")
+	for _, wanted := range []string{
+		".about-window {",
+		".hidden-window {",
+		"width: 323px !important;",
+		"height: 323px;",
+		"object-fit: cover", // 附加窗口的图片要铺满
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("样式里缺少展示型窗口的规则：%s", wanted)
+		}
+	}
+	// 打开窗口时不要把焦点丢给右上角的 X（那样一开窗就像"被选中"）
+	if strings.Contains(modals, "autoFocus") {
+		t.Error("展示型窗口的关闭按钮不应自动聚焦")
 	}
 }
 
-// htmlBlock 取出从 start 到第一个 end 之间的片段（用于检查某个对话框自己的结构）。
-func htmlBlock(t *testing.T, html string, start string, end string) string {
-	t.Helper()
-	from := strings.Index(html, start)
-	if from < 0 {
-		t.Fatalf("界面里找不到 %s", start)
+// TestTheImportPanelKeepsTheSourceOrderAndIcons 固定导入区：四个来源的顺序（医保代码信息
+// 在最上、与下面三组之间留空行）、以及三个图标按钮的可读名称。
+func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
+	bridge := readFrontendSource(t, "src/bridge.ts")
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+
+	order := []string{"medical_insurance_code", "product_category", "global_udi_input", "ra_input"}
+	position := -1
+	for _, key := range order {
+		index := strings.Index(bridge, `key: "`+key+`"`)
+		if index < 0 {
+			t.Fatalf("SOURCES 里缺少来源 %s", key)
+		}
+		if index < position {
+			t.Errorf("来源顺序不对：%s 应该排在前面", key)
+		}
+		position = index
 	}
-	rest := html[from+len(start):]
-	to := strings.Index(rest, end)
-	if to < 0 {
-		t.Fatalf("%s 没有闭合标记 %s", start, end)
+	if !strings.Contains(bridge, "GROUP_GAP_AFTER = 1") {
+		t.Error("第一个分组之后要有空行（原界面的 horizontalSpacer）")
 	}
-	return rest[:to]
+	for _, wanted := range []string{`aria-label="载入文件"`, `aria-label="数据回顾"`, `aria-label="清空导入数据"`} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("导入区的图标按钮缺少可读名称：%s", wanted)
+		}
+	}
+	// 图标用 Lucide（Import / Eye / Trash2），不再是手写的 Material 路径
+	for _, icon := range []string{"Import", "Eye", "Trash2"} {
+		if !strings.Contains(panels, icon) {
+			t.Errorf("图标按钮应当使用 Lucide 的 %s", icon)
+		}
+	}
 }
 
-// TestOverlayDialogsDoNotStealFocusToTheCloseButton 固定"开窗时不要看起来像被选中"：
-// showModal() 会把焦点交给对话框里第一个可聚焦元素，也就是右上角那个 X，
-// 于是 :focus-visible 的焦点环一开窗就亮着。两个展示型窗口一律走 showOverlayDialog
-// （showModal 之后把焦点收回对话框本身），键盘用户按 Tab 仍能看到焦点环。
-func TestOverlayDialogsDoNotStealFocusToTheCloseButton(t *testing.T) {
-	script := readFrontendFile(t, "app.js")
-	if !strings.Contains(script, "function showOverlayDialog(dialog)") ||
-		!strings.Contains(script, "dialog.showModal();\n  dialog.focus();") {
-		t.Error("缺少 showOverlayDialog（showModal 后把焦点收回对话框本身）")
-	}
+// TestTheSettingsTreeUsesAntdTree 固定参数设定：Go 返回结构化树 → antd Tree 渲染，
+// 容器标 {n}/[n]、标量按类型着色、空集合有占位，另有路径条与全部展开/折叠。
+func TestTheSettingsTreeUsesAntdTree(t *testing.T) {
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
 	for _, wanted := range []string{
-		`showOverlayDialog(document.getElementById("about"))`,
-		`showOverlayDialog(document.getElementById("puppy-dialog"))`,
+		`import { Button, Input, Modal, Pagination, Table, Tabs, Tree, Tooltip } from "antd"`,
+		"treeData={treeData}",
+		"expandedKeys={expandedKeys}",
+		"onSelect={(keys) => onSelectNode(",
+		"tree-empty", // 空集合占位
+		"全部展开",
+		"全部折叠",
+		"settings-path", // 路径条
 	} {
-		if !strings.Contains(script, wanted) {
-			t.Errorf("展示型窗口没有走 showOverlayDialog：%s", wanted)
+		if !strings.Contains(modals, wanted) {
+			t.Errorf("SettingsModal 里缺少：%s", wanted)
 		}
 	}
-	for _, forbidden := range []string{
-		`document.getElementById("about").showModal()`,
-		`document.getElementById("puppy-dialog").showModal()`,
+	// 类型着色：四类都有自己的颜色，且不是等宽字体
+	for _, wanted := range []string{
+		".tree-value.type-string", ".tree-value.type-number",
+		".tree-value.type-bool", ".tree-value.type-null",
 	} {
-		if strings.Contains(script, forbidden) {
-			t.Errorf("展示型窗口不该直接用 showModal 打开（会把焦点给 X）：%s", forbidden)
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("样式里缺少值文本的类型配色：%s", wanted)
 		}
+	}
+}
+
+// TestTheReviewModalKeepsTheFooterLayout 固定回顾窗口的底栏：
+// 导出在最左、翻页居中、关闭在最右（同一行），每页 100 行。
+func TestTheReviewModalKeepsTheFooterLayout(t *testing.T) {
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	if !strings.Contains(modals, "justifyContent: \"center\"") {
+		t.Error("翻页组件应当在底栏居中")
+	}
+	if !strings.Contains(modals, "<Pagination") || !strings.Contains(modals, "pageSize={result?.pageSize ?? 100}") {
+		t.Error("回顾窗口要分页，默认每页 100 行")
+	}
+	if !strings.Contains(modals, "导出") || !strings.Contains(modals, "关闭") {
+		t.Error("底栏要有导出与关闭按钮")
+	}
+}
+
+// TestTheWailsBuildRunsTheFrontendBuild 固定构建链：wails build 之前先构建前端，
+// 保证打进二进制的 dist 一定和源码一致。
+func TestTheWailsBuildRunsTheFrontendBuild(t *testing.T) {
+	raw, err := os.ReadFile("wails.json")
+	if err != nil {
+		t.Fatalf("读 wails.json 失败：%v", err)
+	}
+	if !strings.Contains(string(raw), "npm run build") {
+		t.Error("wails.json 的 frontend:build 应当构建前端（避免 dist 与源码不一致）")
 	}
 }

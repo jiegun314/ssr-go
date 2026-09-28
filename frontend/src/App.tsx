@@ -1,0 +1,435 @@
+// 主界面：左列（数据导入 / 记录导出）+ 右列（数据整合）+ 底部（操作日志）+ 四个弹窗。
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import {
+  REVIEW_PAGE_SIZE,
+  call,
+  defaultRange,
+  onBusy,
+  onEvent,
+  toLogTime,
+} from "./bridge";
+import {
+  ConsolidationPanel,
+  ImportPanel,
+  LoadingOverlay,
+  LogPanel,
+  MessageModal,
+  RecordExportPanel,
+  type MessageState,
+} from "./components/Panels";
+import { AboutModal, HiddenModal, ReviewModal, SettingsModal } from "./components/Modals";
+import type {
+  AboutInfo,
+  ClearResult,
+  ConsolidateResult,
+  ExportResult,
+  ExportTarget,
+  ImportResult,
+  ImportState,
+  InitialState,
+  ReviewResult,
+  SettingsSaveResult,
+  SettingsTab,
+} from "./types";
+
+/** 关于窗口图标上的点击计数：阈值与时间窗沿用原版，属行为契约，不要改这两个数值。 */
+const ICON_CLICK_COUNT = 8;
+const ICON_CLICK_WINDOW_MS = 5000;
+
+type ReviewSession = {
+  kind: "source" | "log";
+  source: string;
+  fileType: string;
+  start: string;
+  end: string;
+};
+
+export default function App() {
+  const [imports, setImports] = useState<Record<string, ImportState>>({});
+  const [log, setLog] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<MessageState>(null);
+
+  const [columns, setColumns] = useState<string[]>([]);
+  const [rows, setRows] = useState<string[][]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  const range = defaultRange(new Date());
+  const [startDate, setStartDate] = useState(range.start);
+  const [endDate, setEndDate] = useState(range.end);
+
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [review, setReview] = useState<ReviewResult | null>(null);
+  const reviewSession = useRef<ReviewSession | null>(null);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tabs, setTabs] = useState<SettingsTab[]>([]);
+  const [activeTab, setActiveTab] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editorValue, setEditorValue] = useState("");
+  const [treePath, setTreePath] = useState<string[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [about, setAbout] = useState<AboutInfo | null>(null);
+  const [hiddenOpen, setHiddenOpen] = useState(false);
+
+  const iconClicks = useRef<number[]>([]);
+  const voiceRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => onBusy(setBusy), []);
+
+  /* ---------- 载入与状态 ---------- */
+
+  const refreshInitial = useCallback(async () => {
+    const initial = await call<InitialState>("InitialState");
+    if (!initial) return;
+    setImports(initial.imports ?? {});
+    setLog(initial.operationLog ?? "");
+  }, []);
+
+  useEffect(() => {
+    void refreshInitial();
+  }, [refreshInitial]);
+
+  const applyImportStates = useCallback((next: Record<string, ImportState>) => {
+    setImports((current) => ({ ...current, ...next }));
+  }, []);
+
+  const fail = useCallback((title: string, detail: string) => {
+    setMessage({ title, message: detail });
+  }, []);
+
+  /* ---------- 数据导入 ---------- */
+
+  const handleImport = useCallback(
+    async (source: string) => {
+      const filePath = await call<string>("SelectImportFile", source);
+      if (!filePath) return; // 取消
+      const result = await call<ImportResult>("ImportSource", source, filePath);
+      if (!result) return;
+      setLog(result.log);
+      if (result.state) applyImportStates({ [source]: result.state });
+      setMessage({ title: result.title, message: result.message });
+    },
+    [applyImportStates],
+  );
+
+  const handleClear = useCallback(async () => {
+    const result = await call<ClearResult>("ClearImportedData");
+    if (!result) return;
+    setLog(result.log);
+    setMessage({ title: result.title, message: result.message });
+    if (!result.failed) await refreshInitial();
+  }, [refreshInitial]);
+
+  /* ---------- 数据回顾 ---------- */
+
+  const loadReviewPage = useCallback(async (page: number) => {
+    const session = reviewSession.current;
+    if (!session) return;
+    const result =
+      session.kind === "log"
+        ? await call<ReviewResult>("ReviewLog", session.start, session.end, page, REVIEW_PAGE_SIZE)
+        : await call<ReviewResult>("ReviewSource", session.source, page, REVIEW_PAGE_SIZE);
+    if (!result) return;
+    setLog(result.log);
+    if (result.failed) {
+      setMessage({ title: result.title, message: result.message });
+      return;
+    }
+    setReview(result);
+  }, []);
+
+  const openSourceReview = useCallback(
+    async (source: string) => {
+      reviewSession.current = { kind: "source", source, fileType: source, start: "", end: "" };
+      await loadReviewPage(1);
+      setReviewOpen(true);
+    },
+    [loadReviewPage],
+  );
+
+  const openLogReview = useCallback(async () => {
+    // 选中的起止两天都完整包含：起始补 00:00:00、结束补 23:59:59
+    reviewSession.current = {
+      kind: "log",
+      source: "",
+      fileType: "operation_log",
+      start: toLogTime(startDate, false),
+      end: toLogTime(endDate, true),
+    };
+    await loadReviewPage(1);
+    setReviewOpen(true);
+  }, [endDate, loadReviewPage, startDate]);
+
+  const handleReviewExport = useCallback(async () => {
+    const session = reviewSession.current;
+    if (!session) return;
+    // 拆两步：先选保存位置（载入图层显示"正在选择保存位置"），再真正写文件
+    const choice = await call<ExportTarget>("SelectReviewExportTarget", session.fileType);
+    if (!choice?.target) return;
+    const result = await call<ExportResult>("ExportReviewData", session.fileType, choice.target);
+    if (!result) return;
+    setLog(result.log);
+    setMessage({ title: result.title, message: result.message });
+  }, []);
+
+  /* ---------- 整合与导出 ---------- */
+
+  const handleConsolidate = useCallback(async () => {
+    const result = await call<ConsolidateResult>("Consolidate");
+    if (!result) return;
+    setLog(result.log);
+    if (result.failed) {
+      setMessage({ title: result.title, message: result.message });
+      return;
+    }
+    setColumns(result.columns ?? []);
+    setRows(result.rows ?? []);
+    setStatuses(result.statuses ?? []);
+    const summary: Record<string, number> = {};
+    for (const status of result.statuses ?? []) {
+      summary[status] = (summary[status] ?? 0) + 1;
+    }
+    setCounts(summary);
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    const choice = await call<ExportTarget>("SelectExportTarget");
+    if (!choice?.target) return; // 取消
+    const result = await call<ExportResult>("Export", choice.defaultName, choice.target);
+    if (!result) return;
+    setLog(result.log);
+    setMessage({ title: result.title, message: result.message });
+  }, []);
+
+  /* ---------- 参数设定 ---------- */
+
+  const openSettings = useCallback(async () => {
+    const loaded = await call<SettingsTab[]>("ConfigurationDocument");
+    if (!Array.isArray(loaded) || loaded.length === 0) {
+      fail("Error", "无法读取配置文件");
+      return;
+    }
+    setTabs(loaded);
+    setActiveTab(loaded[0].key);
+    setEditing(false);
+    setTreePath([]);
+    setExpandedKeys(defaultExpandedKeys(loaded[0].tree));
+    setSettingsOpen(true);
+  }, [fail]);
+
+  const selectTab = useCallback(
+    (key: string) => {
+      const tab = tabs.find((item) => item.key === key);
+      setActiveTab(key);
+      setEditing(false);
+      setTreePath([]);
+      setExpandedKeys(defaultExpandedKeys(tab?.tree ?? []));
+    },
+    [tabs],
+  );
+
+  const toggleAll = useCallback(
+    (expand: boolean) => {
+      const tab = tabs.find((item) => item.key === activeTab);
+      setExpandedKeys(expand ? allKeys(tab?.tree ?? []) : []);
+    },
+    [activeTab, tabs],
+  );
+
+  const saveSettings = useCallback(async () => {
+    const result = await call<SettingsSaveResult>("SaveConfigurationFile", activeTab, editorValue);
+    if (!result) return;
+    setLog((current) => current);
+    setMessage({ title: result.title, message: result.message });
+    if (result.failed) return;
+    const refreshed = await call<SettingsTab[]>("ConfigurationDocument");
+    if (Array.isArray(refreshed) && refreshed.length > 0) {
+      setTabs(refreshed);
+      setExpandedKeys(defaultExpandedKeys(refreshed.find((tab) => tab.key === activeTab)?.tree ?? []));
+    }
+    setEditing(false);
+  }, [activeTab, editorValue]);
+
+  /* ---------- 关于 / 附加窗口 ---------- */
+
+  const openAbout = useCallback(async () => {
+    const info = await call<AboutInfo>("About");
+    if (!info?.version) return;
+    setAbout(info);
+    setAboutOpen(true);
+  }, []);
+
+  const stopVoice = useCallback(() => {
+    const voice = voiceRef.current;
+    if (!voice) return;
+    voice.pause();
+    voice.currentTime = 0;
+  }, []);
+
+  const handleIconClick = useCallback(() => {
+    const now = Date.now();
+    iconClicks.current = iconClicks.current.filter((time) => now - time < ICON_CLICK_WINDOW_MS);
+    iconClicks.current.push(now);
+    if (iconClicks.current.length < ICON_CLICK_COUNT) return;
+    iconClicks.current = [];
+    setAboutOpen(false);
+    setHiddenOpen(true);
+    // 声音在同一个点击回调里播放：属于用户手势，不会被自动播放策略拦下
+    const voice = voiceRef.current;
+    if (voice) {
+      voice.currentTime = 0;
+      void voice.play().catch(() => undefined);
+    }
+  }, []);
+
+  const closeHidden = useCallback(() => {
+    stopVoice(); // 不能只靠关闭事件：个别引擎下它会延迟派发
+    setHiddenOpen(false);
+  }, [stopVoice]);
+
+  /* ---------- Go 侧事件 ---------- */
+
+  useEffect(() => {
+    onEvent("show-about", () => void openAbout());
+    onEvent("show-settings", () => void openSettings());
+    onEvent("log-updated", (text) => setLog(String(text ?? "")));
+    onEvent("show-message", (payload) => {
+      const data = payload as { title?: string; message?: string } | undefined;
+      if (!data) return;
+      setMessage({ title: data.title ?? "Info", message: data.message ?? "" });
+    });
+  }, [openAbout, openSettings]);
+
+  return (
+    <>
+      <div className="app-shell">
+        <div className="columns">
+          <div className="left">
+            <section className="card" style={{ flex: "0 0 auto" }}>
+              <h2 className="title-bar">数据导入</h2>
+              <div className="card-body">
+                <ImportPanel
+                  states={imports}
+                  onImport={handleImport}
+                  onReview={openSourceReview}
+                  onClear={handleClear}
+                />
+              </div>
+            </section>
+            <div className="spacer" />
+            <section className="card" style={{ flex: "0 0 auto" }}>
+              <h2 className="title-bar">记录导出</h2>
+              <div className="card-body">
+                <RecordExportPanel
+                  start={startDate}
+                  end={endDate}
+                  onStartChange={setStartDate}
+                  onEndChange={setEndDate}
+                  onReview={openLogReview}
+                />
+              </div>
+            </section>
+          </div>
+          <div className="right">
+            <section className="card grow">
+              <h2 className="title-bar">数据整合</h2>
+              <div className="card-body">
+                <ConsolidationPanel
+                  columns={columns}
+                  rows={rows}
+                  statuses={statuses}
+                  counts={counts}
+                  onConsolidate={handleConsolidate}
+                  onExport={handleExport}
+                />
+              </div>
+            </section>
+          </div>
+        </div>
+        <LogPanel text={log} />
+      </div>
+
+      {/* 附加窗口的声音：loop 表示窗口开着就一直响；播放/停止见上面的点击与关闭逻辑 */}
+      <audio id="puppy-voice" ref={voiceRef} src="puppy-voice.mp3" loop preload="auto" />
+
+      <LoadingOverlay text={busy} />
+      <MessageModal state={message} onClose={() => setMessage(null)} />
+      <ReviewModal
+        open={reviewOpen}
+        result={review}
+        exporting={false}
+        onPage={loadReviewPage}
+        onExport={handleReviewExport}
+        onClose={() => setReviewOpen(false)}
+      />
+      <SettingsModal
+        open={settingsOpen}
+        tabs={tabs}
+        activeKey={activeTab}
+        editing={editing}
+        editorValue={editorValue}
+        path={treePath}
+        expandedKeys={expandedKeys}
+        onSelectTab={selectTab}
+        onSelectNode={setTreePath}
+        onExpandedChange={setExpandedKeys}
+        onToggleAll={toggleAll}
+        onStartEdit={() => {
+          const tab = tabs.find((item) => item.key === activeTab);
+          setEditorValue(tab?.raw ?? "");
+          setEditing(true);
+        }}
+        onCancelEdit={() => setEditing(false)}
+        onEditorChange={setEditorValue}
+        onSave={saveSettings}
+        onClose={() => setSettingsOpen(false)}
+      />
+      <AboutModal
+        open={aboutOpen}
+        info={about}
+        onIconClick={handleIconClick}
+        onClose={() => setAboutOpen(false)}
+      />
+      <HiddenModal open={hiddenOpen} onClose={closeHidden} />
+    </>
+  );
+}
+
+/** 前两层默认展开：打开就能看到顶层键与来源/字段轮廓，一千多行的配置不至于铺满整屏。 */
+function defaultExpandedKeys(nodes: SettingsNodeList, depth = 0): string[] {
+  if (depth > 1) return [];
+  const keys: string[] = [];
+  const walk = (list: SettingsNodeList, path: string[], level: number): void => {
+    if (level > 1) return;
+    for (const node of list) {
+      const next = [...path, node.key];
+      keys.push(next.map((part) => encodeURIComponent(part)).join("/"));
+      if (node.children && node.children.length > 0) walk(node.children, next, level + 1);
+    }
+  };
+  walk(nodes, [], depth);
+  return keys;
+}
+
+function allKeys(nodes: SettingsNodeList): string[] {
+  const keys: string[] = [];
+  const walk = (list: SettingsNodeList, path: string[]): void => {
+    for (const node of list) {
+      const next = [...path, node.key];
+      if (node.children && node.children.length > 0) {
+        keys.push(next.map((part) => encodeURIComponent(part)).join("/"));
+        walk(node.children, next);
+      }
+    }
+  };
+  walk(nodes, []);
+  return keys;
+}
+
+type SettingsNodeList = import("./types").SettingsNode[];

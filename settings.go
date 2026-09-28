@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"html"
 	"os"
 	"strconv"
 	"strings"
@@ -14,14 +13,23 @@ import (
 	"github.com/jiegun314/ssr-go/internal/config"
 )
 
-// SettingsTab 是「参数设定」窗口里的一个页签：一份配置文件的标题、路径与渲染后的内容。
+// SettingsNode 是参数设定树状视图的一个节点：容器（map/seq）带 Children，
+// 标量带 Kind 与 Value（前端按类型着色）。数量不落字段，前端数 Children 即可。
+type SettingsNode struct {
+	Key      string         `json:"key"`  // 键名；列表项是下标（"0"、"1"…）
+	Kind     string         `json:"kind"` // map | seq | string | number | bool | null
+	Value    string         `json:"value,omitempty"`
+	Children []SettingsNode `json:"children,omitempty"`
+}
+
+// SettingsTab 是「参数设定」窗口里的一个页签：一份配置文件的标题、路径与结构化内容。
 type SettingsTab struct {
-	Key   string `json:"key"`   // 文件名（配置里唯一）
-	Title string `json:"title"` // 页签标题
-	Note  string `json:"note"`  // 页签说明（例如「生成物，请勿手改」）
-	Path  string `json:"path"`  // 实际读取的文件路径
-	HTML  string `json:"html"`  // 按 Markdown 风格渲染的结构化内容
-	Raw   string `json:"raw"`   // 文件原文（供"编辑原文"使用）
+	Key   string         `json:"key"`   // 文件名（配置里唯一）
+	Title string         `json:"title"` // 页签标题
+	Note  string         `json:"note"`  // 页签说明（例如「生成物，请勿手改」）
+	Path  string         `json:"path"`  // 实际读取的文件路径
+	Tree  []SettingsNode `json:"tree"`  // 结构化内容（前端用 antd Tree 渲染）
+	Raw   string         `json:"raw"`   // 文件原文（供"编辑原文"使用）
 }
 
 // settingsTabSpec 是四个页签的展示信息（顺序即页签顺序）。
@@ -34,15 +42,15 @@ func settingsTabs() []SettingsTab {
 	}
 }
 
-// ConfigurationDocument 读四份 YAML 并渲染成 Markdown 风格的结构化内容，
-// 供菜单「设置 → 参数设定」的四个页签显示。
+// ConfigurationDocument 读四份 YAML，把每份解析成结构化树，
+// 供菜单「设置 → 参数设定」的四个页签显示（前端负责渲染成树状视图）。
 func (app *App) ConfigurationDocument() []SettingsTab {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	tabs := settingsTabs()
 	if app.loader == nil {
 		for index := range tabs {
-			tabs[index].HTML = "<p class='empty'>配置未加载：请确认 config/ 与程序位于同一目录。</p>"
+			tabs[index].Note = "配置未加载：请确认 config/ 与程序位于同一目录。"
 		}
 		return tabs
 	}
@@ -51,17 +59,15 @@ func (app *App) ConfigurationDocument() []SettingsTab {
 		tabs[index].Path = path
 		content, err := os.ReadFile(path)
 		if err != nil {
-			tabs[index].HTML = fmt.Sprintf(
-				"<p class='empty'>无法读取 %s：%s</p>", html.EscapeString(path), html.EscapeString(err.Error()))
+			tabs[index].Note = fmt.Sprintf("无法读取 %s：%s", path, err.Error())
 			continue
 		}
 		var document yaml.Node
 		if err := yaml.Unmarshal(content, &document); err != nil {
-			tabs[index].HTML = fmt.Sprintf(
-				"<p class='empty'>解析失败：%s</p>", html.EscapeString(err.Error()))
+			tabs[index].Note = fmt.Sprintf("解析失败：%s", err.Error())
 			continue
 		}
-		tabs[index].HTML = yamlNodeToHTML(&document, 0)
+		tabs[index].Tree = yamlNodeToTree(&document)
 		tabs[index].Raw = string(content)
 	}
 	return tabs
@@ -75,101 +81,57 @@ func (app *App) ShowSettings() {
 	runtime.EventsEmit(app.context, "show-settings", nil)
 }
 
-// yamlNodeToHTML 把 YAML 节点渲染成**树状展开结构**（可折叠、按类型着色）：
-//
-//	<details class="tree-node" open>
-//	  <summary class="tree-row"><span class="tree-key">excel</span>
-//	    <span class="tree-meta">{5}</span></summary>
-//	  <div class="tree-children">…子节点…</div>
-//	</details>
-//
-// 用原生 <details>/<summary> 而不是自己写 JS：折叠/展开由浏览器负责，键盘也能操作，
-// 缩进靠嵌套的 .tree-children 自然累加，深度没有上限。
-// 容器节点标注子项数量（映射 {n}、列表 [n]），标量按类型着色（string/number/bool/null）。
-func yamlNodeToHTML(node *yaml.Node, depth int) string {
+// yamlNodeToTree 把 YAML 节点转成结构化树：映射的键、列表的下标都成为节点，
+// 容器带 Children（数量由前端数），标量带类型（前端按类型着色）。
+func yamlNodeToTree(node *yaml.Node) []SettingsNode {
 	switch node.Kind {
 	case yaml.DocumentNode:
 		if len(node.Content) == 0 {
-			return ""
+			return nil
 		}
-		return yamlNodeToHTML(node.Content[0], depth)
+		return yamlNodeToTree(node.Content[0])
 	case yaml.MappingNode:
-		var builder strings.Builder
+		nodes := make([]SettingsNode, 0, len(node.Content)/2)
 		for index := 0; index+1 < len(node.Content); index += 2 {
-			builder.WriteString(yamlEntryToHTML(node.Content[index].Value, node.Content[index+1], depth))
+			nodes = append(nodes, yamlChildToTree(node.Content[index].Value, node.Content[index+1]))
 		}
-		return builder.String()
+		return nodes
 	case yaml.SequenceNode:
-		var builder strings.Builder
+		nodes := make([]SettingsNode, 0, len(node.Content))
 		for index, item := range node.Content {
-			builder.WriteString(yamlEntryToHTML(strconv.Itoa(index), item, depth))
+			nodes = append(nodes, yamlChildToTree(strconv.Itoa(index), item))
 		}
-		return builder.String()
+		return nodes
 	default:
-		return treeValueRow("", node, depth)
+		return []SettingsNode{scalarToTree("", node)}
 	}
 }
 
-// yamlEntryToHTML 渲染一个"键/下标 + 值"的条目：容器变成可折叠节点，标量变成一行。
-func yamlEntryToHTML(label string, value *yaml.Node, depth int) string {
-	key := html.EscapeString(label)
+// yamlChildToTree 生成一个「键/下标 + 值」的节点。
+func yamlChildToTree(key string, value *yaml.Node) SettingsNode {
 	switch value.Kind {
-	case yaml.MappingNode, yaml.SequenceNode:
-		// 映射的 Content 是「键、值」成对存的，子项数要除以 2；列表的 Content 就是元素。
-		annotation := "{" + strconv.Itoa(len(value.Content)/2) + "}"
-		child := ""
-		if value.Kind == yaml.SequenceNode {
-			annotation = "[" + strconv.Itoa(len(value.Content)) + "]"
-		}
-		child = yamlNodeToHTML(value, depth+1)
-		if strings.TrimSpace(child) == "" {
-			kind := "object"
-			if value.Kind == yaml.SequenceNode {
-				kind = "array"
-			}
-			child = fmt.Sprintf("<div class=\"tree-empty\">（空 %s）</div>\n", kind)
-		}
-		// 前两层默认展开：打开参数设定就能看到顶层键与来源/字段列表的轮廓，
-		// 再深的内容点开看 —— 一千多行的配置不至于一上来铺满整屏。
-		open := ""
-		if depth < 2 {
-			open = " open"
-		}
-		return fmt.Sprintf(
-			"<details class=\"tree-node\" data-depth=\"%d\"%s>"+
-				"<summary class=\"tree-row\"><span class=\"tree-key\">%s</span>"+
-				"<span class=\"tree-meta\">%s</span></summary>"+
-				"<div class=\"tree-children\">\n%s</div></details>\n",
-			depth, open, key, annotation, child)
+	case yaml.MappingNode:
+		return SettingsNode{Key: key, Kind: "map", Children: yamlNodeToTree(value)}
+	case yaml.SequenceNode:
+		return SettingsNode{Key: key, Kind: "seq", Children: yamlNodeToTree(value)}
 	default:
-		return treeValueRow(label, value, depth)
+		return scalarToTree(key, value)
 	}
 }
 
-// treeValueRow 渲染一行标量：键 + 冒号 + 按类型着色的值。
-func treeValueRow(label string, value *yaml.Node, depth int) string {
-	key := html.EscapeString(label)
-	kind, text := scalarKind(value)
-	return fmt.Sprintf(
-		"<div class=\"tree-row tree-leaf\" data-depth=\"%d\">"+
-			"<span class=\"tree-key\">%s</span><span class=\"tree-sep\">:</span>"+
-			"<span class=\"tree-value type-%s\">%s</span></div>\n",
-		depth, key, kind, html.EscapeString(text))
-}
-
-// scalarKind 判定标量类型（决定着色）并给出显示文本。
+// scalarToTree 判定标量类型（前端按类型着色）并保留显示文本。
 // 判定用 YAML 自己的 tag：配置里写 true / 1 / null 的写法要分别显示成布尔 / 数字 / 空。
-func scalarKind(value *yaml.Node) (string, string) {
+func scalarToTree(key string, value *yaml.Node) SettingsNode {
 	tag := strings.TrimPrefix(value.Tag, "!!")
 	switch tag {
 	case "int", "float":
-		return "number", value.Value
+		return SettingsNode{Key: key, Kind: "number", Value: value.Value}
 	case "bool":
-		return "bool", value.Value
+		return SettingsNode{Key: key, Kind: "bool", Value: value.Value}
 	case "null":
-		return "null", "null"
+		return SettingsNode{Key: key, Kind: "null", Value: "null"}
 	default:
-		return "string", value.Value
+		return SettingsNode{Key: key, Kind: "string", Value: value.Value}
 	}
 }
 

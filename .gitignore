@@ -26,3 +26,6 @@
 # 验收截图等临时文件不要进仓库（截图归档在 ssr_go/docs/rewrite/）
 /*.png
 /*.jpg
+
+# frontend (React + antd)：源码与构建产物都提交，只有依赖目录不入库
+/frontend/node_modules/
