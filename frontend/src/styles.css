@@ -77,6 +77,10 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* 卡片自己裁边：标题条是直角矩形，只有被卡片裁掉上沿两个角，
+     才能和卡片外框的圆角对齐 —— 否则红色标题条的方角会露在圆角外面，
+     看起来比下面的内容"方"/"窄"（原版就是这么做的）。 */
+  overflow: hidden;
 }
 
 .card > .title-bar {

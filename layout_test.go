@@ -324,6 +324,28 @@ func TestTheModuleCornersShareOneSmallRadius(t *testing.T) {
 	}
 }
 
+// TestTheModuleCardsClipTheirTitleBar 固定"标题条上沿要有圆角"的做法：
+// 标题条是直角矩形，只有卡片自己 overflow:hidden 把上沿两角裁掉，
+// 才能和外框的圆角对齐 —— 否则红色标题条的方角露在圆角外面，
+// 看起来比下方面板"方"、也像没有边框（用户报的问题）。
+func TestTheModuleCardsClipTheirTitleBar(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+	start := strings.Index(styles, ".card {")
+	if start < 0 {
+		t.Fatal("样式里找不到 .card")
+	}
+	body := styles[start:]
+	if end := strings.Index(body, "}"); end >= 0 {
+		body = body[:end]
+	}
+	if !strings.Contains(body, "overflow: hidden") {
+		t.Errorf("卡片必须裁剪标题条的方角（overflow: hidden）：%s", body)
+	}
+	if !strings.Contains(body, "border-radius: 4px") {
+		t.Errorf("卡片的圆角应当是统一的小圆角：%s", body)
+	}
+}
+
 // TestTheEmptyResultTableHasNoFrame 固定空结果表的口径：没有数据时不画那个带边框的
 // 长方形（它会和模块外框叠成两层），而是在整个模块区域正中间显示"暂无数据"。
 func TestTheEmptyResultTableHasNoFrame(t *testing.T) {
