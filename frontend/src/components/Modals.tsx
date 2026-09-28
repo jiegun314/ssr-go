@@ -42,6 +42,7 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
       open={open}
       title={result?.title ?? "数据回顾"}
       width="min(80vw, 1100px)"
+      centered
       onCancel={onClose}
       footer={
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -170,6 +171,7 @@ export function SettingsModal({
       open={open}
       title="参数设定"
       width="min(80vw, 900px)"
+      centered
       onCancel={onClose}
       footer={
         <Button type="primary" onClick={onClose}>
@@ -248,6 +250,7 @@ export function AboutModal({ open, info, onIconClick, onClose }: AboutModalProps
     <Modal
       className="about-window"
       open={open}
+      centered
       closable={false}
       footer={null}
       width={323}
@@ -285,6 +288,7 @@ export function HiddenModal({ open, onClose }: HiddenModalProps) {
     <Modal
       className="hidden-window"
       open={open}
+      centered
       closable={false}
       footer={null}
       width={323}

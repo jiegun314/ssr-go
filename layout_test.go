@@ -410,6 +410,57 @@ func TestTheReviewModalKeepsTheFooterLayout(t *testing.T) {
 	}
 }
 
+// TestAllDialogsAreCenteredAndTheMessageDialogIsStyled 固定弹窗的两条口径：
+//  1. 所有弹窗都必须居中（antd 的 centered 属性），包括关于窗口与附加窗口；
+//  2. 导入/导出完成后的统一提示弹窗：不要右上角 X、标题条红底白字、确认按钮居中；
+//     并且关掉 antd 在两个汉字之间插空格的默认行为（"确 定" → "确定"）。
+func TestAllDialogsAreCenteredAndTheMessageDialogIsStyled(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+	main := readFrontendSource(t, "src/main.tsx")
+
+	// 1) 五个弹窗（提示 / 回顾 / 参数设定 / 关于 / 附加窗口）全部居中
+	if got := strings.Count(modals, "centered"); got < 4 {
+		t.Errorf("回顾/参数设定/关于/附加窗口都要居中（centered），实际 %d 处", got)
+	}
+	if !strings.Contains(panels, "centered") {
+		t.Error("提示弹窗也要居中（centered）")
+	}
+	// 2) 提示弹窗的样式
+	if !strings.Contains(panels, "closable={false}") {
+		t.Error("提示弹窗不该有右上角关闭按钮")
+	}
+	if !strings.Contains(panels, `className="app-message"`) {
+		t.Error("提示弹窗要带 app-message 类（红底白字标题条靠它）")
+	}
+	for _, wanted := range []string{
+		".app-message .ant-modal-header {",
+		"background: #d71600",
+		".app-message .ant-modal-title {",
+		"color: #fff",
+		".app-message .ant-modal-footer {",
+		"justify-content: center",
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("提示弹窗样式缺少：%s", wanted)
+		}
+	}
+	// 3) 关于窗口：内容纵向居中 + 图标与文字留出间距
+	for _, wanted := range []string{"justify-content: center", "height: 323px"} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("关于窗口内容区样式缺少：%s", wanted)
+		}
+	}
+	if !strings.Contains(styles, "margin-top: 16px") {
+		t.Error("图标与下方文字之间要留出间距")
+	}
+	// 4) 中文按钮不要自动插空格
+	if !strings.Contains(main, "autoInsertSpace: false") {
+		t.Error("要关掉 antd 在两个汉字之间插空格的默认行为")
+	}
+}
+
 // TestTheWailsBuildRunsTheFrontendBuild 固定构建链：wails build 之前先构建前端，
 // 保证打进二进制的 dist 一定和源码一致。
 func TestTheWailsBuildRunsTheFrontendBuild(t *testing.T) {

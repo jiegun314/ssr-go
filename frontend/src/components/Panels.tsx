@@ -331,15 +331,21 @@ export type MessageState = { title: string; message: string } | null;
 export function MessageModal({ state, onClose }: { state: MessageState; onClose: () => void }) {
   return (
     <Modal
+      className="app-message"
       open={state !== null}
       title={state?.title ?? ""}
+      centered
+      closable={false}
+      width={460}
       onCancel={onClose}
-      onOk={onClose}
-      okText="确定"
-      cancelButtonProps={{ style: { display: "none" } }}
+      footer={
+        <Button type="primary" onClick={onClose}>
+          确定
+        </Button>
+      }
       destroyOnClose
     >
-      <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{state?.message ?? ""}</p>
+      <p className="message-text">{state?.message ?? ""}</p>
     </Modal>
   );
 }

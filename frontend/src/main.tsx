@@ -16,7 +16,8 @@ const container = document.getElementById("root");
 if (container) {
   createRoot(container).render(
     <StrictMode>
-      <ConfigProvider theme={theme} locale={zhCN}>
+      {/* button.autoInsertSpace：antd 默认在两个汉字之间插空格（"确 定"），中文界面关掉 */}
+      <ConfigProvider theme={theme} locale={zhCN} button={{ autoInsertSpace: false }}>
         <AntApp>
           <App />
         </AntApp>
