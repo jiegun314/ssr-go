@@ -1,9 +1,9 @@
 // 主界面的四块：数据导入、记录导出、数据整合、操作日志，加上载入图层与结果弹窗。
 
-import { Button, DatePicker, Input, Modal, Spin, Table, Tooltip } from "antd";
+import { Button, DatePicker, Empty, Input, Modal, Spin, Table, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
-import { Eye, FileDown, History, Import, Merge, Trash2 } from "lucide-react";
+import { FileDown, FileText, FolderOpen, Merge, Search, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { GROUP_GAP_AFTER, SOURCES } from "../bridge";
@@ -36,7 +36,7 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
                     type="text"
                     shape="circle"
                     aria-label="载入文件"
-                    icon={<Import size={18} />}
+                    icon={<FolderOpen size={18} />}
                     onClick={() => onImport(source.key)}
                   />
                 </Tooltip>
@@ -49,7 +49,7 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
                     type="text"
                     shape="circle"
                     aria-label="数据回顾"
-                    icon={<Eye size={18} />}
+                    icon={<FileText size={18} />}
                     disabled={current.state !== "imported" && current.state !== "existing"}
                     onClick={() => onReview(source.key)}
                   />
@@ -112,7 +112,7 @@ export function RecordExportPanel({
       </div>
       <span className="spacer" />
       <Tooltip title="回顾">
-        <Button type="text" shape="circle" aria-label="回顾" icon={<History size={18} />} onClick={onReview} />
+        <Button type="text" shape="circle" aria-label="回顾" icon={<Search size={18} />} onClick={onReview} />
       </Tooltip>
     </div>
   );
@@ -174,6 +174,11 @@ export function ConsolidationPanel({
           生成文件
         </Button>
       </div>
+      {rows.length === 0 ? (
+        <div className="table-empty">
+          <Empty description="暂无数据" />
+        </div>
+      ) : (
       <div className="tblwrap">
         <Table<string[]>
           size="small"
@@ -187,6 +192,7 @@ export function ConsolidationPanel({
           scroll={{ x: "max-content" }}
         />
       </div>
+      )}
     </>
   );
 }

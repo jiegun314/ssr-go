@@ -55,7 +55,7 @@ func frontendSourceText(t *testing.T) string {
 func TestTheFrontendShipsInsideTheBinary(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Join("frontend", "dist"))
 	if err != nil {
-		t.Fatalf("读 frontend/dist 失败（先跑 npm run build --prefix frontend）：%v", err)
+		t.Fatalf("读 frontend/dist 失败（先在 frontend/ 里跑 npm run build）：%v", err)
 	}
 	found := map[string]bool{}
 	for _, entry := range entries {
@@ -287,11 +287,58 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 			t.Errorf("导入区的图标按钮缺少可读名称：%s", wanted)
 		}
 	}
-	// 图标用 Lucide（Import / Eye / Trash2），不再是手写的 Material 路径
-	for _, icon := range []string{"Import", "Eye", "Trash2"} {
+	// 图标全部用 Lucide，并按原版 PySide6 的 ThemeIcon 语义一一对应：
+	//   FolderOpen（载入文件）/ DocumentOpen→FileText（数据回顾）/
+	//   EditDelete→Trash2（清空）/ SystemSearch→Search（记录导出的回顾）
+	for _, icon := range []string{"FolderOpen", "FileText", "Trash2", "Search"} {
 		if !strings.Contains(panels, icon) {
-			t.Errorf("图标按钮应当使用 Lucide 的 %s", icon)
+			t.Errorf("图标应当使用 Lucide 的 %s（对应原版图标语义）", icon)
 		}
+	}
+	if strings.Contains(panels, `"anticon"`) || strings.Contains(panels, "<path d=") {
+		t.Error("图标不应再手写 SVG 路径")
+	}
+}
+
+// TestTheModuleCornersShareOneSmallRadius 固定圆角口径：所有模块级容器
+// （卡片 / 导入分组 / 结果表容器 / 状态条 / 操作日志）用同一个 4px 小圆角，
+// 避免同一页出现"大方框直角、小方框圆角"的观感。
+func TestTheModuleCornersShareOneSmallRadius(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+	for _, selector := range []string{".card {", ".group {", ".tblwrap {", ".status-strip {"} {
+		start := strings.Index(styles, selector)
+		if start < 0 {
+			t.Fatalf("样式里找不到 %s", selector)
+		}
+		body := styles[start:]
+		if end := strings.Index(body, "}"); end >= 0 {
+			body = body[:end]
+		}
+		if !strings.Contains(body, "border-radius: 4px") {
+			t.Errorf("%s 的圆角应为统一的 4px：%s", selector, body)
+		}
+	}
+	// 操作日志卡片是通过共用的 .card 类拿到同一个圆角的
+	if panels := readFrontendSource(t, "src/components/Panels.tsx"); !strings.Contains(panels, `className="card log-card"`) {
+		t.Error("操作日志卡片应当复用 .card 类（圆角与其它模块一致）")
+	}
+}
+
+// TestTheEmptyResultTableHasNoFrame 固定空结果表的口径：没有数据时不画那个带边框的
+// 长方形（它会和模块外框叠成两层），而是在整个模块区域正中间显示"暂无数据"。
+func TestTheEmptyResultTableHasNoFrame(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	if !strings.Contains(panels, "rows.length === 0 ?") {
+		t.Error("结果表要按「有没有数据」分支渲染")
+	}
+	if !strings.Contains(panels, "<Empty description=\"暂无数据\" />") {
+		t.Error("空状态应当用 antd 的 Empty + 暂无数据")
+	}
+	if !strings.Contains(styles, ".table-empty {") ||
+		!strings.Contains(styles, "justify-content: center") {
+		t.Error("空状态应当在模块区域里居中显示")
 	}
 }
 
@@ -348,7 +395,7 @@ func TestTheWailsBuildRunsTheFrontendBuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("读 wails.json 失败：%v", err)
 	}
-	if !strings.Contains(string(raw), "npm run build --prefix frontend") {
+	if !strings.Contains(string(raw), "npm run build") {
 		t.Error("wails.json 的 frontend:build 应当构建前端（避免 dist 与源码不一致）")
 	}
 }
