@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -81,4 +82,71 @@ func TestImportFeedbackIsChineseAndTwoLines(t *testing.T) {
 	if strings.HasPrefix(failedLines[1], "失败原因：UDI团队信息：") {
 		t.Errorf("失败原因里重复了来源名：%q", failedLines[1])
 	}
+}
+
+// TestAnUnreadableWorkbookGetsAChineseFallback 固定底层错误的展示口径：
+// 读 Excel 失败这类**英文技术错误**在弹窗里换成中文兜底（用户不该看 "Failed to import Excel file"），
+// 技术原文仍然写进操作日志 —— 内审要能查到真因。
+func TestAnUnreadableWorkbookGetsAChineseFallback(t *testing.T) {
+	app := newImportTestApp(t)
+
+	broken := filepath.Join(t.TempDir(), "broken.xlsx")
+	if err := os.WriteFile(broken, []byte("这不是一个真正的 xlsx 文件"), 0o644); err != nil {
+		t.Fatalf("准备坏文件失败：%v", err)
+	}
+
+	failed := app.ImportSource("ra_input", broken)
+	if !failed.Failed {
+		t.Fatalf("坏文件应当导入失败：%+v", failed)
+	}
+	if failed.Title != "导入失败" {
+		t.Errorf("失败弹窗标题 = %q; want 导入失败", failed.Title)
+	}
+	lines := strings.Split(failed.Message, "\n")
+	if lines[0] != "RA信息导入失败" {
+		t.Errorf("第一行 = %q; want RA信息导入失败", lines[0])
+	}
+	if !strings.Contains(lines[1], "文件无法读取或格式不受支持") {
+		t.Errorf("第二行应当是中英兜底的原因，实际 %q", lines[1])
+	}
+	if !strings.Contains(failed.Message, "详情见日志窗口") {
+		t.Errorf("兜底文案要指引用户看日志窗口，实际 %q", failed.Message)
+	}
+	if strings.Contains(failed.Message, "Failed to import Excel file") {
+		t.Error("弹窗里不该出现英文技术原文")
+	}
+	if !strings.Contains(failed.Log, "Failed to import Excel file") {
+		t.Errorf("技术原文要写进操作日志，实际日志：%q", failed.Log)
+	}
+	// 校验类错误本来就是中文，仍然原样展示（不能被兜底掉）
+	if !containsCJK("表头缺少列") || containsCJK("Failed to import Excel file") {
+		t.Error("containsCJK 要能区分中文提示与英文技术错误")
+	}
+}
+
+// newImportTestApp 起一个用临时配置与临时数据库的 App（导入相关的用例共用）。
+func newImportTestApp(t *testing.T) *App {
+	t.Helper()
+	workspace := t.TempDir()
+	configDir := filepath.Join(workspace, "config")
+	copyDirectoryForTest(t, "config", configDir)
+
+	loader, err := config.NewLoader(configDir)
+	if err != nil {
+		t.Fatalf("读配置失败：%v", err)
+	}
+	repository, err := store.Open(filepath.Join(workspace, "data", "udi_data.sqlite3"))
+	if err != nil {
+		t.Fatalf("打开数据库失败：%v", err)
+	}
+	t.Cleanup(func() { repository.Close() })
+	importService, err := importer.NewImporter(loader, repository)
+	if err != nil {
+		t.Fatalf("构造导入器失败：%v", err)
+	}
+	app := NewApp(nil)
+	app.loader = loader
+	app.repo = repository
+	app.importer = importService
+	return app
 }

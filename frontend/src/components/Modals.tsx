@@ -39,6 +39,7 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
 
   return (
     <Modal
+      className="app-modal"
       open={open}
       title={result?.title ?? "数据回顾"}
       width="min(80vw, 1100px)"
@@ -168,6 +169,7 @@ export function SettingsModal({
 
   return (
     <Modal
+      className="app-modal"
       open={open}
       title="参数设定"
       width="min(80vw, 900px)"

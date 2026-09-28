@@ -309,6 +309,17 @@ body {
   font-size: 12px;
 }
 
+/* 表格内部的圆角与容器统一成 4px（antd 默认给的是 8px；外层虽然会裁掉，
+   但两处不一致属于隐患，直接对齐）。
+   选择器要和 antd 自带的那条（.ant-table-wrapper .ant-table-container table >
+   thead > tr:first-child > *:first-child）同等具体度才盖得住，所以写全层级。 */
+.tblwrap .ant-table-container,
+.tblwrap .ant-table-container table > thead > tr:first-child > th:first-child,
+.tblwrap .ant-table-container table > thead > tr:first-child > th:last-child {
+  border-start-start-radius: 4px;
+  border-start-end-radius: 4px;
+}
+
 /* 表格没有数据时：不画 .tblwrap 的边框，整个模块区域居中显示"暂无数据" */
 .table-empty {
   flex: 1 1 auto;
@@ -368,10 +379,12 @@ body {
   top: -5px;
   left: 0;
   right: 0;
-  height: 10px;
+  /* 抓取条仍然贴着卡片上沿（align-items:flex-start 让它停在热区顶部），
+     热区高度则给到 16px：5px 在卡片外 + 11px 在卡片内，鼠标更好抓。 */
+  height: 16px;
   cursor: row-resize;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   touch-action: none;
   z-index: 2;
@@ -389,6 +402,13 @@ body {
 .log-resizer:hover::before,
 .log-resizer:focus-visible::before {
   background: #b3261e;
+}
+
+/* 键盘聚焦时给一个品牌红焦点环（默认是浏览器那圈蓝） */
+.log-resizer:focus-visible {
+  outline: 2px solid #b3261e;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 body.log-resizing {
@@ -487,7 +507,7 @@ body.log-resizing {
 }
 
 .settings-tree .tree-value.type-bool {
-  color: #b26a00;
+  color: #96570a;
 }
 
 .settings-tree .tree-value.type-null {
@@ -563,6 +583,31 @@ body.log-resizing {
   justify-content: center;
   padding: 12px 24px 16px;
   border-top: none;
+}
+
+/* 带动作的弹窗（数据回顾 / 参数设定）也用同一套红底白字标题条，右上角 X 改白色 */
+.app-modal .ant-modal-header {
+  margin-bottom: 0;
+  padding: 12px 24px;
+  background: #d71600;
+  border-bottom: 1px solid #d71600;
+  border-radius: 16px 16px 0 0;
+}
+
+.app-modal .ant-modal-title {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+}
+
+.app-modal .ant-modal-close {
+  color: #fff;
+}
+
+.app-modal .ant-modal-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 /* ---------- 关于 / 附加窗口 ---------- */

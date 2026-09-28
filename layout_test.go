@@ -1,8 +1,11 @@
 package main
 
 import (
+	"math"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -471,4 +474,194 @@ func TestTheWailsBuildRunsTheFrontendBuild(t *testing.T) {
 	if !strings.Contains(string(raw), "npm run build") {
 		t.Error("wails.json 的 frontend:build 应当构建前端（避免 dist 与源码不一致）")
 	}
+}
+
+// ---------- 发布前的设计体检（A 组：可读性 / 可点性 / 一致性） ----------
+
+// TestTheSettingsTreeValuesMeetContrastOnWhite 固定参数设定里值文本的可读性：
+// 三种有颜色的标量在白底上都要过 WCAG AA（12px 小字 ≥ 4.5:1），
+// 且 styles.css 里的颜色必须与 theme.ts 的 VALUE_COLORS 对得上（不许两处各写一套）。
+func TestTheSettingsTreeValuesMeetContrastOnWhite(t *testing.T) {
+	theme := readFrontendSource(t, "src/theme.ts")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	colors := treeValueColors(t, theme)
+	for _, kind := range []string{"string", "number", "bool"} {
+		hex, ok := colors[kind]
+		if !ok {
+			t.Fatalf("theme.ts 的 VALUE_COLORS 里缺少 %s", kind)
+		}
+		if ratio := contrastOnWhite(t, hex); ratio < 4.5 {
+			t.Errorf("tree-value.type-%s 的颜色 %s 在白底上只有 %.2f:1，低于 AA 的 4.5:1", kind, hex, ratio)
+		}
+	}
+	// 样式里那份必须跟主题一致（历史上这里漏改成 4.24:1 的 #B26A00）
+	want := "color: " + colors["bool"] + ";"
+	if !strings.Contains(styles, want) {
+		t.Errorf("styles.css 的 .tree-value.type-bool 应当用 theme.ts 里的 %s（找不到 %q）", colors["bool"], want)
+	}
+}
+
+// TestTheLogResizerHasAComfortableHitAreaAndAFocusRing 固定操作日志拖动条：
+// 可见抓取条还是 3px，但热区放到 16px（鼠标更容易抓），键盘聚焦时用品牌红焦点环。
+func TestTheLogResizerHasAComfortableHitAreaAndAFocusRing(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+
+	block := cssBlock(t, styles, ".log-resizer {")
+	if !strings.Contains(block, "height: 16px;") {
+		t.Errorf("拖动条热区高度应为 16px，实际块：\n%s", block)
+	}
+	if !strings.Contains(block, "align-items: flex-start;") {
+		t.Error("热区变高后要靠 flex-start 让可见抓取条仍然贴着卡片上沿")
+	}
+	if !strings.Contains(styles, ".log-resizer::before {") || !strings.Contains(styles, "height: 3px;") {
+		t.Error("可见的抓取条仍然只有 3px 高")
+	}
+	focus := cssBlock(t, styles, ".log-resizer:focus-visible {")
+	if !strings.Contains(focus, "outline: 2px solid #b3261e;") {
+		t.Errorf("键盘聚焦要用品牌红焦点环，实际块：\n%s", focus)
+	}
+}
+
+// TestTheTableCornersMatchTheContainerRadius 固定整合结果表格的圆角：
+// antd 默认给表头首尾格 8px，外层 .tblwrap 是 4px —— 两处必须统一成 4px。
+func TestTheTableCornersMatchTheContainerRadius(t *testing.T) {
+	theme := readFrontendSource(t, "src/theme.ts")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	if !strings.Contains(theme, "borderRadius: 4,") {
+		t.Error("theme.ts 的 Table 组件应当把圆角设成 4px（与容器一致）")
+	}
+	for _, wanted := range []string{
+		".tblwrap .ant-table-container,",
+		".tblwrap .ant-table-container table > thead > tr:first-child > th:first-child,",
+		".tblwrap .ant-table-container table > thead > tr:first-child > th:last-child {",
+		"border-start-start-radius: 4px;",
+		"border-start-end-radius: 4px;",
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("样式里缺少表格圆角对齐规则：%s", wanted)
+		}
+	}
+}
+
+// ---------- 发布前的设计体检（B 组：层级 / 状态 / 一致性） ----------
+
+// TestTheExportActionIsSecondaryAndWaitsForReadyRows 固定数据整合工具条的层级与门禁：
+// 一个区域只留一个主按钮（数据整合 = primary，生成文件 = 次按钮），
+// 且没有 Ready 行时「生成文件」禁用（只有 Ready 会导出，点了也是白点）。
+func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+
+	if !strings.Contains(panels, `const readyCount = statuses.filter((status) => status === "Ready").length;`) {
+		t.Error("工具条应当按 Ready 行数决定「生成文件」能不能点")
+	}
+	exportButton := panels[strings.Index(panels, `icon={<FileDown size={16} />}`):]
+	exportButton = exportButton[:strings.Index(exportButton, "</Button>")]
+	if strings.Contains(exportButton, `type="primary"`) {
+		t.Error("「生成文件」应当是次按钮：一个区域只留「数据整合」一个主按钮")
+	}
+	if !strings.Contains(exportButton, "disabled={readyCount === 0}") {
+		t.Error("没有 Ready 行时「生成文件」要禁用")
+	}
+	if !strings.Contains(panels, "还没有可导出的行（只有 Ready 状态会导出）") {
+		t.Error("禁用时要给出原因（Tooltip）")
+	}
+	if !strings.Contains(panels, `type="primary"`) || !strings.Contains(panels, "数据整合") {
+		t.Error("「数据整合」仍然是这个区域的主按钮")
+	}
+}
+
+// TestTheStatusLabelFallsBackToAPlaceholder 固定：状态标签还没有内容时显示「尚未导入」，
+// 不能留一片空白（原来导入区那一行会突然塌成空的）。
+func TestTheStatusLabelFallsBackToAPlaceholder(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+
+	if !strings.Contains(panels, `{current.label || "尚未导入"}`) {
+		t.Error("状态标签要有「尚未导入」占位")
+	}
+}
+
+// TestTheActionModalsReuseTheRedTitleBar 固定数据回顾 / 参数设定这两个带动作的弹窗：
+// 标题条也用产品红底白字（跟提示弹窗一套），右上角的 X 改成白色。
+func TestTheActionModalsReuseTheRedTitleBar(t *testing.T) {
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	if got := strings.Count(modals, `className="app-modal"`); got != 2 {
+		t.Errorf("数据回顾与参数设定两个弹窗都要带 app-modal 类，实际 %d 处", got)
+	}
+	for _, wanted := range []string{
+		".app-modal .ant-modal-header {",
+		".app-modal .ant-modal-title {",
+		".app-modal .ant-modal-close {",
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("弹窗标题条样式缺少：%s", wanted)
+		}
+	}
+	header := cssBlock(t, styles, ".app-modal .ant-modal-header {")
+	if !strings.Contains(header, "background: #d71600;") {
+		t.Errorf("标题条要用产品红，实际块：\n%s", header)
+	}
+	title := cssBlock(t, styles, ".app-modal .ant-modal-title {")
+	if !strings.Contains(title, "color: #fff;") {
+		t.Errorf("标题文字要用白色，实际块：\n%s", title)
+	}
+	closeButton := cssBlock(t, styles, ".app-modal .ant-modal-close {")
+	if !strings.Contains(closeButton, "color: #fff;") {
+		t.Errorf("右上角的 X 要用白色，实际块：\n%s", closeButton)
+	}
+}
+
+// cssBlock 取出 `selector` 开头那一对花括号之间的内容（只用于读源码里的常量）。
+func cssBlock(t *testing.T, source, selector string) string {
+	t.Helper()
+	start := strings.Index(source, selector)
+	if start < 0 {
+		t.Fatalf("样式中找不到选择器 %q", selector)
+	}
+	rest := source[start:]
+	end := strings.Index(rest, "}")
+	if end < 0 {
+		t.Fatalf("选择器 %q 的样式块没有收尾", selector)
+	}
+	return rest[:end]
+}
+
+// treeValueColors 从 theme.ts 的 VALUE_COLORS 里读出 {类型: #RRGGBB}。
+func treeValueColors(t *testing.T, theme string) map[string]string {
+	t.Helper()
+	block := cssBlock(t, theme, "export const VALUE_COLORS")
+	pattern := regexp.MustCompile(`(\w+):\s*"(#[0-9A-Fa-f]{6})"`)
+	colors := map[string]string{}
+	for _, match := range pattern.FindAllStringSubmatch(block, -1) {
+		colors[match[1]] = strings.ToLower(match[2])
+	}
+	if len(colors) == 0 {
+		t.Fatal("没有从 VALUE_COLORS 里解析出任何颜色")
+	}
+	return colors
+}
+
+// contrastOnWhite 算 #RRGGBB 在白底上的 WCAG 对比度。
+func contrastOnWhite(t *testing.T, hex string) float64 {
+	t.Helper()
+	value := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(hex)), "#")
+	if len(value) != 6 {
+		t.Fatalf("颜色 %q 不是 #RRGGBB", hex)
+	}
+	luminance := func(part string) float64 {
+		number, err := strconv.ParseUint(part, 16, 8)
+		if err != nil {
+			t.Fatalf("颜色 %q 解析失败：%v", hex, err)
+		}
+		channel := float64(number) / 255
+		if channel <= 0.03928 {
+			return channel / 12.92
+		}
+		return math.Pow((channel+0.055)/1.055, 2.4)
+	}
+	lum := 0.2126*luminance(value[0:2]) + 0.7152*luminance(value[2:4]) + 0.0722*luminance(value[4:6])
+	return 1.05 / (lum + 0.05)
 }

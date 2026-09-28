@@ -113,10 +113,18 @@ func (app *App) markImportFailed(source string, importErr error) ImportResult {
 		// 汇总本身以「{来源中文名}：」开头，第一行已经写了来源名，这里去掉避免重复
 		result.Message = fmt.Sprintf("%s导入失败\n失败原因：%s\n详情见日志窗口。",
 			chineseName, strings.TrimPrefix(missing.Summary(), chineseName+"："))
-	} else {
+	} else if containsCJK(importErr.Error()) {
+		// 校验类错误的文案本来就是中文（表头缺失、必填列为空…），原样展示
 		app.appendLog("Import failed:\n" + importErr.Error())
 		result.Title = "导入失败"
 		result.Message = fmt.Sprintf("%s导入失败\n失败原因：%s", chineseName, importErr.Error())
+	} else {
+		// 读文件失败这类底层错误是英文的：弹窗给中文兜底，技术原文只进日志
+		app.appendLog("Import failed:\n" + importErr.Error())
+		result.Title = "导入失败"
+		result.Message = fmt.Sprintf(
+			"%s导入失败\n失败原因：文件无法读取或格式不受支持（请确认是 .xlsx、未被 Excel 占用且未损坏）。\n详情见日志窗口。",
+			chineseName)
 	}
 	result.Log = app.logText()
 	return result
@@ -536,4 +544,15 @@ func (app *App) ExportReviewData(fileType string, target string) ExportResult {
 		Log: app.logText(), Title: "Success", Path: target,
 		Message: "Imported data exported successfully to " + target,
 	}
+}
+
+// containsCJK 判断一段文案里有没有中文字符：用来区分"校验类中文提示"与
+// "底层英文技术错误"（后者在弹窗里换成中文兜底，原文仍写进操作日志）。
+func containsCJK(text string) bool {
+	for _, r := range text {
+		if r >= 0x4E00 && r <= 0x9FFF {
+			return true
+		}
+	}
+	return false
 }

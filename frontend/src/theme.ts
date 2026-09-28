@@ -34,7 +34,12 @@ export const theme: ThemeConfig = {
   components: {
     Button: { paddingInline: 16, fontWeight: 500 },
     Modal: { borderRadiusLG: 16, paddingContentHorizontal: 24 },
-    Table: { headerBg: "#F2F2F2", headerSplitColor: "#DCDCDC", borderColor: "#D6D6D6" },
+    Table: {
+      headerBg: "#F2F2F2",
+      headerSplitColor: "#DCDCDC",
+      borderColor: "#D6D6D6",
+      borderRadius: 4, // 与外层 .tblwrap 的 4px 小圆角统一（antd 默认是 8px）
+    },
     Tree: { titleHeight: 22, nodeHoverBg: "rgba(0, 0, 0, 0.04)" },
     Tabs: { horizontalItemPadding: "8px 16px" },
   },
@@ -42,8 +47,8 @@ export const theme: ThemeConfig = {
 
 /** 值文本的类型配色：与界面其它地方的语义色一致。 */
 export const VALUE_COLORS: Record<string, string> = {
-  string: "#1B7F3B",
-  number: "#A4262C",
-  bool: "#B26A00",
+  string: "#1B7F3B", // 白底 5.07:1
+  number: "#A4262C", // 白底 7.26:1
+  bool: "#96570A",   // 白底 5.7:1（原来是 #B26A00 只有 4.24:1，12px 小字不达 AA）
   null: "rgba(0, 0, 0, 0.60)",
 };

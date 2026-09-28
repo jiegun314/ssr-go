@@ -42,7 +42,7 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
                 </Tooltip>
                 {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
                 <span className="status" id={`status-${source.key}`}>
-                  {current.label ?? ""}
+                  {current.label || "尚未导入"}
                 </span>
                 <Tooltip title="数据回顾">
                   <Button
@@ -146,6 +146,9 @@ export function ConsolidationPanel({
       value === "MISSING" ? <span className="cell-MISSING">{value}</span> : value,
   }));
 
+  // 只有 Ready 行会被导出：没有它的时候「生成文件」没有意义
+  const readyCount = statuses.filter((status) => status === "Ready").length;
+
   const strip = (
     <div className="status-strip" id="consolidation-summary">
       {(["Ready", "Incomplete", "Duplicate"] as const).map((status) => (
@@ -170,9 +173,19 @@ export function ConsolidationPanel({
           数据整合
         </Button>
         {strip}
-        <Button type="primary" icon={<FileDown size={16} />} onClick={onExport}>
-          生成文件
-        </Button>
+        {/* 一个区域只留一个主按钮：生成文件是「整合之后才轮到」的动作，用次按钮 */}
+        <Tooltip title={readyCount === 0 ? "还没有可导出的行（只有 Ready 状态会导出）" : ""}>
+          <span>
+            <Button
+              type="default"
+              icon={<FileDown size={16} />}
+              disabled={readyCount === 0}
+              onClick={onExport}
+            >
+              生成文件
+            </Button>
+          </span>
+        </Tooltip>
       </div>
       {rows.length === 0 ? (
         <div className="table-empty">
