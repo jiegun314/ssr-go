@@ -89,9 +89,9 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 		RowCount: state.RowCount,
 		State:    state,
 		Log:      app.logText(),
-		Title:    "Success",
-		Message: fmt.Sprintf("%s imported successfully. Rows imported: %d",
-			rule.ChineseName, state.RowCount),
+		// 成功反馈固定两行中文：第一行「{来源中文名}导入成功」，第二行行数
+		Title:   "导入成功",
+		Message: fmt.Sprintf("%s导入成功\n导入行数：%d", rule.ChineseName, state.RowCount),
 	}
 }
 
@@ -102,15 +102,21 @@ func (app *App) markImportFailed(source string, importErr error) ImportResult {
 		Tooltip: "导入失败，详情见日志窗口",
 	}
 	result := ImportResult{Source: source, Failed: true, State: app.importStates[source]}
+	chineseName := source
+	if app.importer != nil {
+		chineseName = app.importer.Rules[source].ChineseName
+	}
 	var missing *importer.MissingRowValuesError
 	if errors.As(importErr, &missing) {
 		app.appendLog("Import failed: " + missing.Summary() + "\n" + missing.Error())
-		result.Title = "数据缺失"
-		result.Message = missing.Summary() + "\n详情见日志窗口。"
+		result.Title = "导入失败"
+		// 汇总本身以「{来源中文名}：」开头，第一行已经写了来源名，这里去掉避免重复
+		result.Message = fmt.Sprintf("%s导入失败\n失败原因：%s\n详情见日志窗口。",
+			chineseName, strings.TrimPrefix(missing.Summary(), chineseName+"："))
 	} else {
 		app.appendLog("Import failed:\n" + importErr.Error())
-		result.Title = "Error"
-		result.Message = importErr.Error()
+		result.Title = "导入失败"
+		result.Message = fmt.Sprintf("%s导入失败\n失败原因：%s", chineseName, importErr.Error())
 	}
 	result.Log = app.logText()
 	return result

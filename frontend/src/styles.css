@@ -532,7 +532,7 @@ body.log-resizing {
 
 .app-message .ant-modal-header {
   margin-bottom: 0;
-  padding: 14px 24px;
+  padding: 12px 24px;
   background: #d71600;
   border-bottom: 1px solid #d71600;
   border-radius: 16px 16px 0 0;
@@ -546,7 +546,7 @@ body.log-resizing {
 }
 
 .app-message .ant-modal-body {
-  padding: 20px 24px 4px;
+  padding: 16px 24px 0;
 }
 
 .app-message .message-text {
@@ -561,7 +561,7 @@ body.log-resizing {
 .app-message .ant-modal-footer {
   display: flex;
   justify-content: center;
-  padding: 16px 24px 20px;
+  padding: 12px 24px 16px;
   border-top: none;
 }
 

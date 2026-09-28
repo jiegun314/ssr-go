@@ -336,7 +336,7 @@ export function MessageModal({ state, onClose }: { state: MessageState; onClose:
       title={state?.title ?? ""}
       centered
       closable={false}
-      width={460}
+      width={360} /* 内容就两行中文，窄一点更紧凑；高度由内容决定，短消息时与原来一致 */
       onCancel={onClose}
       footer={
         <Button type="primary" onClick={onClose}>
