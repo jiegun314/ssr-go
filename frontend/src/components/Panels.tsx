@@ -40,6 +40,10 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
                     onClick={() => onImport(source.key)}
                   />
                 </Tooltip>
+                {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
+                <span className="status" id={`status-${source.key}`}>
+                  {current.label ?? ""}
+                </span>
                 <Tooltip title="数据回顾">
                   <Button
                     type="text"
@@ -50,9 +54,6 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
                     onClick={() => onReview(source.key)}
                   />
                 </Tooltip>
-                <span className="status" id={`status-${source.key}`}>
-                  {current.label ?? ""}
-                </span>
               </div>
             </div>
             {index === GROUP_GAP_AFTER - 1 && <div className="group-gap" />}

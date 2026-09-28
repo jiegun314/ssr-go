@@ -348,7 +348,7 @@ func TestTheWailsBuildRunsTheFrontendBuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("读 wails.json 失败：%v", err)
 	}
-	if !strings.Contains(string(raw), "npm run build") {
+	if !strings.Contains(string(raw), "npm run build --prefix frontend") {
 		t.Error("wails.json 的 frontend:build 应当构建前端（避免 dist 与源码不一致）")
 	}
 }
