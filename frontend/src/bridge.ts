@@ -88,10 +88,18 @@ export function onEvent(name: string, handler: (...args: unknown[]) => void): vo
   window.runtime?.EventsOn(name, handler);
 }
 
-/** 日期框只取日期，查询时补足当天的起止时刻（起始 00:00:00、结束 23:59:59）。 */
+/**
+ * 日期框只取日期，查询时补足当天的起止时刻（起始 00:00:00、结束 23:59:59）。
+ *
+ * 分隔符必须是**斜杠**：`operation_log.log_time` 按 `YYYY/MM/DD HH:MM:SS` 存（R22），
+ * 而按时间区间取记录是**字符串比较**（与原版 pandas 的 between 一致）。日期框给的是
+ * `YYYY-MM-DD`，横线 `-`(0x2D) 和斜杠 `/`(0x2F) 在同一个年份里就能分出大小，
+ * 于是 `记录 <= 结束时间` 恒为假 —— 整个记录导出窗口一条都查不出来（都是空）。
+ */
 export function toLogTime(value: string, endOfDay: boolean): string {
   if (!value) return "";
-  return `${value} ${endOfDay ? "23:59:59" : "00:00:00"}`;
+  const day = value.replace(/-/g, "/");
+  return `${day} ${endOfDay ? "23:59:59" : "00:00:00"}`;
 }
 
 /** 记录导出的默认时间窗：起始＝一年前的今天，结束＝今天。 */
