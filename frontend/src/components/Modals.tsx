@@ -187,6 +187,8 @@ export function SettingsModal({
       title="参数设定"
       width="min(80vw, 900px)"
       centered
+      // 右上角不要关闭按钮：只留底栏那个「关闭」
+      closable={false}
       onCancel={onClose}
       footer={
         <Button type="primary" onClick={onClose}>

@@ -687,6 +687,44 @@ func TestTheActionModalsReuseTheRedTitleBar(t *testing.T) {
 	}
 }
 
+// TestTheSettingsModalMatchesTheModuleCornersAndDropsTheCloseIcon 固定参数设定窗口：
+//   - 标题条上沿的圆角跟主窗口模块一样是 4px（antd 的 borderRadiusLG 是 16px，显得过大，
+//     而且弹窗本体的圆角也得跟着收，否则标题条拐角处会露出底下的一小块白）；
+//   - 右上角不要关闭按钮，只留底栏那个「关闭」。
+func TestTheSettingsModalMatchesTheModuleCornersAndDropsTheCloseIcon(t *testing.T) {
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	start := strings.Index(modals, "export function SettingsModal")
+	end := strings.Index(modals, "export function AboutModal")
+	if start < 0 || end < start {
+		t.Fatal("没找到 SettingsModal 与 AboutModal 的边界")
+	}
+	settings := modals[start:end]
+	if !strings.Contains(settings, "closable={false}") {
+		t.Error("参数设定窗口不该有右上角的关闭按钮")
+	}
+	if !strings.Contains(settings, "关闭") {
+		t.Error("参数设定窗口要保留底栏的关闭按钮")
+	}
+	if strings.Contains(styles, "border-radius: 16px 16px 0 0") {
+		t.Error("标题条圆角不该再用 16px（跟主窗口模块的 4px 不一致）")
+	}
+	header := cssBlock(t, styles, ".app-modal .ant-modal-header {")
+	if !strings.Contains(header, "border-radius: 4px 4px 0 0;") {
+		t.Errorf("标题条上沿应当是 4px 圆角，实际块：\n%s", header)
+	}
+	content := cssBlock(t, styles, ".app-modal .ant-modal-content {")
+	if !strings.Contains(content, "border-radius: 4px;") {
+		t.Errorf("弹窗本体的圆角要跟标题条一起收成 4px，实际块：\n%s", content)
+	}
+	// 提示弹窗（导入/导出完成）用的是同一条红底白字标题，圆角也统一
+	messageHeader := cssBlock(t, styles, ".app-message .ant-modal-header {")
+	if !strings.Contains(messageHeader, "border-radius: 4px 4px 0 0;") {
+		t.Errorf("提示弹窗的标题条圆角也要统一成 4px，实际块：\n%s", messageHeader)
+	}
+}
+
 // cssBlock 取出 `selector` 开头那一对花括号之间的内容（只用于读源码里的常量）。
 func cssBlock(t *testing.T, source, selector string) string {
 	t.Helper()

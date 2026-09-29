@@ -548,6 +548,8 @@ body.log-resizing {
 .app-message .ant-modal-content {
   padding: 0;
   overflow: hidden;
+  /* 跟主窗口模块一样的小圆角（antd 默认 16px 太大） */
+  border-radius: 4px;
 }
 
 .app-message .ant-modal-header {
@@ -555,7 +557,7 @@ body.log-resizing {
   padding: 12px 24px;
   background: #d71600;
   border-bottom: 1px solid #d71600;
-  border-radius: 16px 16px 0 0;
+  border-radius: 4px 4px 0 0;
 }
 
 .app-message .ant-modal-title {
@@ -586,12 +588,18 @@ body.log-resizing {
 }
 
 /* 带动作的弹窗（数据回顾 / 参数设定）也用同一套红底白字标题条，右上角 X 改白色 */
+.app-modal .ant-modal-content {
+  /* antd 的 borderRadiusLG 是 16px，比界面里其它模块的 4px 小圆角大一圈；
+     这里跟着主窗口模块走，标题条的上沿才不会有"多出来的弧形"。 */
+  border-radius: 4px;
+}
+
 .app-modal .ant-modal-header {
   margin-bottom: 0;
   padding: 12px 24px;
   background: #d71600;
   border-bottom: 1px solid #d71600;
-  border-radius: 16px 16px 0 0;
+  border-radius: 4px 4px 0 0;
 }
 
 .app-modal .ant-modal-title {
