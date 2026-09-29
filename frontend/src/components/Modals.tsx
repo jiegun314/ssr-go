@@ -24,7 +24,7 @@ mapping and consolidation capabilities for UDI
 master data preparation for SingleSource.
 
 Developed by
-Greater China Supply Chain &amp; RA Team
+Greater China Supply Chain & RA Team
 © 2026 JJMT`;
 
 /* ---------- 数据回顾 ---------- */

@@ -264,6 +264,37 @@ func TestTheDisplayDialogsCloseFromTheTopRightIcon(t *testing.T) {
 	}
 }
 
+// TestTheAboutWindowKeepsTheOriginalIntro 固定关于窗口那段说明文字：
+//   - 文案与原版 319×323 的 .ui 逐字一致，& 号就是 & 本身
+//     （写成 HTML 实体 &amp; 会原样显示成 "&amp;"，这是之前漏掉的转义残留）；
+//   - 原版那个 label 没写 alignment（Qt 默认左对齐），所以说明段左对齐，
+//     图标 / 名称 / 版本仍然居中。
+func TestTheAboutWindowKeepsTheOriginalIntro(t *testing.T) {
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	if strings.Contains(modals, "&amp;") {
+		t.Error("前端源码里不该残留 HTML 实体 &amp;（会被原样显示出来）")
+	}
+	for _, wanted := range []string{
+		"SS Ready provides data validation, cleansing,",
+		"Developed by",
+		"Greater China Supply Chain & RA Team",
+		"© 2026 JJMT",
+	} {
+		if !strings.Contains(modals, wanted) {
+			t.Errorf("关于窗口的说明文字缺少原版内容：%q", wanted)
+		}
+	}
+	intro := cssBlock(t, styles, ".about-body .intro {")
+	if !strings.Contains(intro, "white-space: pre-wrap;") {
+		t.Error("说明段要保留原版的换行")
+	}
+	if !strings.Contains(intro, "text-align: left;") {
+		t.Errorf("说明段应当左对齐，实际样式块：\n%s", intro)
+	}
+}
+
 // TestTheImportPanelKeepsTheSourceOrderAndIcons 固定导入区：四个来源的顺序（医保代码信息
 // 在最上、与下面三组之间留空行）、以及三个图标按钮的可读名称。
 func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
