@@ -9,6 +9,16 @@ import { useMemo, useRef } from "react";
 
 import type { AboutInfo, ReviewResult, SettingsNode, SettingsTab } from "../types";
 
+/**
+ * 回顾窗口的四周留白：取自**最小窗口**（主窗口 969 宽）下的实测值——
+ * 弹窗宽 = 80vw = 775，两侧各留 97；弹窗高 = 131（标题条+内边距+底栏）+ 56vh = 556，
+ * 上下各留 102（Wails 在 macOS 用 initWithContentRect 建窗，969×760 就是 WebView 内容区，
+ * 所以原来 56vh 的基准高度正好是 760）。
+ * 窗口变大时弹窗跟着变大，这两组留白保持不变（不再像以前那样把宽度卡在 1100）。
+ */
+const REVIEW_GAP_X = 97;
+const REVIEW_GAP_Y = 102;
+
 const ABOUT_INTRO = `SS Ready provides data validation, cleansing, 
 mapping and consolidation capabilities for UDI 
 master data preparation for SingleSource.
@@ -39,10 +49,13 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
 
   return (
     <Modal
-      className="app-modal"
+      className="app-modal review-modal"
       open={open}
       title={result?.title ?? "数据回顾"}
-      width="min(80vw, 1100px)"
+      // 四周留白固定成最小窗口下的那一份：窗口变大，弹窗跟着一起变大。
+      // 宽度必须走 width 属性（antd 的 width 是后写的内联样式，会盖掉 style.width）。
+      width={`calc(100vw - ${REVIEW_GAP_X * 2}px)`}
+      style={{ height: `calc(100vh - ${REVIEW_GAP_Y * 2}px)` }}
       centered
       onCancel={onClose}
       footer={
@@ -66,7 +79,7 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
       }
       destroyOnClose
     >
-      <div className="tblwrap" style={{ maxHeight: "56vh" }}>
+      <div className="tblwrap">
         <Table<string[]>
           size="small"
           bordered

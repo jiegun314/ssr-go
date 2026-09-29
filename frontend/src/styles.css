@@ -610,6 +610,39 @@ body.log-resizing {
   background: rgba(255, 255, 255, 0.16);
 }
 
+/* 回顾窗口（数据回顾 / 记录导出）：宽高由 Modals.tsx 按「窗口减去固定留白」算，
+   这里只把内部撑成一条竖直的弹性链，让表格吃掉多出来的高度并自己滚动 ——
+   于是窗口变大时四周留白与最小尺寸下一致。 */
+.review-modal > div {
+  /* antd 在 .ant-modal 与 .ant-modal-content 之间夹了一层无类名的 motion/panel 容器，
+     它默认 height:auto，会让下面 content 的 height:100% 落空，所以先把它撑满。 */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-modal .ant-modal-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-modal .ant-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-modal .ant-modal-footer {
+  flex: 0 0 auto;
+}
+
+.review-modal .tblwrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* ---------- 关于 / 附加窗口 ---------- */
 
 /* 两个展示型窗口都固定 323×323（与原版一致），右上角一个关闭按钮，不再有底部按钮行。 */

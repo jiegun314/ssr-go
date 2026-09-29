@@ -413,6 +413,47 @@ func TestTheReviewModalKeepsTheFooterLayout(t *testing.T) {
 	}
 }
 
+// TestTheReviewModalGrowsWithTheWindowKeepingTheGaps 固定回顾窗口（数据回顾 / 记录导出）的尺寸口径：
+// 窗口变大时弹窗跟着变大，四周留白始终等于**最小窗口**下的那一份，不再把宽度卡在 1100。
+//
+// 留白来自最小窗口的实测：主窗口最窄 969、弹窗宽 80vw = 775，两侧各 97；
+// 弹窗高 131 + 56vh = 556（WebView 内容区最小高度就是 760），上下各 102。
+func TestTheReviewModalGrowsWithTheWindowKeepingTheGaps(t *testing.T) {
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	if !strings.Contains(modals, "const REVIEW_GAP_X = 97;") || !strings.Contains(modals, "const REVIEW_GAP_Y = 102;") {
+		t.Error("留白常量应当写死成最小窗口下的实测值（97 / 102）")
+	}
+	// 宽度必须走 width 属性：antd 的 width 是后写的内联样式，会盖掉 style.width
+	if !strings.Contains(modals, "width={`calc(100vw - ${REVIEW_GAP_X * 2}px)`}") {
+		t.Error("弹窗宽度应当是「窗口宽度 - 两侧留白」，并走 antd 的 width 属性")
+	}
+	if !strings.Contains(modals, "style={{ height: `calc(100vh - ${REVIEW_GAP_Y * 2}px)` }}") {
+		t.Error("弹窗高度应当是「窗口高度 - 上下留白」")
+	}
+	if strings.Contains(modals, "min(80vw, 1100px)") {
+		t.Error("宽度不该再封顶在 1100（窗口变大时弹窗要跟着变大）")
+	}
+	if strings.Contains(modals, `maxHeight: "56vh"`) {
+		t.Error("表格高度不该再用 56vh 封顶（高度改由弹窗的弹性链分配）")
+	}
+	// 内部那条竖直弹性链：表格吃掉多出来的高度并自己滚动
+	for _, wanted := range []string{
+		".review-modal > div {", // antd 夹在中间的 motion/panel 容器要先撑满
+		"height: 100%;",
+		".review-modal .ant-modal-content {",
+		".review-modal .ant-modal-body {",
+		"flex: 1 1 auto;",
+		"min-height: 0;",
+		".review-modal .tblwrap {",
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("回顾窗口的弹性链样式缺少：%s", wanted)
+		}
+	}
+}
+
 // TestAllDialogsAreCenteredAndTheMessageDialogIsStyled 固定弹窗的两条口径：
 //  1. 所有弹窗都必须居中（antd 的 centered 属性），包括关于窗口与附加窗口；
 //  2. 导入/导出完成后的统一提示弹窗：不要右上角 X、标题条红底白字、确认按钮居中；
@@ -588,7 +629,8 @@ func TestTheActionModalsReuseTheRedTitleBar(t *testing.T) {
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	if got := strings.Count(modals, `className="app-modal"`); got != 2 {
+	// 回顾窗口还会带 review-modal（尺寸口径），所以只认前缀
+	if got := strings.Count(modals, `className="app-modal`); got != 2 {
 		t.Errorf("数据回顾与参数设定两个弹窗都要带 app-modal 类，实际 %d 处", got)
 	}
 	for _, wanted := range []string{
