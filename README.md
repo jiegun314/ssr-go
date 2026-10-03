@@ -139,7 +139,12 @@ go build ./...                        # 编译全部包
 go test ./...                         # 运行测试
 go run ./cmd/ssr-core version         # 命令行版本信息
 wails build                           # 桌面产物：build/bin/SingleSourceReady.app
+wails dev                             # 开发模式（热重载，接真实后端）
 ```
+
+只想看界面、不启 Go 后端：`./frontend/preview.sh --build` 会把 `frontend/dist` 起成本地页面，
+并注入一份模拟的 Wails 桥接（导入 / 整合 / 导出 / 回顾 / 保存配置 都会往操作日志里追加日志）。
+`--help` 里列出了可以直接打开的各个画面（数据回顾、参数设定、关于、提示弹窗、日志栏目）。
 
 出发布包（会用 `wails build` 注入版本，并组装目录与压缩包）：
 
