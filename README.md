@@ -146,6 +146,11 @@ wails dev                             # 开发模式（热重载，接真实后�
 并注入一份模拟的 Wails 桥接（导入 / 整合 / 导出 / 回顾 / 保存配置 都会往操作日志里追加日志）。
 `--help` 里列出了可以直接打开的各个画面（数据回顾、参数设定、关于、提示弹窗、日志栏目）。
 
+改完代码要更新本地运行包：`./release-local.sh` 会重新构建，并**覆盖式解压**到固定名字的
+`release/SingleSourceReady/`（不带版本号）。解压只替换包里的文件（`SingleSourceReady.app` /
+`config/defaults` / `data/template` / `resource` / `VERSION`），用户改过的 `config/*.yaml`、
+`config/.backup/` 与 `data/` 下的数据库都不会被覆盖。
+
 出发布包（会用 `wails build` 注入版本，并组装目录与压缩包）：
 
 ```bash
