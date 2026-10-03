@@ -99,7 +99,7 @@ func TestQuoteSQLStringEscapesApostrophes(t *testing.T) {
 // TestMissingRepositoryBackupIsReportedNotPanicked 库没就绪时备份要有明确的失败结果。
 func TestMissingRepositoryBackupIsReportedNotPanicked(t *testing.T) {
 	result := (&App{}).BackupDatabase()
-	if !result.Failed || result.Title != "Error" {
+	if !result.Failed || result.Title != "错误" {
 		t.Errorf("空后端备份结果 = %+v；want Failed/Error", result)
 	}
 }

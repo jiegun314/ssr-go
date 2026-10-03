@@ -81,13 +81,13 @@ func TestStartupKeepsEveryImportedSource(t *testing.T) {
 		}
 	}
 	log := app.logText()
-	if !strings.Contains(log, "Staging tables kept (cleanup_on_startup = false)") {
+	if !strings.Contains(log, "启动未清理暂存表（cleanup_on_startup = false）") {
 		t.Errorf("启动日志缺少「保留」那行：%s", log)
 	}
-	if strings.Contains(log, "Staging tables cleaned successfully") {
+	if strings.Contains(log, "暂存表已清理") {
 		t.Errorf("默认不该执行清理：%s", log)
 	}
-	if strings.Contains(log, "Configuration error") || strings.Contains(log, "Database error") {
+	if strings.Contains(log, "配置错误") || strings.Contains(log, "数据库错误") {
 		t.Errorf("启动日志里有错误：%s", log)
 	}
 }
@@ -126,7 +126,7 @@ func TestCleanupOnStartupStillWorksWhenExplicitlyEnabled(t *testing.T) {
 	if count, err := check.CountTableRows("medical_insurance_code"); err != nil || count != 6 {
 		t.Errorf("医保表行数 = %d (err=%v); want 6（preserve_on_cleanup: true）", count, err)
 	}
-	if log := app.logText(); !strings.Contains(log, "Staging tables cleaned successfully") {
+	if log := app.logText(); !strings.Contains(log, "暂存表已清理") {
 		t.Errorf("启动日志缺少清理成功那行：%s", log)
 	}
 }

@@ -1,5 +1,7 @@
 // 主界面：左列（数据导入 / 记录导出）+ 右列（数据整合）+ 底部（操作日志）+ 四个弹窗。
+// 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
+import { Card } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -311,45 +313,36 @@ export default function App() {
       <div className="app-shell">
         <div className="columns">
           <div className="left">
-            <section className="card" style={{ flex: "0 0 auto" }}>
-              <h2 className="title-bar">数据导入</h2>
-              <div className="card-body">
-                <ImportPanel
-                  states={imports}
-                  onImport={handleImport}
-                  onReview={openSourceReview}
-                  onClear={handleClear}
-                />
-              </div>
-            </section>
+            <Card className="card" size="small" title="数据导入">
+              <ImportPanel
+                states={imports}
+                onImport={handleImport}
+                onReview={openSourceReview}
+                onClear={handleClear}
+              />
+            </Card>
             <div className="spacer" />
-            <section className="card" style={{ flex: "0 0 auto" }}>
-              <h2 className="title-bar">记录导出</h2>
-              <div className="card-body">
-                <RecordExportPanel
-                  start={startDate}
-                  end={endDate}
-                  onStartChange={setStartDate}
-                  onEndChange={setEndDate}
-                  onReview={openLogReview}
-                />
-              </div>
-            </section>
+            <Card className="card" size="small" title="记录导出">
+              <RecordExportPanel
+                start={startDate}
+                end={endDate}
+                onStartChange={setStartDate}
+                onEndChange={setEndDate}
+                onReview={openLogReview}
+              />
+            </Card>
           </div>
           <div className="right">
-            <section className="card grow">
-              <h2 className="title-bar">数据整合</h2>
-              <div className="card-body">
-                <ConsolidationPanel
-                  columns={columns}
-                  rows={rows}
-                  statuses={statuses}
-                  counts={counts}
-                  onConsolidate={handleConsolidate}
-                  onExport={handleExport}
-                />
-              </div>
-            </section>
+            <Card className="card grow" size="small" title="数据整合">
+              <ConsolidationPanel
+                columns={columns}
+                rows={rows}
+                statuses={statuses}
+                counts={counts}
+                onConsolidate={handleConsolidate}
+                onExport={handleExport}
+              />
+            </Card>
           </div>
         </div>
         <LogPanel text={log} />

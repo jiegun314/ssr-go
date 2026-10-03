@@ -1,10 +1,13 @@
 // 四个弹窗：数据回顾、参数设定、关于、附加窗口（图片窗口）。
+//
+// 弹窗的头 / 关闭按钮 / 底栏都回到 antd 默认形态：
+//   标题是次级标题色 + 右上角自带 X；底栏按钮右对齐（不再做红底白字标题条、
+//   也不再为了"像 QDialog"去掉 X 再自绘居中按钮）。
 
-import { Button, Input, Modal, Pagination, Table, Tabs, Tree, Tooltip } from "antd";
+import { Button, Flex, Input, Modal, Pagination, Space, Table, Tabs, Tree, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { DataNode } from "antd/es/tree";
-import { Eye, FileDown, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { FileDown } from "lucide-react";
 import { useMemo, useRef } from "react";
 
 import type { AboutInfo, ReviewResult, SettingsNode, SettingsTab } from "../types";
@@ -12,9 +15,9 @@ import type { AboutInfo, ReviewResult, SettingsNode, SettingsTab } from "../type
 /**
  * 回顾窗口的四周留白：取自**最小窗口**（主窗口 969 宽）下的实测值——
  * 弹窗宽 = 80vw = 775，两侧各留 97；弹窗高 = 131（标题条+内边距+底栏）+ 56vh = 556，
- * 上下各留 102（Wails 在 macOS 用 initWithContentRect 建窗，969×760 就是 WebView 内容区，
+ * 上下各留 102（Wails 在 macOS 用 initWithContentRect 建窗，969×760 就是 WebView 内容区,
  * 所以原来 56vh 的基准高度正好是 760）。
- * 窗口变大时弹窗跟着变大，这两组留白保持不变（不再像以前那样把宽度卡在 1100）。
+ * 窗口变大时弹窗跟着变大，这两组留白保持不变。
  */
 const REVIEW_GAP_X = 97;
 const REVIEW_GAP_Y = 102;
@@ -49,7 +52,7 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
 
   return (
     <Modal
-      className="app-modal review-modal"
+      className="review-modal"
       open={open}
       title={result?.title ?? "数据回顾"}
       // 四周留白固定成最小窗口下的那一份：窗口变大，弹窗跟着一起变大。
@@ -58,12 +61,13 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
       style={{ height: `calc(100vh - ${REVIEW_GAP_Y * 2}px)` }}
       centered
       onCancel={onClose}
+      // 底栏仍是「导出在最左、翻页居中、关闭在最右」这一行。
       footer={
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Flex align="center" gap={8}>
           <Button icon={<FileDown size={16} />} onClick={onExport}>
             导出
           </Button>
-          <div style={{ flex: "1 1 auto", display: "flex", justifyContent: "center" }}>
+          <Flex flex="1 1 auto" justify="center">
             <Pagination
               current={result?.page ?? 1}
               pageSize={result?.pageSize ?? 100}
@@ -71,18 +75,17 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
               showSizeChanger={false}
               onChange={onPage}
             />
-          </div>
+          </Flex>
           <Button type="primary" onClick={onClose}>
             关闭
           </Button>
-        </div>
+        </Flex>
       }
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="tblwrap">
         <Table<string[]>
           size="small"
-          bordered
           sticky
           pagination={false}
           dataSource={result?.rows ?? []}
@@ -155,7 +158,11 @@ export function SettingsModal({
             <span>
               <span className="tree-key">{node.key}</span>
               <span className="tree-meta">{meta}</span>
-              {empty && <span className="tree-empty">（空 {node.kind === "map" ? "object" : "array"}）</span>}
+              {empty && (
+                <span className="tree-empty">
+                  （空 {node.kind === "map" ? "object" : "array"}）
+                </span>
+              )}
             </span>
           ),
           children: empty ? undefined : buildNodes(children, nodePath),
@@ -182,46 +189,46 @@ export function SettingsModal({
 
   return (
     <Modal
-      className="app-modal"
       open={open}
       title="参数设定"
       width="min(80vw, 900px)"
       centered
-      // 右上角不要关闭按钮：只留底栏那个「关闭」
-      closable={false}
       onCancel={onClose}
+      // 底栏按 antd 默认走：编辑态就是「取消 / 保存」，只读态只有一个「关闭」。
       footer={
-        <Button type="primary" onClick={onClose}>
-          关闭
-        </Button>
+        editing ? (
+          <Space>
+            <Button onClick={onCancelEdit}>取消</Button>
+            <Button type="primary" onClick={onSave}>
+              保存
+            </Button>
+          </Space>
+        ) : (
+          <Button type="primary" onClick={onClose}>
+            关闭
+          </Button>
+        )
       }
-      destroyOnClose
+      destroyOnHidden
     >
       <Tabs
         items={tabs.map((tab) => ({ key: tab.key, label: tab.title }))}
         activeKey={active?.key}
         onChange={onSelectTab}
       />
-      <div className="settings-head">
-        <div className="settings-note">
-          {active?.title}（{active?.path}）{active?.note ? " · " + active.note : ""}
-        </div>
+      <Flex className="settings-head" align="center" justify="space-between" gap={12}>
+        <Typography.Text className="settings-note" type="secondary">
+          {active?.title}（{active?.path}）
+          {active?.note ? " · " + active.note : ""}
+        </Typography.Text>
         {!editing && (
-          <>
+          <Space>
             <Button onClick={() => onToggleAll(true)}>全部展开</Button>
             <Button onClick={() => onToggleAll(false)}>全部折叠</Button>
             <Button onClick={onStartEdit}>编辑原文</Button>
-          </>
+          </Space>
         )}
-        {editing && (
-          <>
-            <Button onClick={onCancelEdit}>取消</Button>
-            <Button type="primary" onClick={onSave}>
-              保存
-            </Button>
-          </>
-        )}
-      </div>
+      </Flex>
       {editing ? (
         <Input.TextArea
           className="settings-editor"
@@ -268,29 +275,29 @@ export function AboutModal({ open, info, onIconClick, onClose }: AboutModalProps
       className="about-window"
       open={open}
       centered
-      closable={false}
       footer={null}
       width={323}
       maskClosable
       onCancel={onClose}
-      destroyOnClose
+      destroyOnHidden
     >
-      <Button
-        className="dialog-close"
-        type="text"
-        shape="circle"
-        aria-label="关闭"
-        title="关闭"
-        icon={<X size={18} />}
-        onClick={onClose}
-      />
       <div className="about-body">
-        <img className="about-icon" src="logo.png" alt="SingleSourceReady" title="关于" onClick={onIconClick} />
-        <div className="name">SingleSource Ready (SSR)</div>
-        <div className="version" title={info?.detail ?? ""}>
+        <img
+          className="about-icon"
+          src="logo.png"
+          alt="SingleSourceReady"
+          title="关于"
+          onClick={onIconClick}
+        />
+        <Typography.Title className="name" level={5}>
+          SingleSource Ready (SSR)
+        </Typography.Title>
+        <Typography.Text className="version" type="secondary" title={info?.detail ?? ""}>
           {info?.version ?? ""}
-        </div>
-        <div className="intro">{ABOUT_INTRO}</div>
+        </Typography.Text>
+        <Typography.Paragraph className="intro" type="secondary">
+          {ABOUT_INTRO}
+        </Typography.Paragraph>
       </div>
     </Modal>
   );
@@ -306,33 +313,16 @@ export function HiddenModal({ open, onClose }: HiddenModalProps) {
       className="hidden-window"
       open={open}
       centered
-      closable={false}
       footer={null}
       width={323}
       maskClosable
       onCancel={onClose}
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="hidden-body">
         <img src="puppy.png" alt="🐶Puppy Approved!🐾" />
         <h3 className="hidden-title">🐶Puppy Approved!🐾</h3>
-        <Tooltip title="关闭">
-          <Button
-            className="dialog-close"
-            type="text"
-            shape="circle"
-            aria-label="关闭"
-            icon={<X size={18} />}
-            onClick={onClose}
-          />
-        </Tooltip>
       </div>
     </Modal>
   );
 }
-
-export function ReviewIcon() {
-  return <Eye size={18} />;
-}
-
-export type { ReactNode };

@@ -22,7 +22,7 @@ const AppUserModelID = "bioMerieux.SingleSourceReady"
 var EmbeddedIcon []byte
 
 // EmbeddedIconDescription 是告警文案里对资源那份图标的称呼（与 Python 版一致）。
-const EmbeddedIconDescription = "the embedded icon"
+const EmbeddedIconDescription = "内置图标"
 
 // IconPath 返回可用的图标文件路径：优先写出内置资源，失败时回退 exe 同级的
 // resource/logo.ico。返回的第二个值是启动告警（空串表示没有告警）。
@@ -40,11 +40,11 @@ func IconPath() (string, string) {
 	}
 	fallback := FallbackIconPath()
 	if _, err := os.Stat(fallback); err == nil {
-		return fallback, "Application icon loaded from " + fallback +
-			" (" + EmbeddedIconDescription + " unavailable)"
+		return fallback, "应用图标改用回退文件 " + fallback +
+			"（" + EmbeddedIconDescription + " 不可用）"
 	}
-	return "", "Failed to load the application icon from " + EmbeddedIconDescription +
-		" and " + fallback + "; the taskbar icon may be missing"
+	return "", "无法加载应用图标（" + EmbeddedIconDescription + " 与 " + fallback +
+		" 都不可用），任务栏图标可能缺失"
 }
 
 // FallbackIconPath 是 exe 同级目录里的图标（源码运行时是仓库根目录）。

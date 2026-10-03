@@ -17,6 +17,29 @@ import (
 	"github.com/jiegun314/ssr-go/internal/store"
 )
 
+// LogLevel 是运行日志的级别。界面按它分栏目（全部 / 信息 / 成功 / 警告 / 错误）并着色，
+// 所以级别在写日志的地方就定下来，不靠前端猜关键词。
+type LogLevel string
+
+const (
+	LogInfo    LogLevel = "info"
+	LogSuccess LogLevel = "success"
+	LogWarning LogLevel = "warning"
+	LogError   LogLevel = "error"
+)
+
+// logLevelLabels 是写进日志行的级别标签。行格式（界面按它解析成两列，见 frontend/src/log.ts）：
+//
+//	2026-01-05 09:12:03 [信息] 应用已启动
+//
+// 多行消息的续行不带前缀，界面会把它们接回上一条。
+var logLevelLabels = map[LogLevel]string{
+	LogInfo:    "信息",
+	LogSuccess: "成功",
+	LogWarning: "警告",
+	LogError:   "错误",
+}
+
 // App 是绑定给前端的后端。一次会话一份：导入、整合、导出都作用在同一份数据库上。
 type App struct {
 	context context.Context
@@ -73,59 +96,59 @@ func NewApp(notices []string) *App {
 // startup 打开配置与数据库、跑启动清理、把启动期告警写进操作日志（§5.1）。
 func (app *App) startup(ctx context.Context) {
 	app.context = ctx
-	app.appendLog("Application started")
+	app.appendLog(LogInfo, "应用已启动")
 	for _, notice := range app.notices {
-		app.appendLog(notice)
+		app.appendLog(LogWarning, notice)
 	}
 	loader, err := config.NewLoader("")
 	if err != nil {
-		app.fail("Configuration error: " + err.Error())
+		app.fail("配置错误：" + err.Error())
 		return
 	}
 	// 补齐过默认配置就留一行日志：用户升级后第一次运行会看到"某份配置是刚生成的"。
 	for _, name := range loader.Bootstrapped {
-		app.appendLog(fmt.Sprintf(
-			"Created %s from %s", filepath.Join(loader.Resolver.ConfigDir, name),
+		app.appendLog(LogWarning, fmt.Sprintf(
+			"配置 %s 缺失，已用默认配置 %s 生成", name,
 			filepath.Join("config", config.DefaultsDirectory, name)))
 	}
 	// 兜一层配置快照：默认文件只解决"缺失"，改坏了还得能回退。
 	if snapshot, err := snapshotUserConfig(loader.Resolver.ConfigDir, time.Now()); err != nil {
-		app.appendLog("Failed to snapshot configuration: " + err.Error())
+		app.appendLog(LogWarning, "配置快照失败："+err.Error())
 	} else if snapshot != "" {
-		app.appendLog("Configuration snapshot saved: " + snapshot)
+		app.appendLog(LogInfo, "配置快照已保存："+snapshot)
 	}
 	if err := loader.ValidateAll(); err != nil {
-		app.fail("Configuration error: " + err.Error())
+		app.fail("配置错误：" + err.Error())
 		return
 	}
 	setting, err := loader.LoadSetting()
 	if err != nil {
-		app.fail("Configuration error: " + err.Error())
+		app.fail("配置错误：" + err.Error())
 		return
 	}
 	database, _ := setting["database"].(map[string]any)
 	repository, err := store.Open(loader.ResolvePath(text(database["path"])))
 	if err != nil {
-		app.fail("Database error: " + err.Error())
+		app.fail("数据库错误：" + err.Error())
 		return
 	}
 	app.loader = loader
 	app.repo = repository
 	app.importer, err = importer.NewImporter(loader, repository)
 	if err != nil {
-		app.fail("Configuration error: " + err.Error())
+		app.fail("配置错误：" + err.Error())
 		return
 	}
 	configValue, err := consolidation.LoadConfig(loader)
 	if err != nil {
-		app.fail("Configuration error: " + err.Error())
+		app.fail("配置错误：" + err.Error())
 		return
 	}
 	tables, _ := setting["tables"].(map[string]any)
 	operationLog, _ := tables["operation_log"].(map[string]any)
 	logColumns, err := loader.LoadLogColumns()
 	if err != nil {
-		app.fail("Configuration error: " + err.Error())
+		app.fail("配置错误：" + err.Error())
 		return
 	}
 	app.log, err = store.OpenOperationLog(repository, store.OperationLogOptions{
@@ -135,7 +158,7 @@ func (app *App) startup(ctx context.Context) {
 		LogColumns:     logColumns,
 	})
 	if err != nil {
-		app.fail("Database error: " + err.Error())
+		app.fail("数据库错误：" + err.Error())
 		return
 	}
 	app.service = &consolidation.Service{
@@ -150,25 +173,25 @@ func (app *App) startup(ctx context.Context) {
 func (app *App) cleanupOnStartup(setting map[string]any) {
 	cleanup, err := app.loader.LoadCleanupOnStartup()
 	if err != nil {
-		app.fail("Configuration error: " + err.Error())
+		app.fail("配置错误：" + err.Error())
 		return
 	}
 	if !cleanup {
-		app.appendLog("Staging tables kept (cleanup_on_startup = false)")
+		app.appendLog(LogInfo, "启动未清理暂存表（cleanup_on_startup = false）")
 		return
 	}
 	tableNames, err := store.CleanupTableNames(app.loader)
 	if err != nil {
-		app.appendLog(err.Error())
+		app.appendLog(LogError, "读取待清理表名失败："+err.Error())
 		return
 	}
 	dropped, failed := store.DropTables(app.repo, tableNames)
 	if len(failed) > 0 {
-		app.appendLog(store.FormatTableFailure(failed))
+		app.appendLog(LogError, store.FormatTableFailure(failed))
 		return
 	}
 	app.cleanedTables = dropped
-	app.appendLog("Staging tables cleaned successfully")
+	app.appendLog(LogSuccess, "暂存表已清理")
 }
 
 // reportExistingCounts 报出「本次启动没被清理删掉、且真的有记录」的来源（§5.1 第 5 步）。
@@ -180,7 +203,7 @@ func (app *App) reportExistingCounts() {
 		}
 		count, err := app.repo.CountTableRows(rule.TargetTable)
 		if err != nil {
-			app.appendLog(fmt.Sprintf("Failed to read the existing row count of %s: %v", source, err))
+			app.appendLog(LogWarning, fmt.Sprintf("读取 %s 的存量行数失败：%v", source, err))
 			continue
 		}
 		if count <= 0 {
@@ -210,9 +233,9 @@ func (app *App) ImportState(source string) ImportState {
 	return app.importStates[source]
 }
 
-func (app *App) appendLog(message string) {
+func (app *App) appendLog(level LogLevel, message string) {
 	stamp := time.Now().Format("2006-01-02 15:04:05")
-	line := stamp + " - " + message
+	line := fmt.Sprintf("%s [%s] %s", stamp, logLevelLabels[level], message)
 	app.logLines = append(app.logLines, line)
 	// 同时打印到 stdout：发布构建没有控制台窗口，但现场从终端启动时这是唯一的线索
 	// （R27 对启动告警也是这个口径）。
@@ -222,7 +245,7 @@ func (app *App) appendLog(message string) {
 // fail 记录启动失败：写进操作日志，并留下面向用户的说明。
 func (app *App) fail(message string) {
 	app.startupError = message
-	app.appendLog(message)
+	app.appendLog(LogError, message)
 }
 
 func (app *App) logText() string {
@@ -278,9 +301,9 @@ func (app *App) endOperation() { app.busy = false }
 // selectFile 打开「Select Excel File」对话框（§6.3 的标题与过滤器）。
 func (app *App) selectFile() (string, error) {
 	return runtime.OpenFileDialog(app.context, runtime.OpenDialogOptions{
-		Title: "Select Excel File",
+		Title: "选择 Excel 文件",
 		Filters: []runtime.FileFilter{
-			{DisplayName: "Excel Files (*.xlsx *.xls)", Pattern: "*.xlsx;*.xls"},
+			{DisplayName: "Excel 文件 (*.xlsx *.xls)", Pattern: "*.xlsx;*.xls"},
 		},
 	})
 }
@@ -288,10 +311,10 @@ func (app *App) selectFile() (string, error) {
 // SavePlaceholder 保留给后续步骤：导出前的保存对话框。
 func (app *App) saveFile(defaultName string) (string, error) {
 	return runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
-		Title:           "Save Consolidation Result",
+		Title:           "保存整合结果",
 		DefaultFilename: defaultName,
 		Filters: []runtime.FileFilter{
-			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
+			{DisplayName: "Excel 文件 (*.xlsx)", Pattern: "*.xlsx"},
 		},
 	})
 }
@@ -311,7 +334,7 @@ func (app *App) markImported(source string, fileName string) {
 		RowCount:   count,
 		ImportTime: importTime,
 	}
-	app.appendLog(fmt.Sprintf("%s imported successfully. Rows imported: %d",
+	app.appendLog(LogSuccess, fmt.Sprintf("%s导入成功，共 %d 行",
 		app.importer.Rules[source].ChineseName, count))
 }
 

@@ -155,32 +155,32 @@ func (app *App) SaveConfigurationFile(key string, content string) SettingsSaveRe
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if app.loader == nil {
-		return SettingsSaveResult{Failed: true, Title: "Error", Message: "配置未加载"}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: "配置未加载"}
 	}
 	allowed := map[string]bool{}
 	for _, tab := range settingsTabs() {
 		allowed[tab.Key] = true
 	}
 	if !allowed[key] {
-		return SettingsSaveResult{Failed: true, Title: "Error",
+		return SettingsSaveResult{Failed: true, Title: "错误",
 			Message: "不允许修改的文件：" + key}
 	}
 	var document yaml.Node
 	if err := yaml.Unmarshal([]byte(content), &document); err != nil {
-		return SettingsSaveResult{Failed: true, Title: "Error",
+		return SettingsSaveResult{Failed: true, Title: "错误",
 			Message: "YAML 语法错误，未保存：\n" + err.Error()}
 	}
 	path := app.loader.Resolver.ConfigFile(key)
 	original, err := os.ReadFile(path)
 	if err != nil {
-		return SettingsSaveResult{Failed: true, Title: "Error", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	backup := path + ".bak"
 	if err := os.WriteFile(backup, original, 0o644); err != nil {
-		return SettingsSaveResult{Failed: true, Title: "Error", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return SettingsSaveResult{Failed: true, Title: "Error", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	// 写盘后整体校验：不通过就还原，绝不让磁盘上留下不可启动的配置
 	reloaded, loadErr := config.NewLoader(app.loader.Resolver.ConfigDir)
@@ -189,12 +189,12 @@ func (app *App) SaveConfigurationFile(key string, content string) SettingsSaveRe
 	}
 	if err := loadErr; err != nil {
 		_ = os.WriteFile(path, original, 0o644)
-		return SettingsSaveResult{Failed: true, Title: "Error",
+		return SettingsSaveResult{Failed: true, Title: "错误",
 			Message: "配置校验失败，已还原为保存前的内容：\n" + err.Error(), Backup: backup}
 	}
-	app.appendLog("Configuration saved: " + key)
+	app.appendLog(LogSuccess, "配置已保存："+key)
 	return SettingsSaveResult{
-		Title: "Success",
+		Title: "成功",
 		Message: "配置已保存：" + key + "\n原文件已备份为 " + backup +
 			"\n注意：改动在重启程序后生效。",
 		Backup: backup,

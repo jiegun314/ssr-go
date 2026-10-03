@@ -14,7 +14,7 @@
 
 | 层 | 选型 |
 | --- | --- |
-| 桌面界面 | **Wails v2**（系统原生 WebView）+ 原生 JS/CSS 前端（Material Design） |
+| 桌面界面 | **Wails v2**（系统原生 WebView）+ React 18 + Ant Design 5 + Lucide 图标（主题：强生红 `#DA291C` / 灰 / 白，排版走 antd 默认值） |
 | 命令行 | 同一个 Go 模块下的 `cmd/ssr-core`（导入 / 整合 / 导出 / 快照 / 工具子命令） |
 | Excel | `github.com/xuri/excelize/v2`（读输入、写模板副本，按文本写值，保留模板全部部件） |
 | 数据库 | `database/sql` + `modernc.org/sqlite`（纯 Go，`CGO_ENABLED=0`；所有列均为 `TEXT`） |

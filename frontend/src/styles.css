@@ -1,5 +1,17 @@
-/* 界面样式：配色与字体保持原样（Material 风格的红色系 + 跨平台字体栈），
-   组件层面的观感交给 antd，只在这里做布局与"产品指定的那几处"。 */
+/* 界面样式：只留 antd 表达不了的那部分。
+ *
+ * 设计口径（这次重做的核心）：
+ *   字号 / 圆角 / 间距 / 控件高度 / 颜色语义 —— 全部走 antd 默认值；
+ *   主题色只有三档：强生红（#DA291C）、灰、白（见 theme.ts）。
+ *
+ * 所以这里刻意只剩三类规则：
+ *   ① 窗口骨架的弹性布局（左列 / 右列 / 底部日志，日志拖动高度依赖这些选择器）；
+ *   ② 数据整合结果表按状态着色（Go 侧只给状态字符串，antd 的 Table 没有这一维）；
+ *   ③ 两个固定尺寸的展示窗口（关于 / 附加窗口，尺寸是产品契约）。
+ *
+ * 原来的 PySide6 残留已经不在这里了：4px 小圆角、红底白字标题条、仿只读输入框的
+ * 底部描边、36px 日期框、2px 表格内边距、"QDialog 式"居中按钮底栏。
+ */
 
 * {
   box-sizing: border-box;
@@ -13,40 +25,32 @@ body,
   margin: 0;
 }
 
-/* antd 的 App 包装层默认行高是 1.5715，会把每行撑高 1px；原来界面是 13px/20px */
-#root > .ant-app {
-  line-height: 20px;
-}
-
 body {
-  font-family: "Segoe UI", -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue",
-    Arial, sans-serif;
-  font-size: 13px;
-  line-height: 20px;
-  background: #f5f5f5;
-  color: rgba(0, 0, 0, 0.87);
+  background: #f5f5f5; /* antd colorBgLayout：灰底 + 白卡片 */
   -webkit-font-smoothing: antialiased;
 }
+
+/* ---------- 窗口骨架 ---------- */
 
 .app-shell {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 8px 10px;
+  padding: 16px;
 }
 
 .columns {
   display: flex;
-  gap: 8px;
+  gap: 16px;
   flex: 1 1 auto;
   min-height: 0;
 }
 
-/* 左列＝frmRawDataImport（内容固定，尽量窄）；右列＝frmDataConsolidation（随窗口扩大）。 */
+/* 左列＝数据导入 + 记录导出（内容固定，尽量窄）；右列＝数据整合（随窗口扩大）。 */
 .left {
   flex: 0 0 auto;
   width: 340px;
-  min-width: 300px;
+  min-width: 320px;
   max-width: 45%;
   display: flex;
   flex-direction: column;
@@ -55,6 +59,7 @@ body {
   overflow-x: hidden;
 }
 
+/* 左列两个模块之间的最小间隔：日志拖动条的上限按它算（layout_test.go 固定了 12px）。 */
 .left > .spacer {
   flex: 1 1 auto;
   min-height: 12px;
@@ -64,49 +69,36 @@ body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   min-width: 0;
   min-height: 0;
 }
 
-/* 区域＝卡片：圆角 + 1dp 抬升；标题条用产品指定的红色 #D71600 底 + 白字。 */
+/* 四个模块都是 antd 的 Card（size="small"）：边框、圆角、标题排版由 antd 给，
+   这里只把卡片接进上面的弹性布局，让 body 能被撑满并自己滚动。 */
 .card {
-  border: 1px solid #c9c9c9;
-  border-radius: 4px;
-  background: #fafafa;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  /* 卡片自己裁边：标题条是直角矩形，只有被卡片裁掉上沿两个角，
-     才能和卡片外框的圆角对齐 —— 否则红色标题条的方角会露在圆角外面，
-     看起来比下面的内容"方"/"窄"（原版就是这么做的）。 */
-  overflow: hidden;
 }
 
-.card > .title-bar {
-  margin: 0;
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  letter-spacing: 0.1px;
-  background: #d71600;
-  color: #fff;
-  border-bottom: 1px solid #d71600;
+.card > .ant-card-head {
+  flex: 0 0 auto;
 }
 
-.card > .card-body {
-  padding: 8px;
-  overflow: auto;
+.card > .ant-card-body {
   min-height: 0;
+}
+
+/* 左列两张卡片保持自然高度，空出来的地方留给 .spacer（拖动日志上限按它算）。 */
+.left > .card {
+  flex: 0 0 auto;
 }
 
 .grow {
   flex: 1 1 auto;
-  min-height: 0;
 }
 
-.grow > .card-body {
+.grow > .ant-card-body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -114,85 +106,53 @@ body {
 
 /* ---------- 数据导入 ---------- */
 
+/* 一个来源＝一个内嵌小容器：白底 + 次级描边 + 大圆角（antd 的嵌套容器语言）。 */
 .group {
-  background: #fff;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 4px; /* 与 .card 相同的小圆角，避免同一页出现两种弧度 */
   margin-bottom: 8px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #f0f0f0; /* colorBorderSecondary */
+  border-radius: 8px; /* borderRadiusLG */
 }
 
 .group-gap {
-  height: 10px;
+  height: 8px;
 }
 
 .title-row {
   display: flex;
   align-items: center;
-  padding: 8px 16px 0;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: 0 0 auto;
-}
-
-.dot.empty {
-  background: transparent;
-  border: 1px solid #b7c0cc;
-}
-
-.dot.imported,
-.dot.existing {
-  background: #1b7f3b;
-  border: 1px solid #a5d6a7;
-}
-
-.dot.failed {
-  background: #a4262c;
-  border: 1px solid #f1b0b7;
+  min-width: 0;
 }
 
 .title-row .group-title {
-  margin-left: 8px;
   font-weight: 500;
 }
 
+/* 动作行沿用原界面的顺序：载入文件 / 状态文字 / 数据回顾。 */
 .actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px 12px;
+  margin-top: 8px;
+  min-width: 0;
 }
 
-/* 状态标签：夹在「载入文件」与「数据回顾」两个按钮之间，占满中间剩余宽度。
-   样式沿用原版：浅底 + 底部一条描边 + 上方圆角，像个只读输入框。 */
+/* 状态文字夹在两个图标按钮之间，占满中间剩余宽度；过长时省略号。 */
 .actions .status {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 24px;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.04);
-  border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.24);
-  border-radius: 4px 4px 0 0;
-  line-height: 20px;
-  color: rgba(0, 0, 0, 0.6);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .clean-row {
   display: flex;
   justify-content: flex-end;
-  padding: 0 2px 2px;
 }
 
 /* ---------- 记录导出 ---------- */
 
-/* 整行必须能被压缩：Windows 的日期控件固有宽度更大，撑宽后会冒出横向滚动条。 */
+/* 整行必须能被压缩：Windows（WebView2）下日期控件固有宽度更大，
+   撑宽后会冒出横向滚动条。 */
 .range {
   display: flex;
   gap: 8px;
@@ -200,11 +160,12 @@ body {
   min-width: 0;
 }
 
+/* 日期占满整行、回顾按钮留在最右（按钮 32px 固定，前面这段可被压缩）。 */
 .range .dates {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -212,20 +173,12 @@ body {
   flex: 1 1 auto;
   min-width: 100px;
   max-width: 100%;
-  height: 36px; /* 与原版 input[type=date] 的 36px 对齐 */
 }
 
+/* 两个日期之间不用原来那条 16px 黑线，改用次级色的箭头（antd RangePicker 的语言）。 */
 .range .date-sep {
   flex: 0 0 auto;
-  width: 16px;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 1px;
-}
-
-.range .spacer {
-  flex: 1 1 auto;
-  min-width: 0;
+  color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
 }
 
 .range .ant-btn {
@@ -234,146 +187,148 @@ body {
 
 /* ---------- 数据整合 ---------- */
 
+/* 工具条：窗口窄的时候整条状态标签一起换到第二行，而不是把标签挤成一列。 */
 .table-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
-.table-toolbar .ant-btn {
-  height: 36px;
-  min-height: 36px;
-  padding: 0 16px;
-}
-
+/* 状态标签条：不带自绘底色，交给 antd 的 Tag / Space。 */
 .status-strip {
   flex: 1 1 auto;
-  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  min-height: 40px;
-  padding: 4px 12px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.04);
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
-  white-space: nowrap;
-  overflow: hidden;
+  min-width: 0;
 }
 
-.status-strip .strip-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+/* 主窗口最小 969 宽时，工具条一行装不下「按钮 + 四个状态标签 + 按钮」（差 30px 左右）。
+   与其把标签挤成一列，不如整条换到第二行（两个按钮留在第一行两端）。 */
+@media (max-width: 1040px) {
+  .status-strip {
+    order: 3;
+    flex-basis: 100%;
+  }
 }
 
-.status-strip .strip-item b {
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.87);
-}
-
-.status-strip .dot.status-ready {
-  background: #1b7f3b;
-  border: 1px solid #a5d6a7;
-}
-
-.status-strip .dot.status-incomplete {
-  background: #a4262c;
-  border: 1px solid #f1b0b7;
-}
-
-.status-strip .dot.status-duplicate {
-  background: #b26a00;
-  border: 1px solid #ffe0b2;
-}
-
-.status-strip .dot.status-conflict {
-  background: #f4cccc;
-  border: 1px solid #c62828;
-}
-
+/* 结果表的滚动容器：不再自绘边框 / 圆角 / 投影，用 antd Table 自己的观感。 */
 .tblwrap {
   flex: 1 1 auto;
   min-height: 180px;
   overflow: auto;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 4px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.tblwrap .ant-table {
-  font-size: 12px;
-}
-
-/* 表格内部的圆角与容器统一成 4px（antd 默认给的是 8px；外层虽然会裁掉，
-   但两处不一致属于隐患，直接对齐）。
-   选择器要和 antd 自带的那条（.ant-table-wrapper .ant-table-container table >
-   thead > tr:first-child > *:first-child）同等具体度才盖得住，所以写全层级。 */
-.tblwrap .ant-table-container,
-.tblwrap .ant-table-container table > thead > tr:first-child > th:first-child,
-.tblwrap .ant-table-container table > thead > tr:first-child > th:last-child {
-  border-start-start-radius: 4px;
-  border-start-end-radius: 4px;
-}
-
-/* 表格没有数据时：不画 .tblwrap 的边框，整个模块区域居中显示"暂无数据" */
+/* 没有数据时不画容器，整个模块区域居中显示"暂无数据"。 */
 .table-empty {
   flex: 1 1 auto;
   min-height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(0, 0, 0, 0.6);
 }
 
-.tblwrap .ant-table-cell {
-  padding: 2px 5px !important;
-  white-space: nowrap;
-}
-
-/* 结果表按状态着色（与原界面一致） */
+/* 结果表按状态着色：底色取 antd 的语义浅底，首格再加一条状态色竖条。 */
 .result-row.status-Ready > td {
-  background: #dff6dd;
+  background: #f6ffed; /* colorSuccessBg */
 }
 
 .result-row.status-Incomplete > td {
-  background: #fde7e9;
+  background: #fff2f0; /* colorErrorBg */
 }
 
 .result-row.status-Duplicate > td {
-  background: #fff4ce;
+  background: #fffbe6; /* colorWarningBg */
 }
 
 .result-row.status-Conflict > td {
-  background: #f4cccc;
+  background: #fff0f6; /* magenta-1 */
+}
+
+.result-row.status-Ready > td:first-child {
+  box-shadow: inset 3px 0 0 #389e0d;
+}
+
+.result-row.status-Incomplete > td:first-child {
+  box-shadow: inset 3px 0 0 #cf1322;
+}
+
+.result-row.status-Duplicate > td:first-child {
+  box-shadow: inset 3px 0 0 #d48806;
+}
+
+.result-row.status-Conflict > td:first-child {
+  box-shadow: inset 3px 0 0 #c41d7f;
 }
 
 .cell-MISSING {
-  font-weight: 700;
+  font-weight: 600;
+  color: #cf1322;
 }
 
 /* ---------- 操作日志 ---------- */
 
+/**
+ * 日志卡片：上沿可拖动调高。
+ * 上限＝左侧「数据导入 / 记录导出」只剩最小间隔（12px）；下限＝启动时的默认高度。
+ * max-height 是「没拖动时」的封顶：日志再多也不会把上面的模块挤扁；
+ * 拖动时 LogPanel 会把 height/maxHeight 一起写进内联样式。
+ */
 .log-card {
+  position: relative;
+  overflow: visible; /* 抓取条有 5px 在卡片外，不能被卡片裁掉 */
   flex: 0 1 auto;
   min-height: 96px;
-  position: relative;
-  margin-top: 8px;
+  max-height: 220px;
+  margin-top: 16px;
 }
 
-.log-card > .card-body {
+.log-card > .ant-card-body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
 }
 
-/* 上沿的拖动条：上下拖动调整日志高度（上限＝左侧两模块间隔最小，下限＝默认高度）。 */
+/* 栏目行：级别过滤（antd Segmented，选中项用品牌红）+ 新日志置顶开关。 */
+.log-toolbar {
+  flex: 0 0 auto;
+  margin-bottom: 8px;
+}
+
+/* 日志列表：行之间的浅色分割线由 antd Table 自带；这里只负责滚动。 */
+.log-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.log-table .log-time {
+  color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums; /* 数字等宽，时间列才对得齐 */
+}
+
+/* 长路径 / 长报错要能换行，不能把两列的表格撑破。 */
+.log-table .log-message {
+  overflow-wrap: anywhere;
+}
+
+/* 正文保留多行明细的换行；级别标签不参与压缩。 */
+.log-text {
+  min-width: 0;
+  white-space: pre-wrap;
+}
+
+.log-table .log-message .ant-tag {
+  flex: 0 0 auto;
+  margin-inline-end: 0;
+}
+
+/* 上沿的拖动条：上下拖动调整日志高度。 */
 .log-resizer {
   position: absolute;
   top: -5px;
@@ -395,38 +350,25 @@ body {
   width: 44px;
   height: 3px;
   border-radius: 2px;
-  background: rgba(0, 0, 0, 0.24);
-  transition: background 0.12s ease, transform 0.12s ease;
+  background: rgba(0, 0, 0, 0.15); /* colorFill */
+  transition: background 0.12s ease;
 }
 
 .log-resizer:hover::before,
 .log-resizer:focus-visible::before {
-  background: #b3261e;
+  background: #da291c;
 }
 
 /* 键盘聚焦时给一个品牌红焦点环（默认是浏览器那圈蓝） */
 .log-resizer:focus-visible {
-  outline: 2px solid #b3261e;
+  outline: 2px solid #da291c;
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 6px;
 }
 
 body.log-resizing {
   cursor: row-resize;
   user-select: none;
-}
-
-.log-area.ant-input {
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 56px;
-  padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(0, 0, 0, 0.12);
-  font: 12px/1.5 "Segoe UI", -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue",
-    Arial, sans-serif;
-  white-space: pre-wrap;
-  resize: none;
 }
 
 /* ---------- 载入图层 ---------- */
@@ -438,7 +380,7 @@ body.log-resizing {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.65);
 }
 
 .loading-card {
@@ -447,15 +389,25 @@ body.log-resizing {
   align-items: center;
   gap: 12px;
   padding: 24px 32px;
-  border-radius: 16px;
+  border-radius: 8px;
   background: #fff;
-  box-shadow: 0 11px 15px -7px rgba(0, 0, 0, 0.2), 0 24px 38px 3px rgba(0, 0, 0, 0.14);
+  box-shadow:
+    0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
 }
 
 .loading-text {
-  font-size: 13px;
-  line-height: 20px;
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.65); /* colorTextSecondary */
+}
+
+/* ---------- 统一提示弹窗（导入 / 导出 / 错误） ---------- */
+
+/* 正文可能带换行（导入反馈就是两行中文），保留原样换行。 */
+.message-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- 参数设定：树 ---------- */
@@ -464,166 +416,85 @@ body.log-resizing {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-  font-size: 11px;
-  line-height: 16px;
-  min-height: 16px;
-  color: rgba(0, 0, 0, 0.6);
+  gap: 4px;
+  margin-bottom: 8px;
+  min-height: 22px;
+  font-size: 12px; /* fontSizeSM */
+  line-height: 20px;
+  color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
 }
 
 .settings-path .crumb-sep {
-  color: rgba(0, 0, 0, 0.38);
+  color: rgba(0, 0, 0, 0.25);
 }
 
 .settings-tree {
   max-height: 56vh;
   overflow: auto;
-  padding-right: 4px;
-  font-size: 12px;
 }
 
 .settings-tree .tree-key {
-  color: rgba(0, 0, 0, 0.87);
+  color: rgba(0, 0, 0, 0.88); /* colorText */
 }
 
 .settings-tree .tree-meta {
   margin-left: 6px;
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.38);
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
 }
 
 .settings-tree .tree-sep {
-  margin: 0 6px 0 0;
-  color: rgba(0, 0, 0, 0.6);
+  margin-right: 6px;
+  color: rgba(0, 0, 0, 0.65);
 }
 
+/* 值文本的类型配色：与 theme.ts 的 VALUE_COLORS 一一对应（测试会校对）。 */
 .settings-tree .tree-value.type-string {
-  color: #1b7f3b;
+  color: #237804;
 }
 
 .settings-tree .tree-value.type-number {
-  color: #a4262c;
+  color: #cf1322;
 }
 
 .settings-tree .tree-value.type-bool {
-  color: #96570a;
+  color: #874d00;
 }
 
 .settings-tree .tree-value.type-null {
-  color: rgba(0, 0, 0, 0.6);
+  color: rgba(0, 0, 0, 0.45);
   font-style: italic;
 }
 
 .settings-tree .tree-empty {
   font-style: italic;
-  color: rgba(0, 0, 0, 0.38);
+  color: rgba(0, 0, 0, 0.45);
 }
 
 .settings-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.settings-head > .settings-note {
+  flex: 1 1 auto;
 }
 
 .settings-note {
-  flex: 1 1 auto;
   min-width: 0;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
   overflow-wrap: anywhere;
 }
 
 .settings-editor.ant-input {
   min-height: 40vh;
-  font: 12px/1.5 "Segoe UI", -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue",
-    Arial, sans-serif;
   white-space: pre;
   overflow: auto;
 }
 
-/* ---------- 统一提示弹窗（导入/导出/错误） ---------- */
-/* 标题条沿用模块的红底白字，去掉右上角关闭按钮，确认按钮居中。 */
-.app-message .ant-modal-content {
-  padding: 0;
-  overflow: hidden;
-  /* 跟主窗口模块一样的小圆角（antd 默认 16px 太大） */
-  border-radius: 4px;
-}
+/* ---------- 数据回顾：把弹窗内部撑成一条竖直弹性链 ---------- */
 
-.app-message .ant-modal-header {
-  margin-bottom: 0;
-  padding: 12px 24px;
-  background: #d71600;
-  border-bottom: 1px solid #d71600;
-  border-radius: 4px 4px 0 0;
-}
-
-.app-message .ant-modal-title {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.1px;
-}
-
-.app-message .ant-modal-body {
-  padding: 16px 24px 0;
-}
-
-.app-message .message-text {
-  margin: 0;
-  font-size: 13px;
-  line-height: 20px;
-  color: rgba(0, 0, 0, 0.87);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.app-message .ant-modal-footer {
-  display: flex;
-  justify-content: center;
-  padding: 12px 24px 16px;
-  border-top: none;
-}
-
-/* 带动作的弹窗（数据回顾 / 参数设定）也用同一套红底白字标题条，右上角 X 改白色 */
-.app-modal .ant-modal-content {
-  /* antd 的 borderRadiusLG 是 16px，比界面里其它模块的 4px 小圆角大一圈；
-     这里跟着主窗口模块走，标题条的上沿才不会有"多出来的弧形"。 */
-  border-radius: 4px;
-}
-
-.app-modal .ant-modal-header {
-  margin-bottom: 0;
-  padding: 12px 24px;
-  background: #d71600;
-  border-bottom: 1px solid #d71600;
-  border-radius: 4px 4px 0 0;
-}
-
-.app-modal .ant-modal-title {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.1px;
-}
-
-.app-modal .ant-modal-close {
-  color: #fff;
-}
-
-.app-modal .ant-modal-close:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.16);
-}
-
-/* 回顾窗口（数据回顾 / 记录导出）：宽高由 Modals.tsx 按「窗口减去固定留白」算，
-   这里只把内部撑成一条竖直的弹性链，让表格吃掉多出来的高度并自己滚动 ——
-   于是窗口变大时四周留白与最小尺寸下一致。 */
+/* antd 在 .ant-modal 与 .ant-modal-content 之间夹了一层容器，它默认 height:auto，
+   会让下面 content 的 height:100% 落空，所以先把它撑满。 */
 .review-modal > div {
-  /* antd 在 .ant-modal 与 .ant-modal-content 之间夹了一层无类名的 motion/panel 容器，
-     它默认 height:auto，会让下面 content 的 height:100% 落空，所以先把它撑满。 */
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -653,7 +524,7 @@ body.log-resizing {
 
 /* ---------- 关于 / 附加窗口 ---------- */
 
-/* 两个展示型窗口都固定 323×323（与原版一致），右上角一个关闭按钮，不再有底部按钮行。 */
+/* 两个展示型窗口都固定 323×323（与原版一致），内容铺满，关闭按钮用 antd 自带的。 */
 .about-window .ant-modal-content,
 .hidden-window .ant-modal-content {
   padding: 0;
@@ -664,6 +535,10 @@ body.log-resizing {
   width: 323px !important;
 }
 
+.hidden-window {
+  width: 323px !important;
+}
+
 .about-body {
   display: flex;
   flex-direction: column;
@@ -671,7 +546,7 @@ body.log-resizing {
   /* 内容整体在 323×323 的窗口里纵向居中，而不是堆在上方 */
   justify-content: center;
   gap: 8px;
-  padding: 24px 24px;
+  padding: 24px;
   text-align: center;
   height: 323px;
   overflow: auto;
@@ -680,43 +555,27 @@ body.log-resizing {
 .about-body .about-icon {
   width: 48px;
   height: 48px;
-  border-radius: 8px;
+  border-radius: 8px; /* borderRadiusLG */
 }
 
 .about-body .name {
   /* 图标与下方文字之间留出更多呼吸空间 */
   margin-top: 16px;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
+  margin-bottom: 0;
 }
 
 .about-body .version {
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 12px;
-  line-height: 18px;
+  margin: 0;
 }
 
 /* 说明段：原文是四行（含换行），保留原样换行。
    原版 .ui 里这个 label 没写 alignment，Qt 的默认就是左对齐，所以这里也左对齐
    （图标 / 名称 / 版本仍然是居中的）。 */
 .about-body .intro {
+  margin: 0;
   white-space: pre-wrap;
   text-align: left;
-  color: rgba(0, 0, 0, 0.6);
   font-size: 12px;
-  line-height: 18px;
-}
-
-.dialog-close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 3;
-}
-
-.hidden-window {
-  width: 323px !important;
 }
 
 .hidden-body {
@@ -741,17 +600,26 @@ body.log-resizing {
   margin: 0;
   padding: 10px 56px 10px 16px;
   font-size: 14px;
+  font-weight: 500;
   color: #fff;
   background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
-.hidden-body .dialog-close {
+/* 两个窗口都是"整块内容"，关闭 X 贴到角落（antd 默认按标题行居中，这里没有标题行）。 */
+.about-window .ant-modal-close,
+.hidden-window .ant-modal-close {
+  top: 8px;
+  inset-inline-end: 8px;
+}
+
+/* 照片上的关闭按钮：antd 自带的白 X + 半透明底，不然深灰 X 在图上看不见。 */
+.hidden-window .ant-modal-close {
   color: #fff;
   background: rgba(0, 0, 0, 0.32);
 }
 
-.hidden-body .dialog-close:hover {
+.hidden-window .ant-modal-close:hover {
   color: #fff;
   background: rgba(0, 0, 0, 0.5);
 }

@@ -152,5 +152,5 @@ func FormatTableFailure(failures []TableFailure) string {
 	for _, failure := range failures {
 		parts = append(parts, failure.Table+": "+failure.Error)
 	}
-	return "Failed to drop table(s): " + strings.Join(parts, "; ")
+	return "删除表失败：" + strings.Join(parts, "；")
 }

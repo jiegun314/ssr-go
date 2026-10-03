@@ -12,10 +12,10 @@ func setAppUserModelID() string {
 	procedure := shell32.NewProc("SetCurrentProcessExplicitAppUserModelID")
 	id, err := windows.UTF16PtrFromString(AppUserModelID)
 	if err != nil {
-		return "Failed to set the Windows taskbar identity (" + AppUserModelID + "): " + err.Error()
+		return "设置 Windows 任务栏身份失败（" + AppUserModelID + "）：" + err.Error()
 	}
 	if _, _, callErr := procedure.Call(uintptr(unsafePointer(id))); callErr != nil && callErr.Error() != "The operation completed successfully." {
-		return "Failed to set the Windows taskbar identity (" + AppUserModelID + "): " + callErr.Error()
+		return "设置 Windows 任务栏身份失败（" + AppUserModelID + "）：" + callErr.Error()
 	}
 	return ""
 }

@@ -10,9 +10,14 @@ import (
 	"testing"
 )
 
-// 前端已经换成 React + antd + Lucide（源码在 frontend/src，构建产物在 frontend/dist）。
+// 前端是 React + antd + Lucide（源码在 frontend/src，构建产物在 frontend/dist）。
 // 这里的契约测试读**源码**而不是打包产物：产物里的类名会被压缩，源码才是可维护的契约面。
 // 少数几条（内嵌资源、提示字样）同时检查产物，因为那才是真正发给用户的东西。
+//
+// 两套口径：
+//   - 行为契约（日志拖动、声音、弹窗尺寸、图标语义、导出门禁……）—— 与改版前一致；
+//   - 设计契约 —— 现在是 **antd 默认值 + 强生红**：字号 / 圆角 / 间距 / 控件高度都不许再出现
+//     PySide6 原型带过来的手工值（4px 小圆角、红底白字标题条、13px 基准字号、36px 日期框……）。
 
 func readFrontendSource(t *testing.T, name string) string {
 	t.Helper()
@@ -103,8 +108,6 @@ func TestTheHiddenWindowIsNotAdvertisedInTheFrontend(t *testing.T) {
 		}
 	}
 	// 构建产物同样不许出现（前端资源是内嵌进二进制的）
-	dist := frontendSourceText(t)
-	_ = dist
 	raw, err := os.ReadFile(filepath.Join("frontend", "dist", "index.html"))
 	if err != nil {
 		t.Fatalf("读构建产物失败：%v", err)
@@ -163,6 +166,64 @@ func TestTheOperationLogCardHasADragHandle(t *testing.T) {
 	}
 }
 
+// TestTheLogWindowIsFilterableAndTwoColumn 固定操作日志窗口的形式（参考界面那套）：
+// 顶部按日志类型分栏目（全部 / 信息 / 成功 / 警告 / 错误）+「新日志置顶」，
+// 内容是一张两列表格：左列时间（行首、不换行），右列级别标签 + 正文（长内容换行、多行明细保留），
+// 行之间用 antd Table 自带的浅色分割线。
+func TestTheLogWindowIsFilterableAndTwoColumn(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+	script := readFrontendSource(t, "src/log.ts")
+
+	for _, wanted := range []string{
+		"parseLog(",  // 按行契约把日志文本拆成条目
+		"<Segmented", // 级别栏目
+		`{ label: "全部", value: "all" }`,
+		"LOG_LEVELS.map", // 信息 / 成功 / 警告 / 错误
+		"新日志置顶",          // 排序开关
+		"<Switch",
+		"{entries.length} 条", // 卡片头上的总条数
+		"showHeader={false}", // 两列表格，不再单画一行表头
+		`title: "时间",`,
+		`title: "信息",`,
+		"width: 156",       // 时间列固定宽度，长正文不会把它挤走
+		"LOG_LEVEL_COLORS", // 级别标签着色
+		"log-text",         // 正文容器（换行靠它）
+		"暂无日志",
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("LogPanel 里缺少：%s", wanted)
+		}
+	}
+
+	for _, wanted := range []string{
+		".log-toolbar {",
+		".log-list {",
+		".log-table .log-time {",
+		"white-space: nowrap;",                // 时间列不换行
+		"font-variant-numeric: tabular-nums;", // 数字等宽，时间才对得齐
+		".log-table .log-message {",
+		"overflow-wrap: anywhere;", // 长路径 / 长报错要换行
+		".log-text {",
+		"white-space: pre-wrap;", // 多行明细保留换行
+		"max-height: 220px;",     // 没拖动时日志不会把上面的模块挤扁
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("日志窗口样式里缺少：%s", wanted)
+		}
+	}
+	// 浅色分割线用 antd Table 自带的行分隔线，不许在样式里抹掉
+	if strings.Contains(styles, "border-bottom: none") {
+		t.Error("不该把日志表格的分割线抹掉（antd Table 的行分隔线就是浅色分割线）")
+	}
+	// 兜底分类：行里没有级别标签时也要能分到四类之一
+	for _, level := range []string{"info", "success", "warning", "error"} {
+		if !strings.Contains(script, `"`+level+`"`) {
+			t.Errorf("log.ts 的兜底分类缺少级别 %q", level)
+		}
+	}
+}
+
 // TestTheOperationLogResizerKeepsTheLeftColumnGap 固定上限口径的来源：
 // 上限＝左侧「数据导入 / 记录导出」只剩 .spacer 的最小间隔（12px），下限＝默认高度。
 func TestTheOperationLogResizerKeepsTheLeftColumnGap(t *testing.T) {
@@ -185,9 +246,11 @@ func TestTheOperationLogResizerKeepsTheLeftColumnGap(t *testing.T) {
 func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
+	dates := cssBlock(t, styles, ".range .dates {")
+	if !strings.Contains(dates, "flex: 1 1 auto;") {
+		t.Errorf("日期容器应当占满整行、又允许被压缩，实际块：\n%s", dates)
+	}
 	for _, wanted := range []string{
-		".range .dates {",      // 日期容器可收缩
-		"flex: 0 1 auto;",      // 不参与扩张，但可以被压缩
 		".range .ant-picker {", // antd 的日期控件同样要能退让
 		"min-width: 100px;",
 		"max-width: 100%;",
@@ -199,20 +262,20 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 	}
 }
 
-// TestTheUIKeepsTheProductColorsAndFont 固定配色与字体：
-// 主红/标题条红不变，字体用跨平台栈（Windows 上不能退化成 Consolas + 微软雅黑混排）。
+// TestTheUIKeepsTheProductColorsAndFont 固定主题口径：品牌红＝强生企业红（PANTONE 485 C），
+// 且落到 antd 的 colorPrimary / colorInfo / colorLink 上；字体用跨平台栈（含中文回退），
+// 不许再用等宽字体（Windows 上会退化成 Consolas + 微软雅黑混排）。
 func TestTheUIKeepsTheProductColorsAndFont(t *testing.T) {
 	theme := readFrontendSource(t, "src/theme.ts")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	if !strings.Contains(theme, `export const BRAND_RED = "#B3261E"`) {
-		t.Error("主色应保持 #B3261E")
+	if !strings.Contains(theme, `export const BRAND_RED = "#DA291C"`) {
+		t.Error("品牌红应当是强生企业红 #DA291C")
 	}
-	if !strings.Contains(theme, `export const TITLE_RED = "#D71600"`) {
-		t.Error("标题条红应保持 #D71600")
-	}
-	if !strings.Contains(styles, "background: #d71600") {
-		t.Error("标题条要用产品指定的红色（#D71600 底 + 白字）")
+	for _, tokenName := range []string{"colorPrimary", "colorInfo", "colorLink"} {
+		if !strings.Contains(theme, tokenName+": BRAND_RED") {
+			t.Errorf("theme.ts 的 %s 应当用 BRAND_RED", tokenName)
+		}
 	}
 	if !strings.Contains(theme, `"Microsoft YaHei"`) || !strings.Contains(theme, `"PingFang SC"`) {
 		t.Error("字体栈要跨平台（含微软雅黑/苹方）")
@@ -220,32 +283,121 @@ func TestTheUIKeepsTheProductColorsAndFont(t *testing.T) {
 	if strings.Contains(theme, "monospace") || strings.Contains(styles, "monospace") {
 		t.Error("界面不该用等宽字体（Windows 上会退化成两种字体混排）")
 	}
-	// 状态圆点配色与原界面一致
-	for _, wanted := range []string{".status-ready", ".status-incomplete", ".status-duplicate", ".status-conflict"} {
+	// 结果表的四种状态在样式里都有自己的类
+	for _, wanted := range []string{
+		".result-row.status-Ready", ".result-row.status-Incomplete",
+		".result-row.status-Duplicate", ".result-row.status-Conflict",
+	} {
 		if !strings.Contains(styles, wanted) {
-			t.Errorf("结果状态圆点缺少 %s", wanted)
+			t.Errorf("结果表缺少状态着色：%s", wanted)
 		}
 	}
 }
 
-// TestTheDisplayDialogsCloseFromTheTopRightIcon 固定两个展示型窗口（关于 / 附加窗口）：
-// 都用 antd Modal（closable=false，自己画右上角 X）、遮罩可关、尺寸固定 323×323。
-func TestTheDisplayDialogsCloseFromTheTopRightIcon(t *testing.T) {
+// TestNoPySideLeftoversInTheDesign 固定"不再残留 PySide6 原型的设计语言"：
+// 手工 4px 圆角、红底白字标题条、13px 基准字号、36px 日期框、2px 表格内边距、
+// 仿只读输入框的状态条、居中按钮的 QDialog 底栏——这些手工值一个都不许再出现。
+func TestNoPySideLeftoversInTheDesign(t *testing.T) {
+	text := frontendSourceText(t)
+
+	for _, leftover := range []string{
+		"border-radius: 4px",    // 统一小圆角：改回 antd 的 borderRadius
+		"background: #d71600",   // 红底标题条
+		"#b3261e",               // 旧主红
+		"#d71600",               // 旧标题条红
+		"font-size: 13px",       // 13px 基准字号（antd 默认 14px）
+		"height: 36px",          // 36px 日期框 / 工具条按钮
+		"padding: 2px 5px",      // 表格 2px 内边距
+		`className="title-bar"`, // 手写标题条
+		"status-strip .dot",     // 自绘状态圆点
+		"border-bottom: 1px solid rgba(0, 0, 0, 0.24)",        // 仿只读输入框的底部描边
+		"justify-content: center;\n  padding: 12px 24px 16px", // QDialog 式居中底栏
+	} {
+		if strings.Contains(text, leftover) {
+			t.Errorf("前端源码里还残留旧设计：%q", leftover)
+		}
+	}
+}
+
+// TestTheModulesUseAntdCards 固定四个模块的容器：用 antd 的 Card（size="small"），
+// 标题排版 / 边框 / 圆角都由 antd 给，样式里不再手写卡片外观。
+func TestTheModulesUseAntdCards(t *testing.T) {
+	app := readFrontendSource(t, "src/App.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	for _, title := range []string{"数据导入", "记录导出", "数据整合"} {
+		wanted := `className="card" size="small" title="` + title + `"`
+		if title == "数据整合" {
+			wanted = `className="card grow" size="small" title="` + title + `"`
+		}
+		if !strings.Contains(app, wanted) {
+			t.Errorf("App.tsx 的「%s」模块应当用 antd Card：找不到 %s", title, wanted)
+		}
+	}
+	if !strings.Contains(app, `<Card`) || !strings.Contains(app, `from "antd"`) {
+		t.Error("App.tsx 应当从 antd 引入 Card")
+	}
+	// 操作日志卡片复用同一个 Card
+	if panels := readFrontendSource(t, "src/components/Panels.tsx"); !strings.Contains(panels, `<Card`) ||
+		!strings.Contains(panels, `className="card log-card"`) {
+		t.Error("操作日志卡片应当也是 antd Card（圆角与其它模块一致）")
+	}
+	card := cssBlock(t, styles, ".card {")
+	if strings.Contains(card, "border-radius") || strings.Contains(card, "background") {
+		t.Errorf(".card 不该自绘圆角/底色（交给 antd 的 Card），实际块：\n%s", card)
+	}
+}
+
+// TestTheResultTableUsesAntdDefaults 固定结果表的密度口径：
+// 不加 bordered、不覆盖单元格内边距、不做圆角对齐 hack；
+// .tblwrap 只是滚动容器，不再自绘边框 / 圆角 / 投影。
+func TestTheResultTableUsesAntdDefaults(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+	theme := readFrontendSource(t, "src/theme.ts")
+
+	for name, source := range map[string]string{"Panels.tsx": panels, "Modals.tsx": modals} {
+		if strings.Contains(source, "bordered") {
+			t.Errorf("%s 的结果表不该用 bordered（antd Table 默认无边框）", name)
+		}
+		if !strings.Contains(source, `size="small"`) {
+			t.Errorf("%s 的结果表应当用 antd 的小尺寸密度", name)
+		}
+	}
+	if strings.Contains(styles, ".ant-table-cell") || strings.Contains(styles, "border-start-start-radius") {
+		t.Error("不该再覆盖 antd 表格的单元格内边距与圆角")
+	}
+	wrap := cssBlock(t, styles, ".tblwrap {")
+	for _, selfDrawn := range []string{"border:", "border-radius", "box-shadow", "background"} {
+		if strings.Contains(wrap, selfDrawn) {
+			t.Errorf(".tblwrap 只是滚动容器，不该自绘 %s，实际块：\n%s", selfDrawn, wrap)
+		}
+	}
+	if strings.Contains(theme, "Table:") {
+		t.Error("theme.ts 不该再给 Table 写组件级覆盖（用 antd 默认）")
+	}
+}
+
+// TestTheDisplayDialogsKeepTheirFixedSize 固定两个展示型窗口（关于 / 附加窗口）：
+// 都用 antd Modal（默认自带的右上角 X、遮罩可关）、尺寸固定 323×323。
+func TestTheDisplayDialogsKeepTheirFixedSize(t *testing.T) {
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 
 	for _, wanted := range []string{
 		`className="about-window"`,  // 关于窗口
 		`className="hidden-window"`, // 附加窗口
-		"closable={false}",          // 不用 antd 自带的关闭按钮
 		"maskClosable",              // 点遮罩也能关
-		`className="dialog-close"`,  // 右上角那个 X
-		`aria-label="关闭"`,
 		"width={323}",
 	} {
 		if !strings.Contains(modals, wanted) {
 			t.Errorf("Modals.tsx 里缺少展示型窗口的契约：%s", wanted)
 		}
+	}
+	// 关闭按钮用 antd 自带的，不再自绘
+	if strings.Contains(modals, "dialog-close") {
+		t.Error("展示型窗口应当用 antd 自带的关闭按钮，不再自绘 dialog-close")
 	}
 	for _, wanted := range []string{
 		".about-window {",
@@ -253,6 +405,8 @@ func TestTheDisplayDialogsCloseFromTheTopRightIcon(t *testing.T) {
 		"width: 323px !important;",
 		"height: 323px;",
 		"object-fit: cover", // 附加窗口的图片要铺满
+		".about-window .ant-modal-close,",
+		".hidden-window .ant-modal-close",
 	} {
 		if !strings.Contains(styles, wanted) {
 			t.Errorf("样式里缺少展示型窗口的规则：%s", wanted)
@@ -334,49 +488,22 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 	}
 }
 
-// TestTheModuleCornersShareOneSmallRadius 固定圆角口径：所有模块级容器
-// （卡片 / 导入分组 / 结果表容器 / 状态条 / 操作日志）用同一个 4px 小圆角，
-// 避免同一页出现"大方框直角、小方框圆角"的观感。
-func TestTheModuleCornersShareOneSmallRadius(t *testing.T) {
-	styles := readFrontendSource(t, "src/styles.css")
-	for _, selector := range []string{".card {", ".group {", ".tblwrap {", ".status-strip {"} {
-		start := strings.Index(styles, selector)
-		if start < 0 {
-			t.Fatalf("样式里找不到 %s", selector)
-		}
-		body := styles[start:]
-		if end := strings.Index(body, "}"); end >= 0 {
-			body = body[:end]
-		}
-		if !strings.Contains(body, "border-radius: 4px") {
-			t.Errorf("%s 的圆角应为统一的 4px：%s", selector, body)
-		}
-	}
-	// 操作日志卡片是通过共用的 .card 类拿到同一个圆角的
-	if panels := readFrontendSource(t, "src/components/Panels.tsx"); !strings.Contains(panels, `className="card log-card"`) {
-		t.Error("操作日志卡片应当复用 .card 类（圆角与其它模块一致）")
-	}
-}
+// TestTheImportStatusUsesAntdBadge 固定导入区的状态表达：用 antd 的 Badge（状态语义色）
+// 与 Typography 的次级文字，不再自绘圆点、也不再做"仿只读输入框"的状态条。
+func TestTheImportStatusUsesAntdBadge(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
 
-// TestTheModuleCardsClipTheirTitleBar 固定"标题条上沿要有圆角"的做法：
-// 标题条是直角矩形，只有卡片自己 overflow:hidden 把上沿两角裁掉，
-// 才能和外框的圆角对齐 —— 否则红色标题条的方角露在圆角外面，
-// 看起来比下方面板"方"、也像没有边框（用户报的问题）。
-func TestTheModuleCardsClipTheirTitleBar(t *testing.T) {
-	styles := readFrontendSource(t, "src/styles.css")
-	start := strings.Index(styles, ".card {")
-	if start < 0 {
-		t.Fatal("样式里找不到 .card")
+	if !strings.Contains(panels, "Badge") || !strings.Contains(panels, "BadgeProps") {
+		t.Error("导入状态应当用 antd Badge 表达（状态语义色由 antd 给）")
 	}
-	body := styles[start:]
-	if end := strings.Index(body, "}"); end >= 0 {
-		body = body[:end]
+	if !strings.Contains(panels, "type=\"secondary\"") || !strings.Contains(panels, "ellipsis={{ tooltip:") {
+		t.Error("状态文字应当是次级色 + 过长省略（antd Typography）")
 	}
-	if !strings.Contains(body, "overflow: hidden") {
-		t.Errorf("卡片必须裁剪标题条的方角（overflow: hidden）：%s", body)
+	if !strings.Contains(panels, `{current.label || "尚未导入"}`) {
+		t.Error("状态标签要有「尚未导入」占位")
 	}
-	if !strings.Contains(body, "border-radius: 4px") {
-		t.Errorf("卡片的圆角应当是统一的小圆角：%s", body)
+	if strings.Contains(panels, `className="dot`) {
+		t.Error("不该再自绘状态圆点")
 	}
 }
 
@@ -405,7 +532,7 @@ func TestTheSettingsTreeUsesAntdTree(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
 	for _, wanted := range []string{
-		`import { Button, Input, Modal, Pagination, Table, Tabs, Tree, Tooltip } from "antd"`,
+		`} from "antd"`,
 		"treeData={treeData}",
 		"expandedKeys={expandedKeys}",
 		"onSelect={(keys) => onSelectNode(",
@@ -433,7 +560,7 @@ func TestTheSettingsTreeUsesAntdTree(t *testing.T) {
 // 导出在最左、翻页居中、关闭在最右（同一行），每页 100 行。
 func TestTheReviewModalKeepsTheFooterLayout(t *testing.T) {
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
-	if !strings.Contains(modals, "justifyContent: \"center\"") {
+	if !strings.Contains(modals, `justify="center"`) {
 		t.Error("翻页组件应当在底栏居中")
 	}
 	if !strings.Contains(modals, "<Pagination") || !strings.Contains(modals, "pageSize={result?.pageSize ?? 100}") {
@@ -471,7 +598,7 @@ func TestTheReviewModalGrowsWithTheWindowKeepingTheGaps(t *testing.T) {
 	}
 	// 内部那条竖直弹性链：表格吃掉多出来的高度并自己滚动
 	for _, wanted := range []string{
-		".review-modal > div {", // antd 夹在中间的 motion/panel 容器要先撑满
+		".review-modal > div {", // antd 夹在中间的容器要先撑满
 		"height: 100%;",
 		".review-modal .ant-modal-content {",
 		".review-modal .ant-modal-body {",
@@ -485,43 +612,41 @@ func TestTheReviewModalGrowsWithTheWindowKeepingTheGaps(t *testing.T) {
 	}
 }
 
-// TestAllDialogsAreCenteredAndTheMessageDialogIsStyled 固定弹窗的两条口径：
-//  1. 所有弹窗都必须居中（antd 的 centered 属性），包括关于窗口与附加窗口；
-//  2. 导入/导出完成后的统一提示弹窗：不要右上角 X、标题条红底白字、确认按钮居中；
-//     并且关掉 antd 在两个汉字之间插空格的默认行为（"确 定" → "确定"）。
-func TestAllDialogsAreCenteredAndTheMessageDialogIsStyled(t *testing.T) {
+// TestAllDialogsUseAntdDefaults 固定弹窗回到 antd 默认形态：
+// 五个弹窗（提示 / 回顾 / 参数设定 / 关于 / 附加窗口）全部居中；
+// 提示弹窗就是 antd 默认的 Modal（标题 + 自带 X + 右对齐底栏），
+// 不再有红底标题条 / 居中按钮 / 手动去掉关闭按钮那套 QDialog 布局。
+func TestAllDialogsUseAntdDefaults(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 	main := readFrontendSource(t, "src/main.tsx")
 
-	// 1) 五个弹窗（提示 / 回顾 / 参数设定 / 关于 / 附加窗口）全部居中
+	// 1) 五个弹窗全部居中
 	if got := strings.Count(modals, "centered"); got < 4 {
 		t.Errorf("回顾/参数设定/关于/附加窗口都要居中（centered），实际 %d 处", got)
 	}
 	if !strings.Contains(panels, "centered") {
 		t.Error("提示弹窗也要居中（centered）")
 	}
-	// 2) 提示弹窗的样式
-	if !strings.Contains(panels, "closable={false}") {
-		t.Error("提示弹窗不该有右上角关闭按钮")
-	}
+	// 2) 提示弹窗：antd 默认底栏（右对齐）+ 单个「确定」主按钮
 	if !strings.Contains(panels, `className="app-message"`) {
-		t.Error("提示弹窗要带 app-message 类（红底白字标题条靠它）")
+		t.Error("提示弹窗要保留 app-message 这个稳定挂点")
 	}
-	for _, wanted := range []string{
-		".app-message .ant-modal-header {",
-		"background: #d71600",
-		".app-message .ant-modal-title {",
-		"color: #fff",
-		".app-message .ant-modal-footer {",
-		"justify-content: center",
-	} {
-		if !strings.Contains(styles, wanted) {
-			t.Errorf("提示弹窗样式缺少：%s", wanted)
+	if !strings.Contains(panels, "确定") || !strings.Contains(panels, `type="primary"`) {
+		t.Error("提示弹窗要有一个「确定」主按钮")
+	}
+	// 3) 不许再给弹窗写红底标题条 / 居中底栏的覆盖样式
+	for _, leftover := range []string{".app-message ", ".app-modal"} {
+		if strings.Contains(styles, leftover) {
+			t.Errorf("styles.css 里不该再出现弹窗外观覆盖：%s", leftover)
 		}
 	}
-	// 3) 关于窗口：内容纵向居中 + 图标与文字留出间距
+	// 4) 中文按钮不要自动插空格
+	if !strings.Contains(main, "autoInsertSpace: false") {
+		t.Error("要关掉 antd 在两个汉字之间插空格的默认行为")
+	}
+	// 5) 展示型窗口的内容区仍然固定 323 高、内容纵向居中
 	for _, wanted := range []string{"justify-content: center", "height: 323px"} {
 		if !strings.Contains(styles, wanted) {
 			t.Errorf("关于窗口内容区样式缺少：%s", wanted)
@@ -529,10 +654,6 @@ func TestAllDialogsAreCenteredAndTheMessageDialogIsStyled(t *testing.T) {
 	}
 	if !strings.Contains(styles, "margin-top: 16px") {
 		t.Error("图标与下方文字之间要留出间距")
-	}
-	// 4) 中文按钮不要自动插空格
-	if !strings.Contains(main, "autoInsertSpace: false") {
-		t.Error("要关掉 antd 在两个汉字之间插空格的默认行为")
 	}
 }
 
@@ -551,13 +672,13 @@ func TestTheWailsBuildRunsTheFrontendBuild(t *testing.T) {
 // ---------- 发布前的设计体检（A 组：可读性 / 可点性 / 一致性） ----------
 
 // TestTheSettingsTreeValuesMeetContrastOnWhite 固定参数设定里值文本的可读性：
-// 三种有颜色的标量在白底上都要过 WCAG AA（12px 小字 ≥ 4.5:1），
+// 三种有颜色的标量在白底上都要过 WCAG AA（≥ 4.5:1），
 // 且 styles.css 里的颜色必须与 theme.ts 的 VALUE_COLORS 对得上（不许两处各写一套）。
 func TestTheSettingsTreeValuesMeetContrastOnWhite(t *testing.T) {
 	theme := readFrontendSource(t, "src/theme.ts")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	colors := treeValueColors(t, theme)
+	colors := themeColors(t, theme, "export const VALUE_COLORS")
 	for _, kind := range []string{"string", "number", "bool"} {
 		hex, ok := colors[kind]
 		if !ok {
@@ -571,6 +692,25 @@ func TestTheSettingsTreeValuesMeetContrastOnWhite(t *testing.T) {
 	want := "color: " + colors["bool"] + ";"
 	if !strings.Contains(styles, want) {
 		t.Errorf("styles.css 的 .tree-value.type-bool 应当用 theme.ts 里的 %s（找不到 %q）", colors["bool"], want)
+	}
+}
+
+// TestTheStatusColorsStayInSyncWithTheTheme 固定结果表状态色只有一份来源：
+// theme.ts 的 STATUS_COLORS 与 styles.css 里的字面值必须一致，
+// 否则"工具栏标签 / 行底色 / 竖条"迟早会三套颜色。
+func TestTheStatusColorsStayInSyncWithTheTheme(t *testing.T) {
+	theme := readFrontendSource(t, "src/theme.ts")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	colors := themeColors(t, theme, "export const STATUS_COLORS")
+	for _, status := range []string{"Ready", "Incomplete", "Duplicate", "Conflict"} {
+		hex, ok := colors[status]
+		if !ok {
+			t.Fatalf("theme.ts 的 STATUS_COLORS 里缺少 %s", status)
+		}
+		if !strings.Contains(strings.ToLower(styles), hex) {
+			t.Errorf("styles.css 里找不到 %s 的状态色 %s（行底色/竖条应与主题一致）", status, hex)
+		}
 	}
 }
 
@@ -589,31 +729,31 @@ func TestTheLogResizerHasAComfortableHitAreaAndAFocusRing(t *testing.T) {
 	if !strings.Contains(styles, ".log-resizer::before {") || !strings.Contains(styles, "height: 3px;") {
 		t.Error("可见的抓取条仍然只有 3px 高")
 	}
+	if !strings.Contains(block, "overflow: visible") && !strings.Contains(cssBlock(t, styles, ".log-card {"), "overflow: visible") {
+		t.Error("抓取条有 5px 在卡片外，卡片不能裁剪它")
+	}
 	focus := cssBlock(t, styles, ".log-resizer:focus-visible {")
-	if !strings.Contains(focus, "outline: 2px solid #b3261e;") {
+	if !strings.Contains(focus, "outline: 2px solid #da291c;") {
 		t.Errorf("键盘聚焦要用品牌红焦点环，实际块：\n%s", focus)
 	}
 }
 
-// TestTheTableCornersMatchTheContainerRadius 固定整合结果表格的圆角：
-// antd 默认给表头首尾格 8px，外层 .tblwrap 是 4px —— 两处必须统一成 4px。
-func TestTheTableCornersMatchTheContainerRadius(t *testing.T) {
-	theme := readFrontendSource(t, "src/theme.ts")
+// TestTheToolbarFitsTheNarrowestWindow 固定数据整合工具条在最小窗口（969 宽）下的行为：
+// 一行装不下「按钮 + 四个状态标签 + 按钮」时，整条状态标签换到第二行，
+// 而不是把四个标签挤成一列（媒体查询断点 1040 是按最小窗口倒推的）。
+func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
-	if !strings.Contains(theme, "borderRadius: 4,") {
-		t.Error("theme.ts 的 Table 组件应当把圆角设成 4px（与容器一致）")
+	toolbar := cssBlock(t, styles, ".table-toolbar {")
+	if !strings.Contains(toolbar, "flex-wrap: wrap;") {
+		t.Errorf("工具条要允许换行，实际块：\n%s", toolbar)
 	}
-	for _, wanted := range []string{
-		".tblwrap .ant-table-container,",
-		".tblwrap .ant-table-container table > thead > tr:first-child > th:first-child,",
-		".tblwrap .ant-table-container table > thead > tr:first-child > th:last-child {",
-		"border-start-start-radius: 4px;",
-		"border-start-end-radius: 4px;",
-	} {
-		if !strings.Contains(styles, wanted) {
-			t.Errorf("样式里缺少表格圆角对齐规则：%s", wanted)
-		}
+	if !strings.Contains(styles, "@media (max-width: 1040px)") {
+		t.Error("窄窗口要给一条媒体查询，把状态标签整条移到第二行")
+	}
+	narrow := styles[strings.Index(styles, "@media (max-width: 1040px)"):]
+	if !strings.Contains(narrow, "order: 3;") || !strings.Contains(narrow, "flex-basis: 100%;") {
+		t.Error("窄窗口下状态标签应当独占一行（order + flex-basis: 100%）")
 	}
 }
 
@@ -644,56 +784,25 @@ func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	}
 }
 
-// TestTheStatusLabelFallsBackToAPlaceholder 固定：状态标签还没有内容时显示「尚未导入」，
-// 不能留一片空白（原来导入区那一行会突然塌成空的）。
-func TestTheStatusLabelFallsBackToAPlaceholder(t *testing.T) {
+// TestTheStatusSummaryUsesAntdTags 固定状态汇总的表达：antd 的 Tag（success/error/warning +
+// Conflict 的 magenta），不再自绘灰底胶囊。
+func TestTheStatusSummaryUsesAntdTags(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 
-	if !strings.Contains(panels, `{current.label || "尚未导入"}`) {
-		t.Error("状态标签要有「尚未导入」占位")
-	}
-}
-
-// TestTheActionModalsReuseTheRedTitleBar 固定数据回顾 / 参数设定这两个带动作的弹窗：
-// 标题条也用产品红底白字（跟提示弹窗一套），右上角的 X 改成白色。
-func TestTheActionModalsReuseTheRedTitleBar(t *testing.T) {
-	modals := readFrontendSource(t, "src/components/Modals.tsx")
-	styles := readFrontendSource(t, "src/styles.css")
-
-	// 回顾窗口还会带 review-modal（尺寸口径），所以只认前缀
-	if got := strings.Count(modals, `className="app-modal`); got != 2 {
-		t.Errorf("数据回顾与参数设定两个弹窗都要带 app-modal 类，实际 %d 处", got)
-	}
-	for _, wanted := range []string{
-		".app-modal .ant-modal-header {",
-		".app-modal .ant-modal-title {",
-		".app-modal .ant-modal-close {",
-	} {
-		if !strings.Contains(styles, wanted) {
-			t.Errorf("弹窗标题条样式缺少：%s", wanted)
+	for _, wanted := range []string{`<Tag color="success">Ready`, `<Tag color="error">Incomplete`, `<Tag color="warning">Duplicate`, `<Tag color="magenta">Conflict`} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("状态汇总应当用 antd Tag：找不到 %s", wanted)
 		}
 	}
-	header := cssBlock(t, styles, ".app-modal .ant-modal-header {")
-	if !strings.Contains(header, "background: #d71600;") {
-		t.Errorf("标题条要用产品红，实际块：\n%s", header)
-	}
-	title := cssBlock(t, styles, ".app-modal .ant-modal-title {")
-	if !strings.Contains(title, "color: #fff;") {
-		t.Errorf("标题文字要用白色，实际块：\n%s", title)
-	}
-	closeButton := cssBlock(t, styles, ".app-modal .ant-modal-close {")
-	if !strings.Contains(closeButton, "color: #fff;") {
-		t.Errorf("右上角的 X 要用白色，实际块：\n%s", closeButton)
+	if !strings.Contains(panels, `id="consolidation-summary"`) {
+		t.Error("汇总条的 id 要保留（验收脚本按它取数）")
 	}
 }
 
-// TestTheSettingsModalMatchesTheModuleCornersAndDropsTheCloseIcon 固定参数设定窗口：
-//   - 标题条上沿的圆角跟主窗口模块一样是 4px（antd 的 borderRadiusLG 是 16px，显得过大，
-//     而且弹窗本体的圆角也得跟着收，否则标题条拐角处会露出底下的一小块白）；
-//   - 右上角不要关闭按钮，只留底栏那个「关闭」。
-func TestTheSettingsModalMatchesTheModuleCornersAndDropsTheCloseIcon(t *testing.T) {
+// TestTheSettingsModalUsesAntdFooterAndKeepsTheCloseIcon 固定参数设定窗口：
+// 关闭按钮回到 antd 默认（右上角 X），底栏按状态给出「关闭」或「取消 / 保存」。
+func TestTheSettingsModalUsesAntdFooterAndKeepsTheCloseIcon(t *testing.T) {
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
-	styles := readFrontendSource(t, "src/styles.css")
 
 	start := strings.Index(modals, "export function SettingsModal")
 	end := strings.Index(modals, "export function AboutModal")
@@ -701,27 +810,13 @@ func TestTheSettingsModalMatchesTheModuleCornersAndDropsTheCloseIcon(t *testing.
 		t.Fatal("没找到 SettingsModal 与 AboutModal 的边界")
 	}
 	settings := modals[start:end]
-	if !strings.Contains(settings, "closable={false}") {
-		t.Error("参数设定窗口不该有右上角的关闭按钮")
+	if strings.Contains(settings, "closable={false}") {
+		t.Error("参数设定窗口应当保留 antd 默认的右上角关闭按钮")
 	}
-	if !strings.Contains(settings, "关闭") {
-		t.Error("参数设定窗口要保留底栏的关闭按钮")
-	}
-	if strings.Contains(styles, "border-radius: 16px 16px 0 0") {
-		t.Error("标题条圆角不该再用 16px（跟主窗口模块的 4px 不一致）")
-	}
-	header := cssBlock(t, styles, ".app-modal .ant-modal-header {")
-	if !strings.Contains(header, "border-radius: 4px 4px 0 0;") {
-		t.Errorf("标题条上沿应当是 4px 圆角，实际块：\n%s", header)
-	}
-	content := cssBlock(t, styles, ".app-modal .ant-modal-content {")
-	if !strings.Contains(content, "border-radius: 4px;") {
-		t.Errorf("弹窗本体的圆角要跟标题条一起收成 4px，实际块：\n%s", content)
-	}
-	// 提示弹窗（导入/导出完成）用的是同一条红底白字标题，圆角也统一
-	messageHeader := cssBlock(t, styles, ".app-message .ant-modal-header {")
-	if !strings.Contains(messageHeader, "border-radius: 4px 4px 0 0;") {
-		t.Errorf("提示弹窗的标题条圆角也要统一成 4px，实际块：\n%s", messageHeader)
+	for _, wanted := range []string{"关闭", "取消", "保存", "全部展开", "全部折叠", "编辑原文"} {
+		if !strings.Contains(settings, wanted) {
+			t.Errorf("参数设定窗口缺少底栏/工具按钮：%s", wanted)
+		}
 	}
 }
 
@@ -740,17 +835,17 @@ func cssBlock(t *testing.T, source, selector string) string {
 	return rest[:end]
 }
 
-// treeValueColors 从 theme.ts 的 VALUE_COLORS 里读出 {类型: #RRGGBB}。
-func treeValueColors(t *testing.T, theme string) map[string]string {
+// themeColors 从 theme.ts 里读出 `export const NAME = {...}` 中的 {名字: #RRGGBB}（全部小写）。
+func themeColors(t *testing.T, theme, declaration string) map[string]string {
 	t.Helper()
-	block := cssBlock(t, theme, "export const VALUE_COLORS")
+	block := cssBlock(t, theme, declaration)
 	pattern := regexp.MustCompile(`(\w+):\s*"(#[0-9A-Fa-f]{6})"`)
 	colors := map[string]string{}
 	for _, match := range pattern.FindAllStringSubmatch(block, -1) {
 		colors[match[1]] = strings.ToLower(match[2])
 	}
 	if len(colors) == 0 {
-		t.Fatal("没有从 VALUE_COLORS 里解析出任何颜色")
+		t.Fatalf("没有从 %s 里解析出任何颜色", declaration)
 	}
 	return colors
 }

@@ -69,7 +69,7 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ImportResult{Source: source, Failed: true, Title: "Error", Message: err.Error()}
+		return ImportResult{Source: source, Failed: true, Title: "错误", Message: err.Error()}
 	}
 	defer app.endOperation()
 	path := filePath
@@ -108,19 +108,22 @@ func (app *App) markImportFailed(source string, importErr error) ImportResult {
 	}
 	var missing *importer.MissingRowValuesError
 	if errors.As(importErr, &missing) {
-		app.appendLog("Import failed: " + missing.Summary() + "\n" + missing.Error())
+		app.appendLog(LogError, fmt.Sprintf("%s导入失败：%s\n%s",
+			chineseName, missing.Summary(), missing.Error()))
 		result.Title = "导入失败"
 		// 汇总本身以「{来源中文名}：」开头，第一行已经写了来源名，这里去掉避免重复
 		result.Message = fmt.Sprintf("%s导入失败\n失败原因：%s\n详情见日志窗口。",
 			chineseName, strings.TrimPrefix(missing.Summary(), chineseName+"："))
 	} else if containsCJK(importErr.Error()) {
 		// 校验类错误的文案本来就是中文（表头缺失、必填列为空…），原样展示
-		app.appendLog("Import failed:\n" + importErr.Error())
+		app.appendLog(LogError, chineseName+"导入失败：\n"+importErr.Error())
 		result.Title = "导入失败"
 		result.Message = fmt.Sprintf("%s导入失败\n失败原因：%s", chineseName, importErr.Error())
 	} else {
-		// 读文件失败这类底层错误是英文的：弹窗给中文兜底，技术原文只进日志
-		app.appendLog("Import failed:\n" + importErr.Error())
+		// 读文件失败这类底层错误是英文的：日志与弹窗都给中文结论，英文原文作为「技术详情」跟在后面
+		app.appendLog(LogError, fmt.Sprintf(
+			"%s导入失败：文件无法读取或格式不受支持（请确认是 .xlsx、未被 Excel 占用且未损坏）。\n技术详情：%s",
+			chineseName, importErr.Error()))
 		result.Title = "导入失败"
 		result.Message = fmt.Sprintf(
 			"%s导入失败\n失败原因：文件无法读取或格式不受支持（请确认是 .xlsx、未被 Excel 占用且未损坏）。\n详情见日志窗口。",
@@ -144,22 +147,22 @@ func (app *App) ClearImportedData() ClearResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ClearResult{Failed: true, Title: "Error", Message: err.Error()}
+		return ClearResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	defer app.endOperation()
 	names, err := store.SourceCleanupNames(app.loader)
 	if err != nil {
-		return ClearResult{Failed: true, Title: "Error", Message: err.Error()}
+		return ClearResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	tableNames, err := store.SourceCleanupTableNames(app.loader)
 	if err != nil {
-		return ClearResult{Failed: true, Title: "Error", Message: err.Error()}
+		return ClearResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	if _, failed := store.DropTables(app.repo, tableNames); len(failed) > 0 {
 		message := store.FormatTableFailure(failed)
-		app.appendLog("Failed to clean imported data: " + message)
+		app.appendLog(LogError, "清空导入数据失败："+message)
 		// 失败时界面状态不变：数据还在库里
-		return ClearResult{Log: app.logText(), Title: "Error", Message: message, Failed: true}
+		return ClearResult{Log: app.logText(), Title: "错误", Message: message, Failed: true}
 	}
 	labels := []string{}
 	for _, source := range names {
@@ -168,7 +171,7 @@ func (app *App) ClearImportedData() ClearResult {
 			Source: source, State: "empty", Label: "已清空", Tooltip: "尚未导入",
 		}
 	}
-	app.appendLog("Imported data cleared successfully: " + strings.Join(labels, ", "))
+	app.appendLog(LogSuccess, "导入数据已清空："+strings.Join(labels, "、"))
 	message := ""
 	switch len(labels) {
 	case 0:
@@ -178,7 +181,7 @@ func (app *App) ClearImportedData() ClearResult {
 	default:
 		message = strings.Join(labels[:len(labels)-1], ",") + "和" + labels[len(labels)-1] + "数据已清空"
 	}
-	return ClearResult{Log: app.logText(), Title: "Success", Message: message, Cleared: names}
+	return ClearResult{Log: app.logText(), Title: "成功", Message: message, Cleared: names}
 }
 
 // ConsolidateResult 是一次整合回给界面的结果（结果表按状态着色，MISSING 加粗）。
@@ -197,34 +200,35 @@ func (app *App) Consolidate() ConsolidateResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ConsolidateResult{Failed: true, Title: "Error", Message: err.Error()}
+		return ConsolidateResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	defer app.endOperation()
 	outcome, err := app.service.Consolidate()
 	if err != nil {
-		app.appendLog("Consolidation failed: " + err.Error())
+		app.appendLog(LogError, "数据整合失败："+err.Error())
 		return ConsolidateResult{Log: app.logText(), Title: "数据缺失", Message: err.Error(), Failed: true}
 	}
 	counts := map[string]int{}
 	for _, row := range outcome.Rows {
 		counts[row.Values["status"]]++
 	}
-	app.appendLog(fmt.Sprintf(
-		"Consolidation completed successfully. Rows consolidated: %d. Rows missing: %d. "+
-			"Rows duplicate: %d. Rows changed: %d. Conflicts: %d",
+	app.appendLog(LogSuccess, fmt.Sprintf(
+		"数据整合完成：整合 %d 行，缺失 %d 行，重复 %d 行，变更 %d 行，冲突 %d 行",
 		len(outcome.Rows), counts[consolidation.StatusIncomplete],
 		counts[consolidation.StatusDuplicate], len(outcome.ChangedData), len(outcome.ConflictData)))
 	for _, detail := range []struct {
-		name string
-		list []string
+		level LogLevel
+		name  string
+		list  []string
 	}{
-		{"Missing data", outcome.MissingData},
-		{"Duplicate data", outcome.DuplicateData},
-		{"Changed data", outcome.ChangedData},
-		{"Conflict data", outcome.ConflictData},
+		{LogWarning, "缺失数据", outcome.MissingData},
+		{LogWarning, "重复数据", outcome.DuplicateData},
+		{LogInfo, "变更数据", outcome.ChangedData},
+		{LogWarning, "冲突数据", outcome.ConflictData},
 	} {
 		if len(detail.list) > 0 {
-			app.appendLog(fmt.Sprintf("%s: [%s]", detail.name, strings.Join(detail.list, ", ")))
+			app.appendLog(detail.level, fmt.Sprintf("%s（%d 行）：%s",
+				detail.name, len(detail.list), strings.Join(detail.list, "、")))
 		}
 	}
 	columns := append([]string{"status"}, app.service.Config.FieldNames...)
@@ -280,7 +284,7 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ExportResult{Failed: true, Title: "Export Error", Message: err.Error()}
+		return ExportResult{Failed: true, Title: "导出失败", Message: err.Error()}
 	}
 	defer app.endOperation()
 	if target == "" {
@@ -294,24 +298,23 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	}
 	exported, err := app.service.ExportConsolidationResult(defaultName, now)
 	if err != nil {
-		app.appendLog("Export failed: " + err.Error())
-		return ExportResult{Log: app.logText(), Title: "Export Error", Message: err.Error(), Failed: true}
+		app.appendLog(LogError, "导出失败："+err.Error())
+		return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
 	}
 	// 用户路径与导出目录里的副本重合时跳过复制（R20，否则会抛 SameFileError）
 	if filepath.Clean(target) != filepath.Clean(exported.FilePath) {
 		if err := copyFile(exported.FilePath, target); err != nil {
-			app.appendLog("Export failed: " + err.Error())
-			return ExportResult{Log: app.logText(), Title: "Export Error", Message: err.Error(), Failed: true}
+			app.appendLog(LogError, "导出失败："+err.Error())
+			return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
 		}
 	}
 	if err := app.service.RecordConsolidationResult(now); err != nil {
-		app.appendLog(err.Error())
+		app.appendLog(LogError, "记录整合结果失败："+err.Error())
 	}
-	app.appendLog("Consolidation result exported successfully to " + target)
-	app.appendLog("Exported file path: " + target)
+	app.appendLog(LogSuccess, "整合结果已导出到 "+target)
 	return ExportResult{
-		Log: app.logText(), Title: "Success",
-		Message: "Consolidation result exported successfully.", Path: target,
+		Log: app.logText(), Title: "成功",
+		Message: "整合结果已导出。", Path: target,
 	}
 }
 
@@ -322,7 +325,7 @@ func (app *App) ReviewLog(start string, end string, page int, pageSize int) Revi
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ReviewResult{Failed: true, Title: "Error", Message: err.Error()}
+		return ReviewResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	defer app.endOperation()
 	if pageSize <= 0 {
@@ -333,7 +336,7 @@ func (app *App) ReviewLog(start string, end string, page int, pageSize int) Revi
 	}
 	rows, err := app.log.ReadByTime(start, end)
 	if err != nil {
-		return ReviewResult{Log: app.logText(), Failed: true, Title: "Error", Message: err.Error()}
+		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: err.Error()}
 	}
 	columns := app.log.TableColumns()
 	pageCount := (len(rows) + pageSize - 1) / pageSize
@@ -357,12 +360,11 @@ func (app *App) ReviewLog(start string, end string, page int, pageSize int) Revi
 		table = append(table, values)
 	}
 	if page == 1 {
-		app.appendLog(fmt.Sprintf(
-			"Operation log review completed successfully for time range %s to %s. Rows reviewed: %d",
-			start, end, len(rows)))
+		app.appendLog(LogInfo, fmt.Sprintf(
+			"记录回顾完成：时间范围 %s 至 %s，共 %d 行", start, end, len(rows)))
 	}
 	return ReviewResult{
-		Log: app.logText(), Title: "Operation Log Review - " + start + " to " + end,
+		Log: app.logText(), Title: "记录回顾 · " + start + " 至 " + end,
 		Columns: columns, Rows: table,
 		Total: len(rows), Page: page, PageSize: pageSize, PageCount: pageCount,
 	}
@@ -415,7 +417,7 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ReviewResult{Failed: true, Title: "Error", Message: err.Error()}
+		return ReviewResult{Failed: true, Title: "错误", Message: err.Error()}
 	}
 	defer app.endOperation()
 	if pageSize <= 0 {
@@ -426,7 +428,7 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 	}
 	columns, rows, err := app.reviewData(source)
 	if err != nil {
-		return ReviewResult{Log: app.logText(), Failed: true, Title: "Error", Message: err.Error()}
+		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: err.Error()}
 	}
 	pageCount := (len(rows) + pageSize - 1) / pageSize
 	if pageCount == 0 {
@@ -441,12 +443,11 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 		finish = len(rows)
 	}
 	if page == 1 {
-		app.appendLog(fmt.Sprintf(
-			"Data review completed successfully for %s. Rows reviewed: %d",
-			app.importer.Rules[source].ChineseName, len(rows)))
+		app.appendLog(LogInfo, fmt.Sprintf(
+			"%s数据回顾完成：共 %d 行", app.importer.Rules[source].ChineseName, len(rows)))
 	}
 	return ReviewResult{
-		Log: app.logText(), Title: "Data Review - " + source,
+		Log: app.logText(), Title: app.importer.Rules[source].ChineseName + "数据回顾",
 		Columns: columns, Rows: rows[begin:finish],
 		Total: len(rows), Page: page, PageSize: pageSize, PageCount: pageCount,
 	}
@@ -508,10 +509,10 @@ func (app *App) SelectReviewExportTarget(fileType string) ExportTarget {
 	}
 	defaultName := fileType + "_imported_data.xlsx"
 	target, err := runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
-		Title:           "Save Imported Data",
+		Title:           "保存导入数据",
 		DefaultFilename: defaultName,
 		Filters: []runtime.FileFilter{
-			{DisplayName: "Excel Files (*.xlsx)", Pattern: "*.xlsx"},
+			{DisplayName: "Excel 文件 (*.xlsx)", Pattern: "*.xlsx"},
 		},
 	})
 	if err != nil {
@@ -522,12 +523,12 @@ func (app *App) SelectReviewExportTarget(fileType string) ExportTarget {
 
 // ExportReviewData 把回顾窗口里的全部数据写成 Excel（保存位置由上一步选定）。
 //
-// 成功提示 `Imported data exported successfully to {路径}`、失败弹 `Export Error`（与现状一致）。
+// 成功会写一行运行日志（回顾数据已导出到 {路径}）并弹提示，失败弹「导出失败」。
 func (app *App) ExportReviewData(fileType string, target string) ExportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ExportResult{Failed: true, Title: "Export Error", Message: err.Error()}
+		return ExportResult{Failed: true, Title: "导出失败", Message: err.Error()}
 	}
 	defer app.endOperation()
 	if target == "" {
@@ -535,14 +536,15 @@ func (app *App) ExportReviewData(fileType string, target string) ExportResult {
 	}
 	columns, rows, err := app.reviewData(fileType)
 	if err != nil {
-		return ExportResult{Log: app.logText(), Title: "Export Error", Message: err.Error(), Failed: true}
+		return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
 	}
 	if err := writeReviewWorkbook(target, columns, rows); err != nil {
-		return ExportResult{Log: app.logText(), Title: "Export Error", Message: err.Error(), Failed: true}
+		return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
 	}
+	app.appendLog(LogSuccess, fmt.Sprintf("回顾数据已导出到 %s（%d 行）", target, len(rows)))
 	return ExportResult{
-		Log: app.logText(), Title: "Success", Path: target,
-		Message: "Imported data exported successfully to " + target,
+		Log: app.logText(), Title: "成功", Path: target,
+		Message: fmt.Sprintf("已导出 %d 行到：\n%s", len(rows), target),
 	}
 }
 

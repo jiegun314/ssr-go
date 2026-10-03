@@ -45,7 +45,7 @@ func (app *App) BackupDatabase() BackupResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return BackupResult{Title: "Error", Message: err.Error(), Failed: true}
+		return BackupResult{Title: "错误", Message: err.Error(), Failed: true}
 	}
 	defer app.endOperation()
 	if app.repo == nil {
@@ -56,18 +56,18 @@ func (app *App) BackupDatabase() BackupResult {
 		return app.backupFailed(err.Error())
 	}
 	message := fmt.Sprintf("数据库已备份到：\n%s", target)
-	app.appendLog("Database backed up to " + target)
+	app.appendLog(LogSuccess, "数据库已备份到 "+target)
 	app.refreshLogPanel()
-	app.notify("Success", message)
-	return BackupResult{Title: "Success", Message: message, Path: target}
+	app.notify("成功", message)
+	return BackupResult{Title: "成功", Message: message, Path: target}
 }
 
 func (app *App) backupFailed(reason string) BackupResult {
-	message := "Failed to back up database: " + reason
-	app.appendLog(message)
+	message := "数据库备份失败：" + reason
+	app.appendLog(LogError, message)
 	app.refreshLogPanel()
-	app.notify("Error", message)
-	return BackupResult{Title: "Error", Message: message, Failed: true}
+	app.notify("错误", message)
+	return BackupResult{Title: "错误", Message: message, Failed: true}
 }
 
 // backupDatabase 是备份的可测核心：把 repository 指向的库导出到 target。
@@ -113,7 +113,7 @@ func fileManagerCommand(path string) *exec.Cmd {
 // openDirectory 在文件管理器里打开目录；目录不存在时按需创建（导出/数据目录属于运行期产物）。
 func (app *App) openDirectory(title string, path string, create bool) {
 	if app.loader == nil || path == "" || path == "." {
-		app.notify("Error", "配置尚未加载，无法打开"+title+"。")
+		app.notify("错误", "配置尚未加载，无法打开"+title+"。")
 		return
 	}
 	if create {
@@ -131,15 +131,15 @@ func (app *App) openDirectory(title string, path string, create bool) {
 		app.failToOpenDirectory(title, path, err)
 		return
 	}
-	app.appendLog(fmt.Sprintf("%s opened: %s", title, path))
+	app.appendLog(LogInfo, fmt.Sprintf("已打开%s：%s", title, path))
 	app.refreshLogPanel()
 }
 
 func (app *App) failToOpenDirectory(title string, path string, err error) {
-	message := fmt.Sprintf("Failed to open %s (%s): %v", title, path, err)
-	app.appendLog(message)
+	message := fmt.Sprintf("打开%s失败（%s）：%v", title, path, err)
+	app.appendLog(LogError, message)
 	app.refreshLogPanel()
-	app.notify("Error", message)
+	app.notify("错误", message)
 }
 
 // configDirectory 是四份 YAML 所在目录。
