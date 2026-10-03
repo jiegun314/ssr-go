@@ -446,14 +446,22 @@ func zipRelease(releaseRoot string, archiveName string, skip map[string]bool) (s
 		}
 		name := filepath.ToSlash(relative)
 		if entry.IsDir() {
-			_, err := writer.Create(name + "/")
+			header := &zip.FileHeader{Name: name + "/", Method: zip.Deflate}
+			header.SetMode(0o755)
+			_, err := writer.CreateHeader(header)
 			return err
 		}
 		if skip[name] {
 			return nil
 		}
+		// 权限位必须跟着文件走：macOS 的 .app 里那个可执行文件要是被打成 0644，
+		// 别人解压出来双击就是「没有执行权限」，整个包等于废的。
+		mode := os.FileMode(0o644)
+		if info, err := entry.Info(); err == nil && info.Mode().Perm() != 0 {
+			mode = info.Mode().Perm()
+		}
 		header := &zip.FileHeader{Name: name, Method: zip.Deflate}
-		header.SetMode(0o644)
+		header.SetMode(mode)
 		target, err := writer.CreateHeader(header)
 		if err != nil {
 			return err

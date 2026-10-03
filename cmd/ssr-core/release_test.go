@@ -107,3 +107,42 @@ func writeReleaseFile(t *testing.T, path string, content string) {
 		t.Fatalf("写文件失败：%v", err)
 	}
 }
+
+// TestReleaseArchiveKeepsTheExecutableBit 固定「压缩包保留权限位」：
+// macOS 的 .app 里那个可执行文件必须是 0755，否则解压出来双击就报
+// 「Permission denied」——发布包本身是好的，坏在压缩包里。
+func TestReleaseArchiveKeepsTheExecutableBit(t *testing.T) {
+	releaseRoot := filepath.Join(t.TempDir(), "SingleSourceReady")
+	executable := filepath.Join(releaseRoot, "SingleSourceReady.app", "Contents", "MacOS", "ssr")
+	writeReleaseFile(t, executable, "#!/bin/sh\n")
+	if err := os.Chmod(executable, 0o755); err != nil {
+		t.Fatalf("设置可执行位失败：%v", err)
+	}
+	writeReleaseFile(t, filepath.Join(releaseRoot, "VERSION"), "version 0.0.0\n")
+
+	archive, err := zipRelease(releaseRoot, "out.zip", map[string]bool{})
+	if err != nil {
+		t.Fatalf("打包失败：%v", err)
+	}
+	reader, err := zip.OpenReader(archive)
+	if err != nil {
+		t.Fatalf("读压缩包失败：%v", err)
+	}
+	defer reader.Close()
+
+	checked := false
+	for _, file := range reader.File {
+		if strings.HasSuffix(file.Name, "MacOS/ssr") {
+			checked = true
+			if file.Mode().Perm() != 0o755 {
+				t.Errorf("可执行文件的权限位 = %v; want 0755", file.Mode().Perm())
+			}
+		}
+		if file.Name == "VERSION" && file.Mode().Perm()&0o111 != 0 {
+			t.Errorf("普通文件的权限位不该带可执行位：%v", file.Mode().Perm())
+		}
+	}
+	if !checked {
+		t.Fatal("压缩包里没找到可执行文件")
+	}
+}
