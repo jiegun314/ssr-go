@@ -36,62 +36,122 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 16px;
+  padding: 12px;
 }
 
+/* 模块之间只留 8px：区隔交给标题条的红底与淡色描边，而不是靠大间距。
+   允许收缩：表格行数很多时它俩的"固有高度"会很大，必须能收回到窗口内；
+   左列内部另有分工 —— 数据导入按内容高度、日志按剩余空间（见 .left > .log-card）。 */
 .columns {
   display: flex;
-  gap: 16px;
+  gap: 0; /* 左右两列之间的间距由分隔按钮自己撑起（见 .left-toggle） */
   flex: 1 1 auto;
   min-height: 0;
 }
 
-/* 左列＝数据导入 + 记录导出（内容固定，尽量窄）；右列＝数据整合（随窗口扩大）。 */
+/* 左列＝数据导入（上）+ 操作日志（下，吃掉剩余高度）；右列＝记录导出横带 + 数据整合表。
+   340 是日志需要的宽度：日志按剩余高度撑满，窗口越高它越长，左列不再有空白。 */
 .left {
   flex: 0 0 auto;
   width: 340px;
   min-width: 320px;
-  max-width: 45%;
+  max-width: 40%;
   display: flex;
   flex-direction: column;
+  gap: 8px; /* 数据导入与操作日志之间的固定间隔 */
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: auto; /* 兜底：正常尺寸下内容恰好放得下，不会出现纵向滚动条 */
   overflow-x: hidden;
-}
-
-/* 左列两个模块之间的最小间隔：日志拖动条的上限按它算（layout_test.go 固定了 12px）。 */
-.left > .spacer {
-  flex: 1 1 auto;
-  min-height: 12px;
 }
 
 .right {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  gap: 8px;
   min-width: 0;
   min-height: 0;
 }
 
-/* 四个模块都是 antd 的 Card（size="small"）：边框、圆角、标题排版由 antd 给，
-   这里只把卡片接进上面的弹性布局，让 body 能被撑满并自己滚动。 */
+/* 记录导出：右列最下面的一条 —— 红底白字的标题块（只比四个字宽一点）
+   与白底描边的内容条并排在同一行，最省纵向空间。 */
+.record-card {
+  flex: 0 0 auto;
+  border: none; /* 外框交给内容条自己的描边 */
+  background: transparent;
+}
+
+.record-card > .ant-card-body {
+  padding: 0;
+}
+
+.record-row {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.record-title {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px; /* 约等于「记录导出」四个字宽度的 1.5 倍 */
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: #da291c; /* theme.ts 的 BRAND_RED */
+}
+
+.record-content {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 8px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+}
+
+/* 四个模块都是 antd 的 Card（size="small"）：圆角、标题排版、内边距都用 antd 的，
+   这里只把卡片接进弹性布局，并按用户要求换掉标题条的配色、加一条淡色描边做区隔。 */
 .card {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  border: 1px solid #e5e5e5; /* 比 antd 默认的 #f0f0f0 略深一点，模块轮廓更清楚 */
+  border-radius: 0; /* 功能模块一律直角 */
 }
 
 .card > .ant-card-head {
   flex: 0 0 auto;
+  border-radius: 0; /* 标题条跟着模块走直角 */
+}
+
+/* 除操作日志外的三个模块：品牌红底 + 白字的标题条（头部高度/字号/内边距仍是 antd 的）。 */
+.card:not(.log-card) > .ant-card-head {
+  background: #da291c; /* theme.ts 的 BRAND_RED */
+  border-bottom-color: #da291c;
+}
+
+.card:not(.log-card) > .ant-card-head .ant-card-head-title {
+  color: #fff;
 }
 
 .card > .ant-card-body {
   min-height: 0;
 }
 
-/* 左列两张卡片保持自然高度，空出来的地方留给 .spacer（拖动日志上限按它算）。 */
+/* 左列的两张卡：数据导入保持内容高度，操作日志是唯一的弹性项（吃掉剩余高度）。 */
 .left > .card {
   flex: 0 0 auto;
+}
+
+.left > .log-card {
+  /* flex-basis 必须是 0：日志内容有多长都不该参与"固有高度"计算，
+     否则左列（乃至整行）会被日志正文撑得比窗口还高 */
+  flex: 1 1 0;
 }
 
 .grow {
@@ -104,15 +164,36 @@ body {
   flex-direction: column;
 }
 
+/* ---------- 竖向分隔上的收起 / 展开按钮 ---------- */
+
+/* 它就住在左右两列之间（是 .columns 的一个 flex 子项），所以位置永远贴着分隔线；
+   收起左侧后两列变成一列，结果表吃满整个窗口宽度。
+   整条分隔只占 16px：12px 的按钮 + 左右各 2px，按钮本身也尽量窄。 */
+.left-toggle.ant-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 12px;
+  min-width: 12px;
+  height: 32px; /* 与 antd 控件同高，但不占用模块的横向空间 */
+  margin-inline: 2px;
+  padding: 0;
+  border-radius: 0; /* 与模块一样直角 */
+  color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
+}
+
+.columns.left-collapsed > .left {
+  display: none;
+}
+
 /* ---------- 数据导入 ---------- */
 
-/* 一个来源＝一个内嵌小容器：白底 + 次级描边 + 大圆角（antd 的嵌套容器语言）。 */
+/* 一个来源＝一个内嵌小容器：白底 + 次级描边 + 大圆角（antd 的嵌套容器语言）。
+   竖向留白刻意收紧：四组叠起来要能在最小窗口（760 高）里完整显示，不留纵向滚动条。 */
 .group {
-  margin-bottom: 8px;
-  padding: 12px;
+  margin-bottom: 6px;
+  padding: 8px;
   background: #fff;
   border: 1px solid #f0f0f0; /* colorBorderSecondary */
-  border-radius: 8px; /* borderRadiusLG */
 }
 
 .group-gap {
@@ -134,14 +215,25 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 6px;
   min-width: 0;
 }
 
-/* 状态文字夹在两个图标按钮之间，占满中间剩余宽度；过长时省略号。 */
+/* 状态框夹在两个图标按钮之间：淡灰底、文字居中、单行不换行（过长才省略号），
+   高度与两边的图标按钮一致（32px），整行看起来是齐平的。 */
 .actions .status {
   flex: 1 1 auto;
   min-width: 0;
+  display: block;
+  height: 32px;
+  padding: 0 8px;
+  line-height: 32px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.04); /* colorFillTertiary：淡灰底 */
 }
 
 .clean-row {
@@ -151,31 +243,24 @@ body {
 
 /* ---------- 记录导出 ---------- */
 
-/* 整行必须能被压缩：Windows（WebView2）下日期控件固有宽度更大，
-   撑宽后会冒出横向滚动条。 */
+/* 记录导出在右列横着排：两个日期并排、中间一个箭头、回顾按钮跟在后面，
+   整组在白底条里居中。日期框按固定宽度、可压缩，不会换行或冒出横向滚动条。 */
 .range {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-}
-
-/* 日期占满整行、回顾按钮留在最右（按钮 32px 固定，前面这段可被压缩）。 */
-.range .dates {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  /* 必须撑满内容条：否则这个盒子只有内容那么宽，justify-content: center 没有余量可分 */
   flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-width: 0;
 }
 
 .range .ant-picker {
-  flex: 1 1 auto;
-  min-width: 100px;
+  flex: 0 1 150px;
+  min-width: 110px;
   max-width: 100%;
 }
 
-/* 两个日期之间不用原来那条 16px 黑线，改用次级色的箭头（antd RangePicker 的语言）。 */
 .range .date-sep {
   flex: 0 0 auto;
   color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
@@ -187,39 +272,88 @@ body {
 
 /* ---------- 数据整合 ---------- */
 
-/* 工具条：窗口窄的时候整条状态标签一起换到第二行，而不是把标签挤成一列。 */
+/* 工具条：一行放完 —— 左边「数据整合」、中间状态筛选片、右边「生成文件」，
+   窗口压到最小也不换行（状态片按需收窄，见 .status-chips）。 */
 .table-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-bottom: 12px;
 }
 
-/* 状态标签条：不带自绘底色，交给 antd 的 Tag / Space。 */
+/* 状态筛选片占满中间那一段，内容居中。 */
 .status-strip {
   flex: 1 1 auto;
-  align-items: center;
+  display: flex;
   justify-content: center;
   min-width: 0;
 }
 
-/* 主窗口最小 969 宽时，工具条一行装不下「按钮 + 四个状态标签 + 按钮」（差 30px 左右）。
-   与其把标签挤成一列，不如整条换到第二行（两个按钮留在第一行两端）。 */
-@media (max-width: 1040px) {
-  .status-strip {
-    order: 3;
-    flex-basis: 100%;
-  }
+/* 三个（有冲突时四个）筛选片等宽：宽度取最宽那个（grid 的 1fr 轨道在内在宽度下会取齐），
+   高度与左右两个按钮一致；窗口不够宽时整体收窄而不是换行。 */
+.status-chips {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
-/* 结果表的滚动容器：不再自绘边框 / 圆角 / 投影，用 antd Table 自己的观感。 */
+.status-chip.ant-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px; /* = antd 默认按钮高度 */
+  margin-inline-end: 0;
+  padding-inline: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  user-select: none;
+}
+
+.status-chip.ant-tag:hover {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06);
+}
+
+/* 键盘聚焦：品牌红焦点环（与日志拖动条一致） */
+.status-chip.ant-tag:focus-visible {
+  outline: 2px solid #da291c;
+  outline-offset: 2px;
+}
+
+/* 当前生效的筛选：用状态色本身的 2px 内环标出来（再点一次取消筛选） */
+.status-chip.ant-tag[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px currentColor;
+  font-weight: 600;
+}
+
+/* 有筛选生效时，其余状态片淡出，当前筛选一眼可见 */
+.status-strip[data-filtered="true"] .status-chip:not([aria-pressed="true"]) {
+  opacity: 0.5;
+}
+
+/* 结果表的滚动容器：只加一条淡色描边把表格和卡片内容区分开，
+   行/表头样式仍然全部交给 antd Table（不自绘投影，也不压内边距）。 */
 .tblwrap {
   flex: 1 1 auto;
   min-height: 180px;
   overflow: auto;
+  border: 1px solid #f0f0f0; /* colorBorderSecondary */
+}
+
+/* 表格自己的表头圆角也一并抹平，跟容器的直角对齐 */
+.tblwrap .ant-table-container,
+.tblwrap .ant-table-container table > thead > tr:first-child > th:first-child,
+.tblwrap .ant-table-container table > thead > tr:first-child > th:last-child {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
 }
 
 /* 没有数据时不画容器，整个模块区域居中显示"暂无数据"。 */
@@ -272,18 +406,29 @@ body {
 /* ---------- 操作日志 ---------- */
 
 /**
- * 日志卡片：上沿可拖动调高。
- * 上限＝左侧「数据导入 / 记录导出」只剩最小间隔（12px）；下限＝启动时的默认高度。
- * max-height 是「没拖动时」的封顶：日志再多也不会把上面的模块挤扁；
- * 拖动时 LogPanel 会把 height/maxHeight 一起写进内联样式。
+ * 日志卡片：住在左列下半部分，**位置固定不可调** —— 数据导入按内容高度不动，
+ * 窗口高度的变化全部由这张卡吸收（flex-basis 0），所以它不需要拖动条。
  */
 .log-card {
-  position: relative;
-  overflow: visible; /* 抓取条有 5px 在卡片外，不能被卡片裁掉 */
-  flex: 0 1 auto;
-  min-height: 96px;
-  max-height: 220px;
-  margin-top: 16px;
+  min-height: 72px;
+}
+
+/* 操作日志的标题条：灰底 + 品牌红字，级别栏目（Segmented）与「新日志置顶」就放在这一行里，
+   不再单独占一行 —— 省下来的高度全部给日志正文。 */
+.log-card > .ant-card-head {
+  background: #e8e8e8; /* 比模块描边(#e5e5e5)浅一点、比 colorFillAlter 明显深一档的灰 */
+  border-bottom-color: #d9d9d9;
+}
+
+/* 标题里的总条数：次级色、常规字重，不与红色的标题抢视线 */
+.log-count {
+  margin-left: 8px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
+}
+
+.log-card > .ant-card-head .ant-card-head-title {
+  color: #da291c; /* theme.ts 的 BRAND_RED */
 }
 
 .log-card > .ant-card-body {
@@ -291,12 +436,26 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  padding: 8px; /* 比 antd 默认的 12px 再省一点，给日志行 */
 }
 
-/* 栏目行：级别过滤（antd Segmented，选中项用品牌红）+ 新日志置顶开关。 */
+/* 筛选与排序：标题条下面一行，左边栏目、右边「新日志置顶」。
+   340 宽的一行要装下 5 个栏目 + 文字 + 开关，所以栏目内边距收一点、文字不换行。 */
 .log-toolbar {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
+}
+
+.log-toolbar .ant-segmented-item-label {
+  padding-inline: 6px;
+}
+
+.log-toolbar .ant-typography {
+  white-space: nowrap;
 }
 
 /* 日志列表：行之间的浅色分割线由 antd Table 自带；这里只负责滚动。 */
@@ -306,69 +465,51 @@ body {
   overflow: auto;
 }
 
+/* 字体：不覆盖 font-family —— 日志和界面其它地方一样走 antd 主题里的那套字体栈；
+   字号比正文小一号（antd 默认 14px → 12px），同样内容能多显示几行。 */
+.log-table .ant-table-cell {
+  font-size: 12px;
+}
+
+/* 窄栏（340px）里的三样：时间段 / 级别色字 / 两行截断的正文 */
+
+/* 级别：不再用带边框的 Tag（太占宽度），改成两个字 + 级别色 */
+.log-level {
+  flex: 0 0 auto;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.log-level-info {
+  color: #1677ff;
+}
+
+.log-level-success {
+  color: #389e0d;
+}
+
+.log-level-warning {
+  color: #d48806;
+}
+
+.log-level-error {
+  color: #cf1322;
+}
+
 .log-table .log-time {
   color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
   white-space: nowrap;
   font-variant-numeric: tabular-nums; /* 数字等宽，时间列才对得齐 */
 }
 
-/* 长路径 / 长报错要能换行，不能把两列的表格撑破。 */
-.log-table .log-message {
-  overflow-wrap: anywhere;
-}
-
-/* 正文保留多行明细的换行；级别标签不参与压缩。 */
+/* 正文：最多两行，超出省略；完整内容在 title 里（悬浮可见），长路径也能换行 */
 .log-text {
   min-width: 0;
-  white-space: pre-wrap;
-}
-
-.log-table .log-message .ant-tag {
-  flex: 0 0 auto;
-  margin-inline-end: 0;
-}
-
-/* 上沿的拖动条：上下拖动调整日志高度。 */
-.log-resizer {
-  position: absolute;
-  top: -5px;
-  left: 0;
-  right: 0;
-  /* 抓取条仍然贴着卡片上沿（align-items:flex-start 让它停在热区顶部），
-     热区高度则给到 16px：5px 在卡片外 + 11px 在卡片内，鼠标更好抓。 */
-  height: 16px;
-  cursor: row-resize;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  touch-action: none;
-  z-index: 2;
-}
-
-.log-resizer::before {
-  content: "";
-  width: 44px;
-  height: 3px;
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.15); /* colorFill */
-  transition: background 0.12s ease;
-}
-
-.log-resizer:hover::before,
-.log-resizer:focus-visible::before {
-  background: #da291c;
-}
-
-/* 键盘聚焦时给一个品牌红焦点环（默认是浏览器那圈蓝） */
-.log-resizer:focus-visible {
-  outline: 2px solid #da291c;
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-body.log-resizing {
-  cursor: row-resize;
-  user-select: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- 载入图层 ---------- */

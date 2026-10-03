@@ -40,14 +40,6 @@ export const LOG_LEVEL_LABELS: Record<LogLevel, string> = {
   error: "错误",
 };
 
-/** 级别对应的 antd Tag 颜色：信息蓝 / 成功绿 / 警告金 / 错误红。 */
-export const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
-  info: "blue",
-  success: "green",
-  warning: "gold",
-  error: "red",
-};
-
 /**
  * 兜底分类：行里没有级别标签时（旧格式日志、或别的程序写进来的行）按关键词猜一个。
  * 正常路径不会走到这里 —— Go 侧每条运行日志都带级别。
@@ -58,6 +50,14 @@ export function classifyLogLine(line: string): LogLevel {
   if (/警告|注意|缺失|重复|冲突|warning|warn/.test(text)) return "warning";
   if (/成功|完成|已清理|已保存|已导出|已备份|success|completed/.test(text)) return "success";
   return "info";
+}
+
+/**
+ * 只取时段：日志是一次会话内的，日期全天不变 —— 窄栏里省下 8 个字符的宽度
+ * （完整时间戳仍然保留在 time 字段里，界面用 title 显示）。
+ */
+export function shortTime(time: string): string {
+  return time.length >= 19 ? time.slice(11) : time;
 }
 
 /** 把运行日志文本解析成一条条日志（时间 / 级别 / 正文）。 */

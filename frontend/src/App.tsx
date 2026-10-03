@@ -1,7 +1,8 @@
 // 主界面：左列（数据导入 / 记录导出）+ 右列（数据整合）+ 底部（操作日志）+ 四个弹窗。
 // 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
-import { Card } from "antd";
+import { Button, Card, Tooltip } from "antd";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -78,6 +79,8 @@ export default function App() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [about, setAbout] = useState<AboutInfo | null>(null);
   const [hiddenOpen, setHiddenOpen] = useState(false);
+  // 左侧两个模块（数据导入 + 操作日志）可以整体收起，把整个窗口宽度让给右边的结果表
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
 
   const iconClicks = useRef<number[]>([]);
   const voiceRef = useRef<HTMLAudioElement>(null);
@@ -311,7 +314,7 @@ export default function App() {
   return (
     <>
       <div className="app-shell">
-        <div className="columns">
+        <div className={`columns${leftCollapsed ? " left-collapsed" : ""}`}>
           <div className="left">
             <Card className="card" size="small" title="数据导入">
               <ImportPanel
@@ -321,17 +324,19 @@ export default function App() {
                 onClear={handleClear}
               />
             </Card>
-            <div className="spacer" />
-            <Card className="card" size="small" title="记录导出">
-              <RecordExportPanel
-                start={startDate}
-                end={endDate}
-                onStartChange={setStartDate}
-                onEndChange={setEndDate}
-                onReview={openLogReview}
-              />
-            </Card>
+            {/* 操作日志住在左列下半部分：按左列剩余高度撑满，窗口越高日志越长，不留空白 */}
+            <LogPanel text={log} />
           </div>
+          {/* 竖向分隔上的收起/展开按钮：收起后右侧结果表吃满整个窗口宽度 */}
+          <Tooltip title={leftCollapsed ? "展开左侧面板" : "收起左侧面板"}>
+            <Button
+              className="left-toggle"
+              aria-label={leftCollapsed ? "展开左侧面板" : "收起左侧面板"}
+              aria-expanded={!leftCollapsed}
+              icon={leftCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+              onClick={() => setLeftCollapsed((current) => !current)}
+            />
+          </Tooltip>
           <div className="right">
             <Card className="card grow" size="small" title="数据整合">
               <ConsolidationPanel
@@ -343,9 +348,23 @@ export default function App() {
                 onExport={handleExport}
               />
             </Card>
+            {/* 记录导出：右列最下面一条。红底白字的标题块只占四个字多一点，内容在白底描边的条里 */}
+            <Card className="card record-card" size="small">
+              <div className="record-row">
+                <span className="record-title">记录导出</span>
+                <div className="record-content">
+                  <RecordExportPanel
+                    start={startDate}
+                    end={endDate}
+                    onStartChange={setStartDate}
+                    onEndChange={setEndDate}
+                    onReview={openLogReview}
+                  />
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
-        <LogPanel text={log} />
       </div>
 
       {/* 附加窗口的声音：loop 表示窗口开着就一直响；播放/停止见上面的点击与关闭逻辑 */}

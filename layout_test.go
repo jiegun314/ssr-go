@@ -142,34 +142,33 @@ func TestTheHiddenWindowSoundShipsInsideTheApp(t *testing.T) {
 	}
 }
 
-// TestTheOperationLogCardHasADragHandle 固定操作日志上沿可拖动：
-// 分隔条用 row-resize、键盘可用，拖动逻辑按「上限＝左侧间隔最小、下限＝默认高度」夹紧。
-func TestTheOperationLogCardHasADragHandle(t *testing.T) {
+// TestTheLogPanelHasNoDragHandle 固定「左列两个模块位置固定、高度不可手动调」：
+// 数据导入按内容高度不动，窗口高度的变化全部由操作日志这张卡吸收（flex-basis 0），
+// 所以两卡之间没有拖动条，也不该再留下拖动逻辑或 row-resize 光标。
+func TestTheLogPanelHasNoDragHandle(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	for _, wanted := range []string{
-		`className="log-resizer"`,
-		`role="separator"`,
-		`aria-orientation="horizontal"`,
-		"onPointerDown={startDrag}",
-		"onKeyDown={onKeyDown}",
-		"leftMinimumHeight()",
-		"document.body.classList.add(\"log-resizing\")",
+	for _, leftover := range []string{
+		"log-resizer",
+		"log-resizing",
+		"role=\"separator\"",
+		"aria-orientation",
+		"otherContentHeight",
 	} {
-		if !strings.Contains(panels, wanted) {
-			t.Errorf("Panels.tsx 里缺少拖动逻辑：%s", wanted)
+		if strings.Contains(panels, leftover) || strings.Contains(styles, leftover) {
+			t.Errorf("拖动条已经去掉，不该再有：%s", leftover)
 		}
 	}
-	if !strings.Contains(styles, ".log-resizer {") || !strings.Contains(styles, "cursor: row-resize") {
-		t.Error("样式里缺少 log-resizer 的 row-resize 光标")
+	if strings.Contains(styles, "row-resize") {
+		t.Error("不该再有调整高度的光标")
 	}
 }
 
-// TestTheLogWindowIsFilterableAndTwoColumn 固定操作日志窗口的形式（参考界面那套）：
-// 顶部按日志类型分栏目（全部 / 信息 / 成功 / 警告 / 错误）+「新日志置顶」，
-// 内容是一张两列表格：左列时间（行首、不换行），右列级别标签 + 正文（长内容换行、多行明细保留），
-// 行之间用 antd Table 自带的浅色分割线。
+// TestTheLogWindowIsFilterableAndTwoColumn 固定操作日志窗口的形式：
+// 级别栏目（全部 / 信息 / 成功 / 警告 / 错误）与「新日志置顶」放在标题条里；
+// 内容是一张两列表格：左列只显示时间段（窄栏省宽度），右列是级别色字 + 正文；
+// 正文最多两行、超出省略，完整内容在 title 里悬浮可见。
 func TestTheLogWindowIsFilterableAndTwoColumn(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -177,18 +176,20 @@ func TestTheLogWindowIsFilterableAndTwoColumn(t *testing.T) {
 
 	for _, wanted := range []string{
 		"parseLog(",  // 按行契约把日志文本拆成条目
+		"shortTime(", // 时间段只留 HH:MM:SS
 		"<Segmented", // 级别栏目
 		`{ label: "全部", value: "all" }`,
 		"LOG_LEVELS.map", // 信息 / 成功 / 警告 / 错误
 		"新日志置顶",          // 排序开关
 		"<Switch",
-		"{entries.length} 条", // 卡片头上的总条数
-		"showHeader={false}", // 两列表格，不再单画一行表头
+		`className="log-toolbar"`, // 筛选与排序在标题条下面一行
+		"{entries.length} 条",      // 条数回到标题里（标题条不再挤栏目）
+		"showHeader={false}",      // 两列表格，不再单画一行表头
 		`title: "时间",`,
 		`title: "信息",`,
-		"width: 156",       // 时间列固定宽度，长正文不会把它挤走
-		"LOG_LEVEL_COLORS", // 级别标签着色
-		"log-text",         // 正文容器（换行靠它）
+		"width: 72",                // 时间列只要装下 HH:MM:SS
+		"log-level-${entry.level}", // 级别用两个字 + 级别色
+		"log-text",                 // 正文容器（两行截断）
 		"暂无日志",
 	} {
 		if !strings.Contains(panels, wanted) {
@@ -197,68 +198,194 @@ func TestTheLogWindowIsFilterableAndTwoColumn(t *testing.T) {
 	}
 
 	for _, wanted := range []string{
-		".log-toolbar {",
 		".log-list {",
+		".log-card > .ant-card-head {", // 灰底 + 红字的标题条
+		".log-card > .ant-card-head .ant-card-head-title {",
+		"background: #e8e8e8;",                     // 标题条用更深一档的灰
+		".log-toolbar .ant-segmented-item-label {", // 一行里塞下 5 个栏目，内边距收紧
+		".log-toolbar .ant-typography {",           // 「新日志置顶」不换行
 		".log-table .log-time {",
 		"white-space: nowrap;",                // 时间列不换行
 		"font-variant-numeric: tabular-nums;", // 数字等宽，时间才对得齐
-		".log-table .log-message {",
-		"overflow-wrap: anywhere;", // 长路径 / 长报错要换行
+		".log-level-info {", ".log-level-success {",
+		".log-level-warning {", ".log-level-error {",
 		".log-text {",
-		"white-space: pre-wrap;", // 多行明细保留换行
-		"max-height: 220px;",     // 没拖动时日志不会把上面的模块挤扁
+		"-webkit-line-clamp: 2;",   // 正文最多两行
+		"overflow-wrap: anywhere;", // 长路径 / 长报错要换行
+		"min-height: 72px;",        // 日志卡的下限
 	} {
 		if !strings.Contains(styles, wanted) {
 			t.Errorf("日志窗口样式里缺少：%s", wanted)
 		}
 	}
+	// 日志卡不再是底部横带：不许再有按内容撑开的 max-height
+	if strings.Contains(styles, "max-height: 240px;") {
+		t.Error("日志卡已经改成吃左列剩余高度，不该再有 240px 的固定封顶")
+	}
+	// 字体族不覆盖：日志跟界面其它地方一样用 antd 主题里的字体栈
+	logCell := cssBlock(t, styles, ".log-table .ant-table-cell {")
+	if !strings.Contains(logCell, "font-size: 12px;") {
+		t.Errorf("日志字号应当比正文小一号（12px），实际块：\n%s", logCell)
+	}
+	if strings.Contains(logCell, "font-family") {
+		t.Error("日志不该覆盖字体族（要用 antd 主题里的那套）")
+	}
+	if !strings.Contains(script, "export function shortTime(") {
+		t.Error("log.ts 里应当有 shortTime（只取时段的辅助函数）")
+	}
 	// 浅色分割线用 antd Table 自带的行分隔线，不许在样式里抹掉
 	if strings.Contains(styles, "border-bottom: none") {
-		t.Error("不该把日志表格的分割线抹掉（antd Table 的行分隔线就是浅色分割线）")
-	}
-	// 兜底分类：行里没有级别标签时也要能分到四类之一
-	for _, level := range []string{"info", "success", "warning", "error"} {
-		if !strings.Contains(script, `"`+level+`"`) {
-			t.Errorf("log.ts 的兜底分类缺少级别 %q", level)
-		}
+		t.Error("不该把日志表格的分割线抹掉")
 	}
 }
 
-// TestTheOperationLogResizerKeepsTheLeftColumnGap 固定上限口径的来源：
-// 上限＝左侧「数据导入 / 记录导出」只剩 .spacer 的最小间隔（12px），下限＝默认高度。
-func TestTheOperationLogResizerKeepsTheLeftColumnGap(t *testing.T) {
+// TestTheLeftColumnHoldsImportAndLog 固定左列的内部分工（方案 A）：
+//
+//	左列 = 数据导入（按内容高度）+ 操作日志（flex-basis 0，吃掉剩余高度），日志上沿可拖动；
+//	flex-basis 必须是 0：否则日志正文的固有高度会把左列（乃至整行）撑得比窗口还高。
+//	右列 = 数据整合（吃剩余高度）+ 记录导出（贴底，标题与内容同一行）。
+func TestTheLeftColumnHoldsImportAndLog(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
+	app := readFrontendSource(t, "src/App.tsx")
 
-	if !strings.Contains(styles, ".left > .spacer {") || !strings.Contains(styles, "min-height: 12px") {
-		t.Error("左列两个模块之间的最小间隔应为 12px")
+	left := cssRule(t, styles, ".left {")
+	if !strings.Contains(left, "gap: 8px;") {
+		t.Errorf("左列两张卡之间的间隔应当是 8px，实际块：\n%s", left)
 	}
-	if !strings.Contains(panels, `document.querySelector<HTMLElement>(".columns")`) {
-		t.Error("拖动上限应当根据中间列还能让出多少高度来算")
+	logCard := cssRule(t, styles, ".left > .log-card {")
+	if !strings.Contains(logCard, "flex: 1 1 0;") {
+		t.Errorf("操作日志卡必须 flex-basis 0（吃剩余高度，不许按内容撑开），实际块：\n%s", logCard)
 	}
-	if !strings.Contains(panels, "flex: \"0 0 auto\"") {
-		t.Error("拖动时卡片应改为固定高度（让出的高度全部给中间列）")
+	importCard := cssRule(t, styles, ".left > .card {")
+	if !strings.Contains(importCard, "flex: 0 0 auto;") {
+		t.Errorf("数据导入卡应当保持内容高度，实际块：\n%s", importCard)
+	}
+
+	// DOM：数据导入 → 操作日志（都在左列），然后才是分隔按钮与右列
+	importIndex := strings.Index(app, `title="数据导入"`)
+	logIndex := strings.Index(app, "<LogPanel text={log} />")
+	toggleIndex := strings.Index(app, "left-toggle")
+	tableIndex := strings.Index(app, `title="数据整合"`)
+	recordIndex := strings.Index(app, `className="record-title"`)
+	if !(importIndex < logIndex && logIndex < toggleIndex && toggleIndex < tableIndex && tableIndex < recordIndex) {
+		t.Errorf("App.tsx 顺序应当是 数据导入 → 操作日志 → 分隔按钮 → 数据整合 → 记录导出，实际 %d/%d/%d/%d/%d",
+			importIndex, logIndex, toggleIndex, tableIndex, recordIndex)
+	}
+
+	// 高度由 flex 决定，没有手动拖动：数据导入不动、窗口变化全给日志
+	if strings.Contains(panels, "setPinned") {
+		t.Error("高度不可手动调整，不该再有 pinned 状态")
 	}
 }
 
-// TestTheLogExportRowSurvivesWiderPlatformFonts 固定「记录导出」整行可压缩的口径：
-// Windows（WebView2）下日期控件固有宽度更大，整行不可压缩就会冒出横向滚动条。
-func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
+// TestTheLeftColumnCanBeCollapsedFromTheDivider 固定竖向分隔上的收起/展开按钮：
+// 点一下收起整个左列（数据导入 + 操作日志），右侧结果表吃满整个窗口宽度；再点一下展开。
+func TestTheLeftColumnCanBeCollapsedFromTheDivider(t *testing.T) {
+	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	dates := cssBlock(t, styles, ".range .dates {")
-	if !strings.Contains(dates, "flex: 1 1 auto;") {
-		t.Errorf("日期容器应当占满整行、又允许被压缩，实际块：\n%s", dates)
+	for _, wanted := range []string{
+		"const [leftCollapsed, setLeftCollapsed] = useState(false);",
+		"left-collapsed",          // 收起状态挂在 .columns 上
+		`className="left-toggle"`, // 分隔上的按钮
+		"aria-expanded={!leftCollapsed}",
+		"展开左侧面板", "收起左侧面板", // 提示与无障碍名称
+		"<ChevronLeft size={12} />",  // 展开状态：箭头指向左侧（点它收起）
+		"<ChevronRight size={12} />", // 收起状态：箭头指向右侧（点它展开）
+	} {
+		if !strings.Contains(app, wanted) {
+			t.Errorf("收起/展开按钮缺少：%s", wanted)
+		}
+	}
+
+	toggle := cssRule(t, styles, ".left-toggle.ant-btn {")
+	for _, wanted := range []string{
+		"flex: 0 0 auto;",
+		"align-self: center;",
+		"width: 12px;",        // 按钮本身尽量窄
+		"margin-inline: 2px;", // 整条分隔只占 16px
+		"border-radius: 0;",   // 与模块一样直角
+	} {
+		if !strings.Contains(toggle, wanted) {
+			t.Errorf("分隔按钮缺少 %s，实际块：\n%s", wanted, toggle)
+		}
+	}
+	collapsed := cssRule(t, styles, ".columns.left-collapsed > .left {")
+	if !strings.Contains(collapsed, "display: none;") {
+		t.Errorf("收起时应当把整个左列藏起来（结果表吃满宽度），实际块：\n%s", collapsed)
+	}
+}
+
+// TestTheLogExportRowSurvivesWiderPlatformFonts 固定「记录导出」在右列顶上的横条布局：
+// 两个日期并排、中间一个箭头、回顾按钮靠右；日期框固定宽度且可压缩，
+// 任何窗口宽度下都不会换行或冒出横向滚动条。
+func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+	app := readFrontendSource(t, "src/App.tsx")
+
+	rangeBlock := cssRule(t, styles, ".range {")
+	for _, wanted := range []string{
+		"flex: 1 1 auto;", // 必须撑满白色内容条，否则这个盒子只有内容宽，居中无从谈起
+		"display: flex;",
+		"align-items: center;",
+		"justify-content: center;",
+	} {
+		if !strings.Contains(rangeBlock, wanted) {
+			t.Errorf("记录导出应当是居中摆放的一行，缺少 %s，实际块：\n%s", wanted, rangeBlock)
+		}
+	}
+	contentStrip := cssRule(t, styles, ".record-content {")
+	if !strings.Contains(contentStrip, "flex: 1 1 auto;") || !strings.Contains(contentStrip, "display: flex;") {
+		t.Errorf("记录导出的内容条应当撑满并居中内容，实际块：\n%s", contentStrip)
+	}
+	title := cssRule(t, styles, ".record-title {")
+	if !strings.Contains(title, "min-width: 120px;") {
+		t.Errorf("记录导出的标题块要宽出四个字的 50%%（120px），实际块：\n%s", title)
+	}
+	if strings.Contains(styles, ".range .spacer") {
+		t.Error("日期与按钮整组居中，不需要把按钮推到右边的 spacer")
+	}
+	picker := cssBlock(t, styles, ".range .ant-picker {")
+	if !strings.Contains(picker, "flex: 0 1 150px;") || !strings.Contains(picker, "min-width: 110px;") {
+		t.Errorf("日期框应当是固定宽度且可压缩，实际块：\n%s", picker)
 	}
 	for _, wanted := range []string{
-		".range .ant-picker {", // antd 的日期控件同样要能退让
-		"min-width: 100px;",
-		"max-width: 100%;",
-		".range .ant-btn {", // 回顾按钮不参与收缩
+		".range .date-sep {",
+		".range .ant-btn {",
 	} {
 		if !strings.Contains(styles, wanted) {
-			t.Errorf("样式里缺少记录导出整行可压缩的规则：%s", wanted)
+			t.Errorf("记录导出样式缺少：%s", wanted)
 		}
+	}
+	for _, wanted := range []string{`className="date-sep"`, "回顾", `className="record-title"`} {
+		if !strings.Contains(panels, wanted) && !strings.Contains(app, wanted) {
+			t.Errorf("记录导出结构缺少：%s", wanted)
+		}
+	}
+	if strings.Contains(styles, ".range .date-row") {
+		t.Error("日期已经改成并排，不该再有上下两行的 date-row")
+	}
+	// 它住在右列最下面：红底白字的标题块 + 白底描边的内容条，同一行
+	if !strings.Contains(app, `className="card record-card"`) {
+		t.Error("记录导出应当是右列下方的一条（class=card record-card）")
+	}
+	for _, wanted := range []string{`className="record-row"`, `className="record-title"`, `className="record-content"`} {
+		if !strings.Contains(app, wanted) {
+			t.Errorf("记录导出缺少结构：%s", wanted)
+		}
+	}
+	if !strings.Contains(title, "background: #da291c;") || !strings.Contains(title, "color: #fff;") {
+		t.Errorf("记录导出的标题块应当是红底白字，实际块：\n%s", title)
+	}
+	content := cssRule(t, styles, ".record-content {")
+	if !strings.Contains(content, "background: #fff;") || !strings.Contains(content, "border: 1px solid #e5e5e5;") {
+		t.Errorf("记录导出的内容应当是白底带描边，实际块：\n%s", content)
+	}
+	card := cssRule(t, styles, ".record-card {")
+	if !strings.Contains(card, "flex: 0 0 auto;") || !strings.Contains(card, "border: none;") {
+		t.Errorf("记录导出应当贴底、且外框交给内容条，实际块：\n%s", card)
 	}
 }
 
@@ -325,13 +452,14 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	for _, title := range []string{"数据导入", "记录导出", "数据整合"} {
-		wanted := `className="card" size="small" title="` + title + `"`
-		if title == "数据整合" {
-			wanted = `className="card grow" size="small" title="` + title + `"`
-		}
+	for _, wanted := range []string{
+		`className="card" size="small" title="数据导入"`,
+		`className="card grow" size="small" title="数据整合"`,
+		`className="card record-card"`,
+		`className="record-title"`,
+	} {
 		if !strings.Contains(app, wanted) {
-			t.Errorf("App.tsx 的「%s」模块应当用 antd Card：找不到 %s", title, wanted)
+			t.Errorf("App.tsx 的模块应当用 antd Card：找不到 %s", wanted)
 		}
 	}
 	if !strings.Contains(app, `<Card`) || !strings.Contains(app, `from "antd"`) {
@@ -342,15 +470,104 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 		!strings.Contains(panels, `className="card log-card"`) {
 		t.Error("操作日志卡片应当也是 antd Card（圆角与其它模块一致）")
 	}
-	card := cssBlock(t, styles, ".card {")
-	if strings.Contains(card, "border-radius") || strings.Contains(card, "background") {
-		t.Errorf(".card 不该自绘圆角/底色（交给 antd 的 Card），实际块：\n%s", card)
+	card := cssRule(t, styles, ".card {")
+	if !strings.Contains(card, "border-radius: 0;") {
+		t.Errorf("功能模块应当是直角，实际块：\n%s", card)
+	}
+	if strings.Contains(card, "background") {
+		t.Errorf(".card 不该自绘底色（交给 antd 的 Card），实际块：\n%s", card)
+	}
+}
+
+// TestTheModuleHeadersAndBordersSeparateTheModules 固定"模块之间要有区隔"的做法：
+//   - 除操作日志外的三个模块：品牌红底 + 白字的标题条；
+//   - 操作日志：灰底 + 品牌红字的标题条（栏目就放在这一行里）；
+//   - 每个模块一条淡色描边，模块之间只留 8px 间距 —— 区隔靠颜色和线条，不靠留白。
+func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+	theme := readFrontendSource(t, "src/theme.ts")
+	brand := themeConstant(t, theme, "export const BRAND_RED")
+
+	header := cssBlock(t, styles, ".card:not(.log-card) > .ant-card-head {")
+	if !strings.Contains(header, "background: "+brand+";") {
+		t.Errorf("模块标题条应当是品牌红 %s，实际块：\n%s", brand, header)
+	}
+	title := cssBlock(t, styles, ".card:not(.log-card) > .ant-card-head .ant-card-head-title {")
+	if !strings.Contains(title, "color: #fff;") {
+		t.Errorf("模块标题条文字应当是白色，实际块：\n%s", title)
+	}
+
+	logHead := cssBlock(t, styles, ".log-card > .ant-card-head {")
+	if !strings.Contains(logHead, "background: #e8e8e8;") {
+		t.Errorf("操作日志的标题条应当是更深一档的灰底，实际块：\n%s", logHead)
+	}
+	logTitle := cssBlock(t, styles, ".log-card > .ant-card-head .ant-card-head-title {")
+	if !strings.Contains(logTitle, "color: "+brand+";") {
+		t.Errorf("操作日志标题应当是品牌红字，实际块：\n%s", logTitle)
+	}
+
+	card := cssRule(t, styles, ".card {")
+	if !strings.Contains(card, "border: 1px solid #e5e5e5;") {
+		t.Errorf("模块应当有一条淡色描边，实际块：\n%s", card)
+	}
+	shell := cssBlock(t, styles, ".app-shell {")
+	if !strings.Contains(shell, "padding: 12px;") {
+		t.Errorf("窗口内边距应当收紧到 12px，实际块：\n%s", shell)
+	}
+	columns := cssRule(t, styles, ".columns {")
+	if !strings.Contains(columns, "gap: 0;") {
+		t.Errorf("左右两列之间不留 gap（间距由分隔按钮撑起），实际块：\n%s", columns)
+	}
+	// 日志住在左列里，与数据导入的间距由 .left 的 gap 给
+	// 左右两列之间不再留 gap：整条分隔由收起按钮自己撑（见 TestTheLeftColumnCanBeCollapsedFromTheDivider）
+	columnsBlock := cssRule(t, styles, ".columns {")
+	if !strings.Contains(columnsBlock, "gap: 0;") {
+		t.Errorf(".columns 不该再留 gap（间距由分隔按钮撑起），实际块：\n%s", columnsBlock)
+	}
+	left := cssRule(t, styles, ".left {")
+	if !strings.Contains(left, "gap: 8px;") {
+		t.Errorf("左列两张卡之间的间距应当是 8px，实际块：\n%s", left)
+	}
+}
+
+// themeConstant 读 theme.ts 里 `export const NAME = "#RRGGBB"` 这种简单常量（返回小写）。
+func themeConstant(t *testing.T, theme, declaration string) string {
+	t.Helper()
+	pattern := regexp.MustCompile(regexp.QuoteMeta(declaration) + `\s*=\s*"(#[0-9A-Fa-f]{6})"`)
+	match := pattern.FindStringSubmatch(theme)
+	if match == nil {
+		t.Fatalf("没有从 theme.ts 里解析出 %s", declaration)
+	}
+	return strings.ToLower(match[1])
+}
+
+// TestTheFunctionalModulesAreSquare 固定「功能模块一律直角」：
+// 卡片（含红色标题条）、导入分组框、结果表容器与表头、导入状态框 全部没有圆角。
+func TestTheFunctionalModulesAreSquare(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+
+	for _, selector := range []string{
+		".card {",
+		".card > .ant-card-head {",
+		".group {",
+		".tblwrap {",
+		".actions .status {",
+	} {
+		block := cssRule(t, styles, selector)
+		if strings.Contains(block, "border-radius:") && !strings.Contains(block, "border-radius: 0;") {
+			t.Errorf("%s 应当是直角，实际块：\n%s", selector, block)
+		}
+	}
+	// 表格自己的表头圆角也要抹平（antd 默认给表头首尾格 8px）
+	corners := cssRule(t, styles, ".tblwrap .ant-table-container,")
+	if !strings.Contains(corners, "border-start-start-radius: 0;") || !strings.Contains(corners, "border-start-end-radius: 0;") {
+		t.Errorf("表头的圆角也要抹平，实际块：\n%s", corners)
 	}
 }
 
 // TestTheResultTableUsesAntdDefaults 固定结果表的密度口径：
-// 不加 bordered、不覆盖单元格内边距、不做圆角对齐 hack；
-// .tblwrap 只是滚动容器，不再自绘边框 / 圆角 / 投影。
+// 不加 bordered、不覆盖结果表的单元格内边距、不做圆角对齐 hack；
+// .tblwrap 只加一条淡色描边做区隔（用户要求），投影与底色仍然交给 antd。
 func TestTheResultTableUsesAntdDefaults(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
@@ -365,13 +582,22 @@ func TestTheResultTableUsesAntdDefaults(t *testing.T) {
 			t.Errorf("%s 的结果表应当用 antd 的小尺寸密度", name)
 		}
 	}
-	if strings.Contains(styles, ".ant-table-cell") || strings.Contains(styles, "border-start-start-radius") {
-		t.Error("不该再覆盖 antd 表格的单元格内边距与圆角")
+	if strings.Contains(styles, ".tblwrap .ant-table-cell") {
+		t.Error("不该再覆盖结果表的单元格内边距")
+	}
+	if strings.Contains(styles, "border-start-start-radius: 4px") || strings.Contains(styles, "border-start-start-radius: 8px") {
+		t.Error("结果表的表头不该再有圆角（功能模块一律直角）")
 	}
 	wrap := cssBlock(t, styles, ".tblwrap {")
-	for _, selfDrawn := range []string{"border:", "border-radius", "box-shadow", "background"} {
+	if !strings.Contains(wrap, "border: 1px solid #f0f0f0;") {
+		t.Errorf(".tblwrap 应当有一条淡色描边，实际块：\n%s", wrap)
+	}
+	if strings.Contains(wrap, "border-radius") {
+		t.Errorf(".tblwrap 应当是直角，实际块：\n%s", wrap)
+	}
+	for _, selfDrawn := range []string{"box-shadow", "background"} {
 		if strings.Contains(wrap, selfDrawn) {
-			t.Errorf(".tblwrap 只是滚动容器，不该自绘 %s，实际块：\n%s", selfDrawn, wrap)
+			t.Errorf(".tblwrap 不该自绘 %s，实际块：\n%s", selfDrawn, wrap)
 		}
 	}
 	if strings.Contains(theme, "Table:") {
@@ -475,16 +701,86 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 			t.Errorf("导入区的图标按钮缺少可读名称：%s", wanted)
 		}
 	}
-	// 图标全部用 Lucide，并按原版 PySide6 的 ThemeIcon 语义一一对应：
-	//   FolderOpen（载入文件）/ DocumentOpen→FileText（数据回顾）/
-	//   EditDelete→Trash2（清空）/ SystemSearch→Search（记录导出的回顾）
-	for _, icon := range []string{"FolderOpen", "FileText", "Trash2", "Search"} {
+	// 图标全部用 Lucide，语义按用户口径挑：
+	//   FileSpreadsheet（载入文件 = 一个 Excel 文件）/ TableIcon（数据回顾 = 看数据表格）/
+	//   Trash2（清空）/ Search（记录导出的回顾）
+	for _, icon := range []string{"FileSpreadsheet", "TableIcon", "Trash2", "Search"} {
 		if !strings.Contains(panels, icon) {
-			t.Errorf("图标应当使用 Lucide 的 %s（对应原版图标语义）", icon)
+			t.Errorf("图标应当使用 Lucide 的 %s", icon)
+		}
+	}
+	// 载入文件既不是文件夹图标（语义不对），也不是导入箭头（文案写着"载入文件"）
+	for _, rejected := range []string{"FolderOpen", "FileText", "Upload"} {
+		if strings.Contains(panels, rejected) {
+			t.Errorf("载入文件/数据回顾不该再用 %s 图标", rejected)
 		}
 	}
 	if strings.Contains(panels, `"anticon"`) || strings.Contains(panels, "<path d=") {
 		t.Error("图标不应再手写 SVG 路径")
+	}
+}
+
+// TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable 固定左列的"窄而整齐"：
+//   - 左列收窄到 280（日期上下叠放换来的横向空间让给右侧数据整合）；
+//   - 导入状态是一个淡灰底、文字居中、单行不换行的状态框（高度与两侧图标按钮一致）；
+//   - 清空按钮是"图标 + 文字"。
+func TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+
+	left := cssRule(t, styles, ".left {")
+	for _, wanted := range []string{"width: 340px;", "min-width: 320px;", "max-width: 40%;"} {
+		if !strings.Contains(left, wanted) {
+			t.Errorf("左列宽度口径缺少 %s，实际块：\n%s", wanted, left)
+		}
+	}
+
+	// 窗口变矮/表格很长时，整行都要收得回窗口内（.columns 允许收缩）；
+	// 左列内部由日志让位：数据导入保持内容高度、日志 flex-basis 0 吃掉剩余高度，
+	// 两张卡都完整显示，也不会冒出纵向滚动条。
+	columns := cssRule(t, styles, ".columns {")
+	if !strings.Contains(columns, "flex: 1 1 auto;") {
+		t.Errorf(".columns 应当允许收缩（表格行数很多时也能收回到窗口内），实际块：\n%s", columns)
+	}
+	logCard := cssRule(t, styles, ".left > .log-card {")
+	if !strings.Contains(logCard, "flex: 1 1 0;") {
+		t.Errorf("操作日志应当 flex-basis 0 吃掉左列剩余高度，实际块：\n%s", logCard)
+	}
+	importCard := cssRule(t, styles, ".left > .card {")
+	if !strings.Contains(importCard, "flex: 0 0 auto;") {
+		t.Errorf("数据导入应当保持内容高度，实际块：\n%s", importCard)
+	}
+	// 四个来源分组竖着叠起来要能在最小窗口（760 高）里放得下，所以留白是收紧过的
+	group := cssRule(t, styles, ".group {")
+	if !strings.Contains(group, "padding: 8px;") {
+		t.Errorf("导入分组的竖向留白应当是收紧后的 8px，实际块：\n%s", group)
+	}
+
+	status := cssBlock(t, styles, ".actions .status {")
+	for _, wanted := range []string{
+		"background: rgba(0, 0, 0, 0.04);", // 淡灰底
+		"text-align: center;",              // 信息居中
+		"white-space: nowrap;",             // 不换行
+		"text-overflow: ellipsis;",         // 真放不下才省略号
+		"height: 32px;",                    // 与两侧图标按钮同高
+	} {
+		if !strings.Contains(status, wanted) {
+			t.Errorf("导入状态框缺少 %s，实际块：\n%s", wanted, status)
+		}
+	}
+
+	// 从 <Button 开始切，才拿得到 aria-label 之前写的 danger
+	clearLabel := strings.Index(panels, `aria-label="清空导入数据"`)
+	clearButton := panels[strings.LastIndex(panels[:clearLabel], "<Button"):]
+	clearButton = clearButton[:strings.Index(clearButton, "</Button>")]
+	if !strings.Contains(clearButton, "清空") {
+		t.Error("清空按钮应当带「清空」两个字")
+	}
+	if !strings.Contains(clearButton, "danger") {
+		t.Error("清空按钮应当用 danger（红色边框 + 红字）")
+	}
+	if strings.Contains(clearButton, `type="text"`) {
+		t.Error("清空按钮不该再是无边框的 text 按钮（用户要求红色边框）")
 	}
 }
 
@@ -714,46 +1010,40 @@ func TestTheStatusColorsStayInSyncWithTheTheme(t *testing.T) {
 	}
 }
 
-// TestTheLogResizerHasAComfortableHitAreaAndAFocusRing 固定操作日志拖动条：
-// 可见抓取条还是 3px，但热区放到 16px（鼠标更容易抓），键盘聚焦时用品牌红焦点环。
-func TestTheLogResizerHasAComfortableHitAreaAndAFocusRing(t *testing.T) {
-	styles := readFrontendSource(t, "src/styles.css")
-
-	block := cssBlock(t, styles, ".log-resizer {")
-	if !strings.Contains(block, "height: 16px;") {
-		t.Errorf("拖动条热区高度应为 16px，实际块：\n%s", block)
-	}
-	if !strings.Contains(block, "align-items: flex-start;") {
-		t.Error("热区变高后要靠 flex-start 让可见抓取条仍然贴着卡片上沿")
-	}
-	if !strings.Contains(styles, ".log-resizer::before {") || !strings.Contains(styles, "height: 3px;") {
-		t.Error("可见的抓取条仍然只有 3px 高")
-	}
-	if !strings.Contains(block, "overflow: visible") && !strings.Contains(cssBlock(t, styles, ".log-card {"), "overflow: visible") {
-		t.Error("抓取条有 5px 在卡片外，卡片不能裁剪它")
-	}
-	focus := cssBlock(t, styles, ".log-resizer:focus-visible {")
-	if !strings.Contains(focus, "outline: 2px solid #da291c;") {
-		t.Errorf("键盘聚焦要用品牌红焦点环，实际块：\n%s", focus)
-	}
-}
-
 // TestTheToolbarFitsTheNarrowestWindow 固定数据整合工具条在最小窗口（969 宽）下的行为：
-// 一行装不下「按钮 + 四个状态标签 + 按钮」时，整条状态标签换到第二行，
-// 而不是把四个标签挤成一列（媒体查询断点 1040 是按最小窗口倒推的）。
+// 一行放完 —— 左边「数据整合」、中间状态筛选片、右边「生成文件」，**不换行**；
+// 三个状态片等宽（取最宽那个）、与左右按钮同高（32px），文字不换行（放不下就收窄）。
 func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
 	toolbar := cssBlock(t, styles, ".table-toolbar {")
-	if !strings.Contains(toolbar, "flex-wrap: wrap;") {
-		t.Errorf("工具条要允许换行，实际块：\n%s", toolbar)
+	if !strings.Contains(toolbar, "flex-wrap: nowrap;") {
+		t.Errorf("工具条必须一行放完，不许换行，实际块：\n%s", toolbar)
 	}
-	if !strings.Contains(styles, "@media (max-width: 1040px)") {
-		t.Error("窄窗口要给一条媒体查询，把状态标签整条移到第二行")
+	if strings.Contains(styles, "@media (max-width: 1040px)") {
+		t.Error("不该再有把状态片挤到第二行的媒体查询")
 	}
-	narrow := styles[strings.Index(styles, "@media (max-width: 1040px)"):]
-	if !strings.Contains(narrow, "order: 3;") || !strings.Contains(narrow, "flex-basis: 100%;") {
-		t.Error("窄窗口下状态标签应当独占一行（order + flex-basis: 100%）")
+
+	chips := cssBlock(t, styles, ".status-chips {")
+	if !strings.Contains(chips, "grid-auto-columns: 1fr;") {
+		t.Errorf("状态片要等宽（1fr 轨道取最宽那个），实际块：\n%s", chips)
+	}
+
+	chip := cssBlock(t, styles, ".status-chip.ant-tag {")
+	for _, wanted := range []string{
+		"height: 32px;",        // 与 antd 按钮同高
+		"white-space: nowrap;", // 组件内文字不换行
+		"text-overflow: ellipsis;",
+	} {
+		if !strings.Contains(chip, wanted) {
+			t.Errorf("状态片样式缺少：%s，实际块：\n%s", wanted, chip)
+		}
+	}
+	if !strings.Contains(styles, `.status-chip.ant-tag[aria-pressed="true"] {`) {
+		t.Error("缺少「当前筛选」的样式")
+	}
+	if !strings.Contains(styles, `.status-strip[data-filtered="true"] .status-chip:not([aria-pressed="true"]) {`) {
+		t.Error("缺少「有筛选时其余状态片淡出」的样式")
 	}
 }
 
@@ -784,18 +1074,50 @@ func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	}
 }
 
-// TestTheStatusSummaryUsesAntdTags 固定状态汇总的表达：antd 的 Tag（success/error/warning +
-// Conflict 的 magenta），不再自绘灰底胶囊。
-func TestTheStatusSummaryUsesAntdTags(t *testing.T) {
+// TestTheStatusSummaryUsesClickableChips 固定状态汇总的表达：
+// 三个状态片是 antd Tag（success / error / warning，冲突时多一个 magenta），
+// 但要能点：role=button、aria-pressed 标出当前筛选、键盘 Enter/Space 也能切。
+func TestTheStatusSummaryUsesClickableChips(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 
-	for _, wanted := range []string{`<Tag color="success">Ready`, `<Tag color="error">Incomplete`, `<Tag color="warning">Duplicate`, `<Tag color="magenta">Conflict`} {
+	for _, wanted := range []string{
+		`{ status: "Ready", color: "success" }`,
+		`{ status: "Incomplete", color: "error" }`,
+		`{ status: "Duplicate", color: "warning" }`,
+		`chips.push({ status: "Conflict", color: "magenta" })`,
+		`role="button"`,
+		`aria-pressed={statusFilter === status}`,
+		"onKeyDown={(event) => {",
+		`event.key !== "Enter" && event.key !== " "`,
+		"toggleStatus(status)",
+		`id="consolidation-summary"`,
+	} {
 		if !strings.Contains(panels, wanted) {
-			t.Errorf("状态汇总应当用 antd Tag：找不到 %s", wanted)
+			t.Errorf("状态汇总缺少：%s", wanted)
 		}
 	}
-	if !strings.Contains(panels, `id="consolidation-summary"`) {
-		t.Error("汇总条的 id 要保留（验收脚本按它取数）")
+}
+
+// TestTheStatusChipsFilterTheResultTable 固定「点状态片就筛选数据列表」：
+// 只显示该状态的行，再点一次回到全部；导出（只看 Ready）与筛选互不影响。
+func TestTheStatusChipsFilterTheResultTable(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+
+	for _, wanted := range []string{
+		"const [statusFilter, setStatusFilter] = useState<string | null>(null);",
+		"setStatusFilter((current) => (current === status ? null : status));",
+		"dataSource.filter((entry) => entry.status === statusFilter)",
+		"rowClassName={(entry) => `result-row status-${entry.status}`}",
+		"data-filtered={statusFilter !== null}",
+		"`${statusFilter} 状态没有数据`",
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("状态筛选缺少：%s", wanted)
+		}
+	}
+	// 筛选只影响显示：导出门禁仍然按全部行里的 Ready 数量算
+	if !strings.Contains(panels, `const readyCount = statuses.filter((status) => status === "Ready").length;`) {
+		t.Error("导出门禁不该跟着筛选走（仍是全部行里的 Ready 数量）")
 	}
 }
 
@@ -818,6 +1140,13 @@ func TestTheSettingsModalUsesAntdFooterAndKeepsTheCloseIcon(t *testing.T) {
 			t.Errorf("参数设定窗口缺少底栏/工具按钮：%s", wanted)
 		}
 	}
+}
+
+// cssRule 与 cssBlock 相同，但要求选择器出现在行首：
+// 否则 ".log-card {" 会命中 ".left > .log-card {" 这种带父选择器的规则。
+func cssRule(t *testing.T, source, selector string) string {
+	t.Helper()
+	return cssBlock(t, source, "\n"+selector)
 }
 
 // cssBlock 取出 `selector` 开头那一对花括号之间的内容（只用于读源码里的常量）。

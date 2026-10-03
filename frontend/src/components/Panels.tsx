@@ -14,7 +14,6 @@ import {
   Flex,
   Modal,
   Segmented,
-  Space,
   Spin,
   Switch,
   Table,
@@ -25,15 +24,15 @@ import {
 import type { BadgeProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
-import { ArrowRight, FileDown, FileText, FolderOpen, Merge, Search, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, FileDown, FileSpreadsheet, Merge, Search, Table as TableIcon, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { GROUP_GAP_AFTER, SOURCES } from "../bridge";
 import {
   LOG_LEVELS,
-  LOG_LEVEL_COLORS,
   LOG_LEVEL_LABELS,
   parseLog,
+  shortTime,
   type LogEntry,
   type LogLevel,
 } from "../log";
@@ -80,7 +79,7 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
                   <Button
                     type="text"
                     aria-label="载入文件"
-                    icon={<FolderOpen size={16} />}
+                    icon={<FileSpreadsheet size={16} />}
                     onClick={() => onImport(source.key)}
                   />
                 </Tooltip>
@@ -97,7 +96,7 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
                   <Button
                     type="text"
                     aria-label="数据回顾"
-                    icon={<FileText size={16} />}
+                    icon={<TableIcon size={16} />}
                     disabled={current.state !== "imported" && current.state !== "existing"}
                     onClick={() => onReview(source.key)}
                   />
@@ -111,12 +110,13 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
       <Flex justify="flex-end">
         <Tooltip title="清空导入数据">
           <Button
-            type="text"
             danger
             aria-label="清空导入数据"
             icon={<Trash2 size={16} />}
             onClick={onClear}
-          />
+          >
+            清空
+          </Button>
         </Tooltip>
       </Flex>
     </div>
@@ -151,16 +151,15 @@ export function RecordExportPanel({
     />
   );
 
+  // 记录导出在右列顶上只占一条：两个日期并排、中间一个箭头，回顾按钮靠右
   return (
     <div className="range">
-      <div className="dates">
-        {picker(start, onStartChange, "起始日期")}
-        <ArrowRight className="date-sep" size={14} aria-hidden="true" />
-        {picker(end, onEndChange, "结束日期")}
-      </div>
-      <Tooltip title="回顾">
-        <Button type="text" aria-label="回顾" icon={<Search size={16} />} onClick={onReview} />
-      </Tooltip>
+      {picker(start, onStartChange, "起始日期")}
+      <ArrowRight className="date-sep" size={14} aria-hidden="true" />
+      {picker(end, onEndChange, "结束日期")}
+      <Button icon={<Search size={16} />} aria-label="回顾" onClick={onReview}>
+        回顾
+      </Button>
     </div>
   );
 }
@@ -176,6 +175,9 @@ type ConsolidationPanelProps = {
   onExport: () => void;
 };
 
+/** 结果表的一行：原始单元格 + 状态（状态筛选与行底色都要用，所以连下标一起包起来）。 */
+type ConsolidationRow = { key: string; status: string; cells: string[] };
+
 export function ConsolidationPanel({
   columns,
   rows,
@@ -184,26 +186,40 @@ export function ConsolidationPanel({
   onConsolidate,
   onExport,
 }: ConsolidationPanelProps) {
-  const tableColumns: ColumnsType<string[]> = columns.map((title, index) => ({
+  // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（导出始终只看 Ready，与筛选无关）
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  const tableColumns: ColumnsType<ConsolidationRow> = columns.map((title, index) => ({
     title,
-    dataIndex: index,
     key: String(index),
     ellipsis: false,
-    render: (value: string) =>
-      value === "MISSING" ? <span className="cell-MISSING">{value}</span> : value,
+    render: (_: unknown, entry: ConsolidationRow) => {
+      const value = entry.cells[index];
+      return value === "MISSING" ? <span className="cell-MISSING">{value}</span> : value;
+    },
   }));
 
   // 只有 Ready 行会被导出：没有它的时候「生成文件」没有意义
   const readyCount = statuses.filter((status) => status === "Ready").length;
 
-  const strip = (
-    <Space className="status-strip" id="consolidation-summary" size={[8, 8]} wrap>
-      <Tag color="success">Ready {counts.Ready ?? 0}</Tag>
-      <Tag color="error">Incomplete {counts.Incomplete ?? 0}</Tag>
-      <Tag color="warning">Duplicate {counts.Duplicate ?? 0}</Tag>
-      {(counts.Conflict ?? 0) > 0 && <Tag color="magenta">Conflict {counts.Conflict}</Tag>}
-    </Space>
-  );
+  const dataSource: ConsolidationRow[] = rows.map((cells, index) => ({
+    key: String(index),
+    status: statuses[index] ?? "Ready",
+    cells,
+  }));
+  const visible =
+    statusFilter === null ? dataSource : dataSource.filter((entry) => entry.status === statusFilter);
+
+  const toggleStatus = (status: string) =>
+    setStatusFilter((current) => (current === status ? null : status));
+
+  // 三个状态片（出现冲突时多一个）：等宽、与左右按钮同高、点击筛选
+  const chips: { status: string; color: string }[] = [
+    { status: "Ready", color: "success" },
+    { status: "Incomplete", color: "error" },
+    { status: "Duplicate", color: "warning" },
+  ];
+  if ((counts.Conflict ?? 0) > 0) chips.push({ status: "Conflict", color: "magenta" });
 
   return (
     <>
@@ -211,7 +227,33 @@ export function ConsolidationPanel({
         <Button type="primary" icon={<Merge size={16} />} onClick={onConsolidate}>
           数据整合
         </Button>
-        {strip}
+        <div
+          className="status-strip"
+          id="consolidation-summary"
+          data-filtered={statusFilter !== null}
+        >
+          <div className="status-chips">
+            {chips.map(({ status, color }) => (
+              <Tag
+                key={status}
+                className="status-chip"
+                color={color}
+                role="button"
+                tabIndex={0}
+                aria-pressed={statusFilter === status}
+                title={`只看 ${status} 的行（再点一次显示全部）`}
+                onClick={() => toggleStatus(status)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  toggleStatus(status);
+                }}
+              >
+                {status} {counts[status] ?? 0}
+              </Tag>
+            ))}
+          </div>
+        </div>
         {/* 一个区域只留一个主按钮：生成文件是「整合之后才轮到」的动作，用次按钮 */}
         <Tooltip title={readyCount === 0 ? "还没有可导出的行（只有 Ready 状态会导出）" : ""}>
           <span>
@@ -232,15 +274,23 @@ export function ConsolidationPanel({
         </div>
       ) : (
         <div className="tblwrap">
-          <Table<string[]>
+          <Table<ConsolidationRow>
             size="small"
             sticky
             pagination={false}
-            dataSource={rows}
+            dataSource={visible}
             columns={tableColumns}
-            rowKey={(_, index) => String(index)}
-            rowClassName={(_, index) => `result-row status-${statuses[index] ?? "Ready"}`}
+            rowKey={(entry) => entry.key}
+            rowClassName={(entry) => `result-row status-${entry.status}`}
             scroll={{ x: "max-content" }}
+            locale={{
+              emptyText: (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={statusFilter ? `${statusFilter} 状态没有数据` : "暂无数据"}
+                />
+              ),
+            }}
           />
         </div>
       )}
@@ -263,11 +313,8 @@ type LogFilter = LogLevel | "all";
  * 顶部是级别栏目（全部 / 信息 / 成功 / 警告 / 错误）与「新日志置顶」开关。
  */
 export function LogPanel({ text }: { text: string }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [pinned, setPinned] = useState<number | null>(null);
   const [filter, setFilter] = useState<LogFilter>("all");
   const [newestFirst, setNewestFirst] = useState(true);
-  const defaultHeight = useRef<number>(0);
 
   const entries = useMemo(() => parseLog(text), [text]);
   // 过滤 + 排序都只影响显示，解析结果本身保持日志原有顺序
@@ -276,114 +323,50 @@ export function LogPanel({ text }: { text: string }) {
     return newestFirst ? [...filtered].reverse() : filtered;
   }, [entries, filter, newestFirst]);
 
+  // 窄栏里日期不重复显示：只留 HH:MM:SS，完整时间戳放在 title 里
   const columns: ColumnsType<LogEntry> = [
-    { title: "时间", dataIndex: "time", width: 156, className: "log-time", render: (value: string) => value || "—" },
+    {
+      title: "时间",
+      dataIndex: "time",
+      width: 72,
+      className: "log-time",
+      render: (value: string) => <span title={value}>{value ? shortTime(value) : "—"}</span>,
+    },
     {
       title: "信息",
       dataIndex: "message",
       className: "log-message",
       render: (_: string, entry: LogEntry) => (
-        <Flex gap={8} align="flex-start">
-          <Tag color={LOG_LEVEL_COLORS[entry.level]}>{LOG_LEVEL_LABELS[entry.level]}</Tag>
-          <span className="log-text">{entry.message}</span>
+        <Flex gap={6} align="flex-start">
+          {/* 级别：不再用带边框的 Tag（窄栏里太占宽度），改成两个字 + 级别色的紧凑文字 */}
+          <span
+            className={`log-level log-level-${entry.level}`}
+            title={LOG_LEVEL_LABELS[entry.level]}
+          >
+            {LOG_LEVEL_LABELS[entry.level]}
+          </span>
+          {/* 正文最多两行，超出省略；完整内容悬浮可见 */}
+          <span className="log-text" title={entry.message}>
+            {entry.message}
+          </span>
         </Flex>
       ),
     },
   ];
 
-  useEffect(() => {
-    if (cardRef.current && defaultHeight.current === 0) {
-      defaultHeight.current = Math.round(cardRef.current.getBoundingClientRect().height);
-    }
-  }, []);
-
-  const leftMinimumHeight = (): number => {
-    const left = document.querySelector<HTMLElement>(".left");
-    if (!left) return 0;
-    let total = 0;
-    Array.from(left.children).forEach((child) => {
-      const element = child as HTMLElement;
-      if (element.classList.contains("spacer")) {
-        total += parseFloat(getComputedStyle(element).minHeight) || 0;
-      } else {
-        total += element.getBoundingClientRect().height;
-      }
-    });
-    return total;
-  };
-
-  const limits = (): { min: number; max: number } => {
-    const card = cardRef.current;
-    const columns = document.querySelector<HTMLElement>(".columns");
-    if (!card || !columns) return { min: 0, max: 0 };
-    const current = card.getBoundingClientRect().height;
-    const shrinkable = columns.getBoundingClientRect().height - leftMinimumHeight();
-    const min = Math.min(defaultHeight.current || current, current);
-    return { min, max: Math.max(min, Math.round(current + shrinkable)) };
-  };
-
-  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const card = cardRef.current;
-    if (!card) return;
-    const startY = event.clientY;
-    const startHeight = card.getBoundingClientRect().height;
-    document.body.classList.add("log-resizing");
-    const move = (moveEvent: PointerEvent) => {
-      const { min, max } = limits();
-      const next = Math.min(Math.max(startHeight + (startY - moveEvent.clientY), min), max);
-      setPinned(Math.round(next));
-    };
-    const finish = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", finish);
-      window.removeEventListener("pointercancel", finish);
-      document.body.classList.remove("log-resizing");
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", finish);
-    window.addEventListener("pointercancel", finish);
-  };
-
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const step = 16;
-    const card = cardRef.current;
-    if (!card) return;
-    const { min, max } = limits();
-    const current = pinned ?? card.getBoundingClientRect().height;
-    let next: number | null = null;
-    if (event.key === "ArrowUp") next = current + step;
-    if (event.key === "ArrowDown") next = current - step;
-    if (next === null) return;
-    event.preventDefault();
-    setPinned(Math.round(Math.min(Math.max(next, min), max)));
-  };
-
   return (
     <Card
       className="card log-card"
-      ref={cardRef}
       size="small"
-      title="操作日志"
-      extra={<Typography.Text type="secondary">{entries.length} 条</Typography.Text>}
-      style={
-        pinned === null
-          ? undefined
-          : { flex: "0 0 auto", height: `${pinned}px`, maxHeight: `${pinned}px` }
+      title={
+        <span>
+          操作日志
+          <span className="log-count">{entries.length} 条</span>
+        </span>
       }
     >
-      <div
-        className="log-resizer"
-        id="log-resizer"
-        role="separator"
-        aria-orientation="horizontal"
-        aria-label="拖动调整操作日志高度"
-        title="拖动调整操作日志高度"
-        tabIndex={0}
-        onPointerDown={startDrag}
-        onKeyDown={onKeyDown}
-      />
-      <Flex className="log-toolbar" align="center" justify="space-between" gap={8}>
+      {/* 筛选与排序放在标题条下面一行：标题条只留标题，正文区也不再被挤 */}
+      <div className="log-toolbar">
         <Segmented
           size="small"
           value={filter}
@@ -393,11 +376,11 @@ export function LogPanel({ text }: { text: string }) {
             ...LOG_LEVELS.map((level) => ({ label: LOG_LEVEL_LABELS[level], value: level })),
           ]}
         />
-        <Flex align="center" gap={8}>
+        <Flex align="center" gap={6}>
           <Typography.Text type="secondary">新日志置顶</Typography.Text>
           <Switch size="small" checked={newestFirst} onChange={setNewestFirst} />
         </Flex>
-      </Flex>
+      </div>
       <div className="log-list">
         <Table<LogEntry>
           className="log-table"
