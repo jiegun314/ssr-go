@@ -133,7 +133,7 @@ func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
 		}
 	}
 
-	releaseRoot := filepath.Join(projectRoot, *outDir, releaseDirName)
+	releaseRoot := filepath.Join(releaseOutRoot(projectRoot, *outDir), releaseDirName)
 	if err := os.RemoveAll(releaseRoot); err != nil {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
@@ -192,6 +192,17 @@ func runReleaseFlags(arguments []string, stdout, stderr io.Writer) int {
 		}
 	}
 	return 0
+}
+
+// releaseOutRoot 解析 --out：相对路径按项目根解析，绝对路径原样使用。
+//
+// 不能直接 filepath.Join(projectRoot, outDir)：Join 不会因为第二段是绝对路径就丢弃
+// 前面那段，传 `/tmp/x` 会拼成 `<projectRoot>/tmp/x` 这种谁也没想到的嵌套目录。
+func releaseOutRoot(projectRoot string, outDir string) string {
+	if filepath.IsAbs(outDir) {
+		return filepath.Clean(outDir)
+	}
+	return filepath.Join(projectRoot, outDir)
 }
 
 // releaseDatabaseRelativePath 是 setting.yaml 里数据库相对发布根目录的路径

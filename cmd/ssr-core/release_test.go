@@ -146,3 +146,16 @@ func TestReleaseArchiveKeepsTheExecutableBit(t *testing.T) {
 		t.Fatal("压缩包里没找到可执行文件")
 	}
 }
+
+// TestReleaseOutRootAcceptsRelativeAndAbsolutePaths 固定 --out 的解析口径：
+// 相对路径按项目根解析，绝对路径原样使用（曾经把它拼成 <项目根>/tmp/x 的嵌套目录）。
+func TestReleaseOutRootAcceptsRelativeAndAbsolutePaths(t *testing.T) {
+	projectRoot := filepath.Join(string(filepath.Separator), "tmp", "project")
+	if got := releaseOutRoot(projectRoot, "release"); got != filepath.Join(projectRoot, "release") {
+		t.Errorf("相对路径应当按项目根解析，得到 %q", got)
+	}
+	absolute := filepath.Join(string(filepath.Separator), "tmp", "elsewhere")
+	if got := releaseOutRoot(projectRoot, absolute); got != absolute {
+		t.Errorf("绝对路径应当原样使用，得到 %q", got)
+	}
+}
