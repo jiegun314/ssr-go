@@ -212,25 +212,20 @@ func (app *App) Consolidate() ConsolidateResult {
 	for _, row := range outcome.Rows {
 		counts[row.Values["status"]]++
 	}
-	app.appendLog(LogSuccess, fmt.Sprintf(
-		"数据整合完成：整合 %d 行，缺失 %d 行，重复 %d 行，变更 %d 行，冲突 %d 行",
-		len(outcome.Rows), counts[consolidation.StatusIncomplete],
-		counts[consolidation.StatusDuplicate], len(outcome.ChangedData), len(outcome.ConflictData)))
-	for _, detail := range []struct {
-		level LogLevel
-		name  string
-		list  []string
-	}{
-		{LogWarning, "缺失数据", outcome.MissingData},
-		{LogWarning, "重复数据", outcome.DuplicateData},
-		{LogInfo, "变更数据", outcome.ChangedData},
-		{LogWarning, "冲突数据", outcome.ConflictData},
-	} {
-		if len(detail.list) > 0 {
-			app.appendLog(detail.level, fmt.Sprintf("%s（%d 行）：%s",
-				detail.name, len(detail.list), strings.Join(detail.list, "、")))
-		}
+	// 只给汇总：合格 / 缺失 / 重复 三个行数（有变更、冲突时再补两个计数），
+	// 不逐条展开缺失、重复的明细 —— 具体哪些记录有问题，看结果表按状态筛选即可。
+	summary := []string{
+		fmt.Sprintf("合格 %d 行", counts[consolidation.StatusReady]),
+		fmt.Sprintf("缺失 %d 行", counts[consolidation.StatusIncomplete]),
+		fmt.Sprintf("重复 %d 行", counts[consolidation.StatusDuplicate]),
 	}
+	if changed := len(outcome.ChangedData); changed > 0 {
+		summary = append(summary, fmt.Sprintf("变更 %d 行", changed))
+	}
+	if conflicts := len(outcome.ConflictData); conflicts > 0 {
+		summary = append(summary, fmt.Sprintf("冲突 %d 行", conflicts))
+	}
+	app.appendLog(LogSuccess, "数据整合完成："+strings.Join(summary, "，"))
 	columns := append([]string{"status"}, app.service.Config.FieldNames...)
 	rows := make([][]string, 0, len(outcome.Rows))
 	statuses := make([]string, 0, len(outcome.Rows))

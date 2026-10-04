@@ -73,45 +73,15 @@ body {
   min-height: 0;
 }
 
-/* 记录导出：右列最下面的一条 —— 红底白字的标题块（只比四个字宽一点）
-   与白底描边的内容条并排在同一行，最省纵向空间。 */
+/* 记录导出：左列里的普通模块（红标题栏 + 正文一行），内容只有一行控件。 */
 .record-card {
   flex: 0 0 auto;
-  border: none; /* 外框交给内容条自己的描边 */
-  background: transparent;
 }
 
+/* 正文上下留白收到 8px（antd 默认 12px）：模块 38 + 8 + 32 + 8 = 86px，
+   窄栏里这一行控件不需要那么多上下空间。 */
 .record-card > .ant-card-body {
-  padding: 0;
-}
-
-.record-row {
-  display: flex;
-  align-items: stretch;
-  min-width: 0;
-}
-
-.record-title {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 120px; /* 约等于「记录导出」四个字宽度的 1.5 倍 */
-  padding: 0 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #fff;
-  background: #da291c; /* theme.ts 的 BRAND_RED */
-}
-
-.record-content {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  padding: 4px 8px;
-  background: #fff;
-  border: 1px solid #e5e5e5;
+  padding: 8px 12px;
 }
 
 /* 四个模块都是 antd 的 Card（size="small"）：圆角、标题排版、内边距都用 antd 的，
@@ -120,7 +90,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid #e5e5e5; /* 比 antd 默认的 #f0f0f0 略深一点，模块轮廓更清楚 */
+  border: 1px solid #d9d9d9; /* 比 antd 默认的 #f0f0f0 明显加深，模块间隔窄时也能一眼分开 */
   border-radius: 0; /* 功能模块一律直角 */
 }
 
@@ -164,6 +134,82 @@ body {
   flex-direction: column;
 }
 
+/* ---------- 模块标题栏里的纯图标动作（清空） ---------- */
+
+/* 红底标题条上只放一个白色图标：无文字、无边框、无底色，鼠标悬浮给一层淡淡的白。 */
+.card > .ant-card-head .head-icon-action.ant-btn {
+  color: #fff;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.card > .ant-card-head .head-icon-action.ant-btn:hover,
+.card > .ant-card-head .head-icon-action.ant-btn:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ---------- 数据整合的标题栏 ---------- */
+
+/* 标题栏：模块名在左、「整合」在整条栏的正中、生成文件图标在右，三者一律纵向居中 */
+.consolidation-card > .ant-card-head {
+  position: relative;
+}
+
+.consolidation-card > .ant-card-head .ant-card-head-wrapper,
+.consolidation-card > .ant-card-head .ant-card-head-title,
+.consolidation-card > .ant-card-head .ant-card-extra {
+  display: flex;
+  align-items: center;
+}
+
+/* 标题块要放开 overflow，否则 antd 的 textEllipsis 会把居中的按钮裁掉 */
+.consolidation-card > .ant-card-head .ant-card-head-title {
+  overflow: visible;
+}
+
+/* 「整合」：白底红字（红底标题栏上才有对比），整条标题栏的正中。
+   必须同时给 top + translateY(-50%)，否则绝对定位会从标题文字的上沿往下排、下缘出栏。 */
+.consolidation-card .consolidation-run.ant-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 28px; /* 比 antd 默认再矮一点；38px 的标题栏里上下各留 5px */
+  background: #fff;
+  color: #da291c; /* theme.ts 的 BRAND_RED */
+  border-color: #fff;
+}
+
+.consolidation-card .consolidation-run.ant-btn:hover,
+.consolidation-card .consolidation-run.ant-btn:focus-visible {
+  background: #fff;
+  color: #a81f14; /* 悬浮时红字再深一点 */
+  border-color: #fff;
+}
+
+.consolidation-card .consolidation-run.ant-btn:active {
+  background: #fff;
+  color: #8f1a11;
+  border-color: #fff;
+}
+
+/* 数据整合标题栏右侧的图标按钮：无边框、白色图标（沿用清空按钮那套），
+   尺寸与「整合」按钮同高（28px），图标本体在 App 侧放大到 18px */
+.consolidation-card > .ant-card-head .head-icon-action.ant-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+/* 禁用时退回半透明白（antd 默认在红底上会变成深灰，看不清） */
+.card > .ant-card-head .head-icon-action.ant-btn:disabled,
+.card > .ant-card-head .head-icon-action.ant-btn.ant-btn-disabled {
+  color: rgba(255, 255, 255, 0.45);
+  background: transparent;
+}
+
 /* ---------- 竖向分隔上的收起 / 展开按钮 ---------- */
 
 /* 它就住在左右两列之间（是 .columns 的一个 flex 子项），所以位置永远贴着分隔线；
@@ -194,10 +240,6 @@ body {
   padding: 8px;
   background: #fff;
   border: 1px solid #f0f0f0; /* colorBorderSecondary */
-}
-
-.group-gap {
-  height: 8px;
 }
 
 .title-row {
@@ -243,11 +285,10 @@ body {
 
 /* ---------- 记录导出 ---------- */
 
-/* 记录导出在右列横着排：两个日期并排、中间一个箭头、回顾按钮跟在后面，
-   整组在白底条里居中。日期框按固定宽度、可压缩，不会换行或冒出横向滚动条。 */
+/* 记录导出：两个日期并排、中间一个箭头、后面跟纯图标的「回顾」，整组在模块里居中。
+   左列正文可用宽 314px（340 − 边框 2 − 正文内边距 24）：
+   2×122 + 8 + 14 + 8 + 8 + 32 = 314 ✓ 一行放得下，不换行、不出横向滚动条。 */
 .range {
-  /* 必须撑满内容条：否则这个盒子只有内容那么宽，justify-content: center 没有余量可分 */
-  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -256,7 +297,7 @@ body {
 }
 
 .range .ant-picker {
-  flex: 0 1 150px;
+  flex: 0 1 122px; /* 窄栏里按可用宽度收窄，最小 110px 仍能完整显示 YYYY-MM-DD */
   min-width: 110px;
   max-width: 100%;
 }
@@ -278,16 +319,23 @@ body {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  justify-content: space-between; /* 查找框靠左、状态片靠右 */
   flex-wrap: nowrap;
   gap: 8px;
   margin-bottom: 12px;
 }
 
+/* 查找框：输入即筛表格内容，窄窗口下可压缩但不会挤掉状态片 */
+.table-search {
+  flex: 0 1 240px;
+  min-width: 150px;
+}
+
 /* 状态筛选片占满中间那一段，内容居中。 */
 .status-strip {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end; /* 三个状态片靠右 */
   min-width: 0;
 }
 
@@ -296,11 +344,18 @@ body {
 .status-chips {
   display: inline-grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  /* 固定轨道宽度（原 86px ≈ 原来的 57px × 1.5）：数字位数变化时按钮宽度不动 */
+  grid-auto-columns: 86px;
   align-items: stretch;
   gap: 8px;
   min-width: 0;
   max-width: 100%;
+}
+
+/* 按钮里的数字：加粗 + 等宽数字（位数变化时也不左右跳） */
+.status-count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .status-chip.ant-tag {
@@ -420,6 +475,22 @@ body {
   border-bottom-color: #d9d9d9;
 }
 
+/* 标题栏里的内容统一垂直居中对齐（标题 + 条数 + 右侧「新日志置顶」开关） */
+.log-card > .ant-card-head .ant-card-head-wrapper {
+  align-items: center;
+}
+
+.log-card > .ant-card-head .ant-card-head-title,
+.log-card > .ant-card-head .ant-card-extra {
+  display: flex;
+  align-items: center;
+}
+
+/* 「新日志置顶」比标题小一号 */
+.log-sort .ant-typography {
+  font-size: 12px;
+}
+
 /* 标题里的总条数：次级色、常规字重，不与红色的标题抢视线 */
 .log-count {
   margin-left: 8px;
@@ -452,10 +523,33 @@ body {
 
 .log-toolbar .ant-segmented-item-label {
   padding-inline: 6px;
+  font-size: 12px; /* 比正文小一号 */
 }
 
-.log-toolbar .ant-typography {
-  white-space: nowrap;
+/* 每个栏目的文字颜色与日志里该级别的颜色一致（信息蓝 / 成功绿 / 警告橙 / 错误红） */
+.log-filter-all {
+  color: rgba(0, 0, 0, 0.88); /* colorText */
+}
+
+.log-filter-info {
+  color: #1677ff;
+}
+
+.log-filter-success {
+  color: #389e0d;
+}
+
+.log-filter-warning {
+  color: #d48806;
+}
+
+.log-filter-error {
+  color: #cf1322;
+}
+
+/* 选中的栏目是红底，文字必须是白的（否则级别色压在红底上） */
+.log-toolbar .ant-segmented-item-selected .log-filter {
+  color: #fff;
 }
 
 /* 日志列表：行之间的浅色分割线由 antd Table 自带；这里只负责滚动。 */
@@ -471,12 +565,26 @@ body {
   font-size: 12px;
 }
 
+/* 水平内边距压到最小，宽度留给正文；垂直线距不动（行高不变）。
+   antd 小尺寸表格的内边距选择器带 .ant-table-wrapper .ant-table.ant-table-small 前缀，
+   所以这里要写到同样的具体度才盖得住。 */
+.log-card .log-table .ant-table.ant-table-small .ant-table-thead > tr > th.ant-table-cell,
+.log-card .log-table .ant-table.ant-table-small .ant-table-tbody > tr > td.ant-table-cell {
+  padding-inline: 4px;
+}
+
 /* 窄栏（340px）里的三样：时间段 / 级别色字 / 两行截断的正文 */
 
-/* 级别：不再用带边框的 Tag（太占宽度），改成两个字 + 级别色 */
+/* 级别：两个字 + 级别色；固定 44px 槽位，文字在槽位里水平垂直都居中 */
 .log-level {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 两个汉字 24px，槽位给到 32px：文字在槽位里横向居中，同时比原来的 44px 窄 */
+  width: 32px;
   font-size: 12px;
+  line-height: 22px;
   white-space: nowrap;
 }
 
@@ -498,6 +606,7 @@ body {
 
 .log-table .log-time {
   color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
+  text-align: left; /* 时间靠左排布 */
   white-space: nowrap;
   font-variant-numeric: tabular-nums; /* 数字等宽，时间列才对得齐 */
 }
@@ -510,6 +619,31 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
+}
+
+/* ---------- 提示弹窗（antd Modal + Descriptions） ---------- */
+
+/* 标题前的状态图标：成功用与日志「成功」/ Ready 状态同一个绿，失败用危险红 */
+.message-icon-ok {
+  color: #389e0d; /* STATUS_COLORS.Ready / 日志级别「成功」 */
+}
+
+.message-icon-failed {
+  color: #cf1322; /* DANGER_RED */
+}
+
+/* 键值两行：标签灰、值深色，行距收紧一点，整块在弹窗里更紧凑 */
+.message-details .ant-descriptions-item-label {
+  width: 76px;
+  color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
+}
+
+.message-details .ant-descriptions-item-content {
+  color: rgba(0, 0, 0, 0.88); /* colorText */
+}
+
+.message-details .ant-descriptions-row > td {
+  padding-bottom: 6px;
 }
 
 /* ---------- 载入图层 ---------- */

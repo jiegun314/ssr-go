@@ -2,11 +2,12 @@
 // 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
 import { Button, Card, Tooltip } from "antd";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, Merge, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   REVIEW_PAGE_SIZE,
+  SOURCES,
   call,
   defaultRange,
   onBusy,
@@ -59,6 +60,8 @@ export default function App() {
   const [rows, setRows] = useState<string[][]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  // 生成文件的门禁：只有合格（Ready）行会被导出，所以按全部行里的 Ready 数量算
+  const readyCount = statuses.filter((status) => status === "Ready").length;
 
   const range = defaultRange(new Date());
   const [startDate, setStartDate] = useState(range.start);
@@ -105,7 +108,7 @@ export default function App() {
   }, []);
 
   const fail = useCallback((title: string, detail: string) => {
-    setMessage({ title, message: detail });
+    setMessage({ title, message: detail, failed: true });
   }, []);
 
   /* ---------- 数据导入 ---------- */
@@ -118,7 +121,20 @@ export default function App() {
       if (!result) return;
       setLog(result.log);
       if (result.state) applyImportStates({ [source]: result.state });
-      setMessage({ title: result.title, message: result.message });
+      // 成功时把结果摊成「信息类别 / 导入数量」两行，失败时只给原因（failed 让标题配红色图标）
+      const category = SOURCES.find((item) => item.key === source)?.title ?? source;
+      setMessage({
+        title: result.title,
+        message: result.message,
+        failed: result.failed,
+        details:
+          !result.failed && typeof result.rowCount === "number"
+            ? [
+                { label: "信息类别", value: category },
+                { label: "导入数量", value: `${result.rowCount.toLocaleString("zh-CN")} 行` },
+              ]
+            : undefined,
+      });
     },
     [applyImportStates],
   );
@@ -127,7 +143,7 @@ export default function App() {
     const result = await call<ClearResult>("ClearImportedData");
     if (!result) return;
     setLog(result.log);
-    setMessage({ title: result.title, message: result.message });
+    setMessage({ title: result.title, message: result.message, failed: result.failed });
     if (!result.failed) await refreshInitial();
   }, [refreshInitial]);
 
@@ -143,7 +159,7 @@ export default function App() {
     if (!result) return;
     setLog(result.log);
     if (result.failed) {
-      setMessage({ title: result.title, message: result.message });
+      setMessage({ title: result.title, message: result.message, failed: result.failed });
       return;
     }
     setReview(result);
@@ -180,7 +196,7 @@ export default function App() {
     const result = await call<ExportResult>("ExportReviewData", session.fileType, choice.target);
     if (!result) return;
     setLog(result.log);
-    setMessage({ title: result.title, message: result.message });
+    setMessage({ title: result.title, message: result.message, failed: result.failed });
   }, []);
 
   /* ---------- 整合与导出 ---------- */
@@ -190,7 +206,7 @@ export default function App() {
     if (!result) return;
     setLog(result.log);
     if (result.failed) {
-      setMessage({ title: result.title, message: result.message });
+      setMessage({ title: result.title, message: result.message, failed: result.failed });
       return;
     }
     setColumns(result.columns ?? []);
@@ -209,7 +225,7 @@ export default function App() {
     const result = await call<ExportResult>("Export", choice.defaultName, choice.target);
     if (!result) return;
     setLog(result.log);
-    setMessage({ title: result.title, message: result.message });
+    setMessage({ title: result.title, message: result.message, failed: result.failed });
   }, []);
 
   /* ---------- 参数设定 ---------- */
@@ -251,7 +267,7 @@ export default function App() {
     const result = await call<SettingsSaveResult>("SaveConfigurationFile", activeTab, editorValue);
     if (!result) return;
     setLog((current) => current);
-    setMessage({ title: result.title, message: result.message });
+    setMessage({ title: result.title, message: result.message, failed: result.failed });
     if (result.failed) return;
     const refreshed = await call<SettingsTab[]>("ConfigurationDocument");
     if (Array.isArray(refreshed) && refreshed.length > 0) {
@@ -305,9 +321,13 @@ export default function App() {
     onEvent("show-settings", () => void openSettings());
     onEvent("log-updated", (text) => setLog(String(text ?? "")));
     onEvent("show-message", (payload) => {
-      const data = payload as { title?: string; message?: string } | undefined;
+      const data = payload as { title?: string; message?: string; failed?: boolean } | undefined;
       if (!data) return;
-      setMessage({ title: data.title ?? "Info", message: data.message ?? "" });
+      setMessage({
+        title: data.title ?? "Info",
+        message: data.message ?? "",
+        failed: data.failed ?? false,
+      });
     });
   }, [openAbout, openSettings]);
 
@@ -316,15 +336,40 @@ export default function App() {
       <div className="app-shell">
         <div className={`columns${leftCollapsed ? " left-collapsed" : ""}`}>
           <div className="left">
-            <Card className="card" size="small" title="数据导入">
+            <Card
+              className="card"
+              size="small"
+              title="数据导入"
+              extra={
+                // 清空：只有白色图标（无文字、无边框），标题栏里靠右，省下模块内那一行的高度
+                <Tooltip title="清空导入数据">
+                  <Button
+                    className="head-icon-action"
+                    type="text"
+                    aria-label="清空导入数据"
+                    icon={<Trash2 size={16} />}
+                    onClick={handleClear}
+                  />
+                </Tooltip>
+              }
+            >
               <ImportPanel
                 states={imports}
                 onImport={handleImport}
                 onReview={openSourceReview}
-                onClear={handleClear}
               />
             </Card>
-            {/* 操作日志住在左列下半部分：按左列剩余高度撑满，窗口越高日志越长，不留空白 */}
+            {/* 记录导出：与其余模块同构（红标题栏 + 正文一行），位置在数据导入与操作日志之间 */}
+            <Card className="card record-card" size="small" title="记录导出">
+              <RecordExportPanel
+                start={startDate}
+                end={endDate}
+                onStartChange={setStartDate}
+                onEndChange={setEndDate}
+                onReview={openLogReview}
+              />
+            </Card>
+            {/* 操作日志住在左列最下面：按左列剩余高度撑满，窗口越高日志越长，不留空白 */}
             <LogPanel text={log} />
           </div>
           {/* 竖向分隔上的收起/展开按钮：收起后右侧结果表吃满整个窗口宽度 */}
@@ -338,30 +383,43 @@ export default function App() {
             />
           </Tooltip>
           <div className="right">
-            <Card className="card grow" size="small" title="数据整合">
+            <Card
+              className="card grow consolidation-card"
+              size="small"
+              title={
+                // 标题栏：模块名在左，「整合」主按钮在整条标题栏正中（绝对定位居中，见 styles.css）
+                <>
+                  <span className="consolidation-name">数据整合</span>
+                  <Button
+                    className="consolidation-run"
+                    type="primary"
+                    icon={<Merge size={16} />}
+                    onClick={handleConsolidate}
+                  >
+                    整合
+                  </Button>
+                </>
+              }
+              extra={
+                // 生成文件：只有图标（靠右），没有合格行时禁用并给出原因
+                <Tooltip title={readyCount === 0 ? "还没有可导出的行（只有合格的行会导出）" : "生成文件"}>
+                  <Button
+                    className="head-icon-action"
+                    type="text"
+                    aria-label="生成文件"
+                    icon={<FileDown size={18} />}
+                    disabled={readyCount === 0}
+                    onClick={handleExport}
+                  />
+                </Tooltip>
+              }
+            >
               <ConsolidationPanel
                 columns={columns}
                 rows={rows}
                 statuses={statuses}
                 counts={counts}
-                onConsolidate={handleConsolidate}
-                onExport={handleExport}
               />
-            </Card>
-            {/* 记录导出：右列最下面一条。红底白字的标题块只占四个字多一点，内容在白底描边的条里 */}
-            <Card className="card record-card" size="small">
-              <div className="record-row">
-                <span className="record-title">记录导出</span>
-                <div className="record-content">
-                  <RecordExportPanel
-                    start={startDate}
-                    end={endDate}
-                    onStartChange={setStartDate}
-                    onEndChange={setEndDate}
-                    onReview={openLogReview}
-                  />
-                </div>
-              </div>
             </Card>
           </div>
         </div>

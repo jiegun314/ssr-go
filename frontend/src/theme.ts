@@ -61,3 +61,19 @@ export const STATUS_COLORS = {
   Duplicate: "#D48806",  // antd gold-7
   Conflict: "#C41D7F",   // antd magenta-6
 } as const;
+
+/**
+ * 状态的中文名：与日志窗口的口径一致（合格 / 缺失 / 重复 / 冲突）。
+ * 后端给的状态仍是英文常量（Ready/Incomplete/...），只在这里翻译给界面看。
+ */
+export const STATUS_LABELS: Record<string, string> = {
+  Ready: "合格",
+  Incomplete: "缺失",
+  Duplicate: "重复",
+  Conflict: "冲突",
+};
+
+/** 取状态的中文名；遇到未知状态就原样显示。 */
+export function statusLabel(status: string): string {
+  return STATUS_LABELS[status] ?? status;
+}

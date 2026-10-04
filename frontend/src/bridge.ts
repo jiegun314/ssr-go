@@ -22,7 +22,6 @@ export const SOURCES: SourceDefinition[] = [
 ];
 
 // 第一个分组之后插一个空行（对应原界面的 horizontalSpacer）。
-export const GROUP_GAP_AFTER = 1;
 
 export const REVIEW_PAGE_SIZE = 100;
 

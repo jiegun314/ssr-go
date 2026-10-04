@@ -178,16 +178,19 @@ func TestTheLogWindowIsFilterableAndTwoColumn(t *testing.T) {
 		"parseLog(",  // 按行契约把日志文本拆成条目
 		"shortTime(", // 时间段只留 HH:MM:SS
 		"<Segmented", // 级别栏目
-		`{ label: "全部", value: "all" }`,
+		`className="log-filter log-filter-all"`,
 		"LOG_LEVELS.map", // 信息 / 成功 / 警告 / 错误
-		"新日志置顶",          // 排序开关
+		"新日志置顶",          // 排序开关（在标题栏里，靠右）
 		"<Switch",
-		`className="log-toolbar"`, // 筛选与排序在标题条下面一行
-		"{entries.length} 条",      // 条数回到标题里（标题条不再挤栏目）
+		`className="log-sort"`, // 它挂在标题栏的 extra 上
+		"extra={",
+		`className="log-toolbar"`, // 筛选单独一行
+		"{entries.length} 条",      // 条数在标题里
+		"log-filter-${level}",     // 栏目文字按级别上色
 		"showHeader={false}",      // 两列表格，不再单画一行表头
 		`title: "时间",`,
 		`title: "信息",`,
-		"width: 72",                // 时间列只要装下 HH:MM:SS
+		"width: 64",                // 时间列只要装下 HH:MM:SS（12px 等宽数字约 54px）
 		"log-level-${entry.level}", // 级别用两个字 + 级别色
 		"log-text",                 // 正文容器（两行截断）
 		"暂无日志",
@@ -201,12 +204,22 @@ func TestTheLogWindowIsFilterableAndTwoColumn(t *testing.T) {
 		".log-list {",
 		".log-card > .ant-card-head {", // 灰底 + 红字的标题条
 		".log-card > .ant-card-head .ant-card-head-title {",
-		"background: #e8e8e8;",                     // 标题条用更深一档的灰
-		".log-toolbar .ant-segmented-item-label {", // 一行里塞下 5 个栏目，内边距收紧
-		".log-toolbar .ant-typography {",           // 「新日志置顶」不换行
+		"background: #e8e8e8;",                        // 标题条用更深一档的灰
+		".log-toolbar .ant-segmented-item-label {",    // 一行里塞下 5 个栏目，内边距收紧
+		"font-size: 12px;",                            // 栏目文字比正文小一号
+		".log-filter-info {", ".log-filter-success {", // 栏目颜色与日志里级别色一致
+		".log-filter-warning {", ".log-filter-error {",
+		".log-toolbar .ant-segmented-item-selected .log-filter {", // 选中时红底白字
+		".log-sort .ant-typography {",                             // 「新日志置顶」小一号
+		".log-card > .ant-card-head .ant-card-head-wrapper {",
 		".log-table .log-time {",
+		"text-align: left;",                   // 时间靠左
 		"white-space: nowrap;",                // 时间列不换行
 		"font-variant-numeric: tabular-nums;", // 数字等宽，时间才对得齐
+		".log-level {",                        // 级别标签：32px 槽位内横向居中（比原来的 44px 窄）
+		"width: 32px;",
+		".log-card .log-table .ant-table.ant-table-small .ant-table-tbody > tr > td.ant-table-cell {",
+		"justify-content: center;",
 		".log-level-info {", ".log-level-success {",
 		".log-level-warning {", ".log-level-error {",
 		".log-text {",
@@ -266,11 +279,11 @@ func TestTheLeftColumnHoldsImportAndLog(t *testing.T) {
 	importIndex := strings.Index(app, `title="数据导入"`)
 	logIndex := strings.Index(app, "<LogPanel text={log} />")
 	toggleIndex := strings.Index(app, "left-toggle")
-	tableIndex := strings.Index(app, `title="数据整合"`)
-	recordIndex := strings.Index(app, `className="record-title"`)
-	if !(importIndex < logIndex && logIndex < toggleIndex && toggleIndex < tableIndex && tableIndex < recordIndex) {
-		t.Errorf("App.tsx 顺序应当是 数据导入 → 操作日志 → 分隔按钮 → 数据整合 → 记录导出，实际 %d/%d/%d/%d/%d",
-			importIndex, logIndex, toggleIndex, tableIndex, recordIndex)
+	tableIndex := strings.Index(app, `className="card grow consolidation-card"`)
+	recordIndex := strings.Index(app, `className="card record-card"`)
+	if !(importIndex < recordIndex && recordIndex < logIndex && logIndex < toggleIndex && toggleIndex < tableIndex) {
+		t.Errorf("App.tsx 顺序应当是 数据导入 → 记录导出 → 操作日志 → 分隔按钮 → 数据整合，实际 %d/%d/%d/%d/%d",
+			importIndex, recordIndex, logIndex, toggleIndex, tableIndex)
 	}
 
 	// 高度由 flex 决定，没有手动拖动：数据导入不动、窗口变化全给日志
@@ -327,7 +340,6 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 
 	rangeBlock := cssRule(t, styles, ".range {")
 	for _, wanted := range []string{
-		"flex: 1 1 auto;", // 必须撑满白色内容条，否则这个盒子只有内容宽，居中无从谈起
 		"display: flex;",
 		"align-items: center;",
 		"justify-content: center;",
@@ -336,20 +348,24 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 			t.Errorf("记录导出应当是居中摆放的一行，缺少 %s，实际块：\n%s", wanted, rangeBlock)
 		}
 	}
-	contentStrip := cssRule(t, styles, ".record-content {")
-	if !strings.Contains(contentStrip, "flex: 1 1 auto;") || !strings.Contains(contentStrip, "display: flex;") {
-		t.Errorf("记录导出的内容条应当撑满并居中内容，实际块：\n%s", contentStrip)
+	// 模块本身：左列里的普通卡（红标题栏 + 正文），不再有红块/白条那套
+	if strings.Contains(styles, ".record-row") || strings.Contains(styles, ".record-title") || strings.Contains(styles, ".record-content") {
+		t.Error("记录导出已经是普通模块，不该再有红块/白条（record-row / record-title / record-content）")
 	}
-	title := cssRule(t, styles, ".record-title {")
-	if !strings.Contains(title, "min-width: 120px;") {
-		t.Errorf("记录导出的标题块要宽出四个字的 50%%（120px），实际块：\n%s", title)
+	recordCard := cssRule(t, styles, ".record-card {")
+	if !strings.Contains(recordCard, "flex: 0 0 auto;") {
+		t.Errorf("记录导出应当按内容高度排在左列中间，实际块：\n%s", recordCard)
+	}
+	recordBody := cssRule(t, styles, ".record-card > .ant-card-body {")
+	if !strings.Contains(recordBody, "padding: 8px 12px;") {
+		t.Errorf("记录导出正文上下留白应当是 8px（模块 86px），实际块：\n%s", recordBody)
 	}
 	if strings.Contains(styles, ".range .spacer") {
 		t.Error("日期与按钮整组居中，不需要把按钮推到右边的 spacer")
 	}
 	picker := cssBlock(t, styles, ".range .ant-picker {")
-	if !strings.Contains(picker, "flex: 0 1 150px;") || !strings.Contains(picker, "min-width: 110px;") {
-		t.Errorf("日期框应当是固定宽度且可压缩，实际块：\n%s", picker)
+	if !strings.Contains(picker, "flex: 0 1 122px;") || !strings.Contains(picker, "min-width: 110px;") {
+		t.Errorf("日期框应当按窄栏收窄到 122px 且可压缩到 110px，实际块：\n%s", picker)
 	}
 	for _, wanted := range []string{
 		".range .date-sep {",
@@ -359,7 +375,7 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 			t.Errorf("记录导出样式缺少：%s", wanted)
 		}
 	}
-	for _, wanted := range []string{`className="date-sep"`, "回顾", `className="record-title"`} {
+	for _, wanted := range []string{`className="date-sep"`, `aria-label="回顾"`, `title="回顾"`} {
 		if !strings.Contains(panels, wanted) && !strings.Contains(app, wanted) {
 			t.Errorf("记录导出结构缺少：%s", wanted)
 		}
@@ -367,26 +383,18 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 	if strings.Contains(styles, ".range .date-row") {
 		t.Error("日期已经改成并排，不该再有上下两行的 date-row")
 	}
-	// 它住在右列最下面：红底白字的标题块 + 白底描边的内容条，同一行
-	if !strings.Contains(app, `className="card record-card"`) {
-		t.Error("记录导出应当是右列下方的一条（class=card record-card）")
+	// 它住在左列中间：与其余模块同构（antd Card + 红标题栏），标题文字格式自然一致
+	if !strings.Contains(app, `className="card record-card"`) || !strings.Contains(app, `title="记录导出"`) {
+		t.Error("记录导出应当是左列里的普通模块（class=card record-card + title）")
 	}
-	for _, wanted := range []string{`className="record-row"`, `className="record-title"`, `className="record-content"`} {
-		if !strings.Contains(app, wanted) {
-			t.Errorf("记录导出缺少结构：%s", wanted)
-		}
+	// 回顾是纯图标按钮（窄栏里带文字一行放不下），语义靠 aria-label + Tooltip
+	reviewStart := strings.Index(panels, `aria-label="回顾"`)
+	reviewButton := panels[strings.LastIndex(panels[:reviewStart], "<Button"):]
+	reviewButton = reviewButton[:strings.Index(reviewButton, "/>")]
+	if strings.Contains(reviewButton, "回顾<") || strings.Contains(reviewButton, ">回顾") {
+		t.Error("「回顾」在窄栏里应当是纯图标按钮，不该带文字")
 	}
-	if !strings.Contains(title, "background: #da291c;") || !strings.Contains(title, "color: #fff;") {
-		t.Errorf("记录导出的标题块应当是红底白字，实际块：\n%s", title)
-	}
-	content := cssRule(t, styles, ".record-content {")
-	if !strings.Contains(content, "background: #fff;") || !strings.Contains(content, "border: 1px solid #e5e5e5;") {
-		t.Errorf("记录导出的内容应当是白底带描边，实际块：\n%s", content)
-	}
-	card := cssRule(t, styles, ".record-card {")
-	if !strings.Contains(card, "flex: 0 0 auto;") || !strings.Contains(card, "border: none;") {
-		t.Errorf("记录导出应当贴底、且外框交给内容条，实际块：\n%s", card)
-	}
+
 }
 
 // TestTheUIKeepsTheProductColorsAndFont 固定主题口径：品牌红＝强生企业红（PANTONE 485 C），
@@ -453,10 +461,12 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
 	for _, wanted := range []string{
-		`className="card" size="small" title="数据导入"`,
-		`className="card grow" size="small" title="数据整合"`,
+		`className="card"`,
+		`title="数据导入"`,
+		`className="card grow consolidation-card"`,
+		`className="consolidation-name"`,
 		`className="card record-card"`,
-		`className="record-title"`,
+		`title="记录导出"`,
 	} {
 		if !strings.Contains(app, wanted) {
 			t.Errorf("App.tsx 的模块应当用 antd Card：找不到 %s", wanted)
@@ -507,7 +517,7 @@ func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 	}
 
 	card := cssRule(t, styles, ".card {")
-	if !strings.Contains(card, "border: 1px solid #e5e5e5;") {
+	if !strings.Contains(card, "border: 1px solid #d9d9d9;") {
 		t.Errorf("模块应当有一条淡色描边，实际块：\n%s", card)
 	}
 	shell := cssBlock(t, styles, ".app-shell {")
@@ -680,6 +690,7 @@ func TestTheAboutWindowKeepsTheOriginalIntro(t *testing.T) {
 func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 	bridge := readFrontendSource(t, "src/bridge.ts")
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
 
 	order := []string{"medical_insurance_code", "product_category", "global_udi_input", "ra_input"}
 	position := -1
@@ -693,18 +704,23 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 		}
 		position = index
 	}
-	if !strings.Contains(bridge, "GROUP_GAP_AFTER = 1") {
-		t.Error("第一个分组之后要有空行（原界面的 horizontalSpacer）")
+	// 四个来源分组的间隔完全一致：不再有"第一个分组之后多留一块"的 horizontalSpacer
+	if strings.Contains(bridge, "GROUP_GAP_AFTER") || strings.Contains(panels, "group-gap") || strings.Contains(styles, ".group-gap") {
+		t.Error("第一个分组之后的额外空行已经去掉，不该再有 GROUP_GAP_AFTER / group-gap")
 	}
-	for _, wanted := range []string{`aria-label="载入文件"`, `aria-label="数据回顾"`, `aria-label="清空导入数据"`} {
+	group := cssRule(t, styles, ".group {")
+	if !strings.Contains(group, "margin-bottom: 6px;") {
+		t.Errorf("四个分组的间隔应当统一（margin-bottom: 6px），实际块：\n%s", group)
+	}
+	for _, wanted := range []string{`aria-label="载入文件"`, `aria-label="数据回顾"`} {
 		if !strings.Contains(panels, wanted) {
 			t.Errorf("导入区的图标按钮缺少可读名称：%s", wanted)
 		}
 	}
 	// 图标全部用 Lucide，语义按用户口径挑：
 	//   FileSpreadsheet（载入文件 = 一个 Excel 文件）/ TableIcon（数据回顾 = 看数据表格）/
-	//   Trash2（清空）/ Search（记录导出的回顾）
-	for _, icon := range []string{"FileSpreadsheet", "TableIcon", "Trash2", "Search"} {
+	//   Trash2（清空，现在挂在标题栏上）/ Search（记录导出的回顾）
+	for _, icon := range []string{"FileSpreadsheet", "TableIcon", "Search"} {
 		if !strings.Contains(panels, icon) {
 			t.Errorf("图标应当使用 Lucide 的 %s", icon)
 		}
@@ -769,18 +785,33 @@ func TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable(t *testing.T) {
 		}
 	}
 
-	// 从 <Button 开始切，才拿得到 aria-label 之前写的 danger
-	clearLabel := strings.Index(panels, `aria-label="清空导入数据"`)
-	clearButton := panels[strings.LastIndex(panels[:clearLabel], "<Button"):]
-	clearButton = clearButton[:strings.Index(clearButton, "</Button>")]
-	if !strings.Contains(clearButton, "清空") {
-		t.Error("清空按钮应当带「清空」两个字")
+	// 清空按钮搬到了「数据导入」的标题栏（App.tsx 的 extra）：只有白色图标，无文字无边框，
+	// 这样数据导入模块本身少一行高度。
+	app := readFrontendSource(t, "src/App.tsx")
+	if strings.Contains(panels, "清空导入数据") {
+		t.Error("清空按钮应当搬进标题栏（App.tsx 的 extra），不该再留在导入面板里")
 	}
-	if !strings.Contains(clearButton, "danger") {
-		t.Error("清空按钮应当用 danger（红色边框 + 红字）")
+	for _, wanted := range []string{
+		`className="head-icon-action"`,
+		`aria-label="清空导入数据"`,
+		`icon={<Trash2 size={16} />}`,
+		"extra={",
+	} {
+		if !strings.Contains(app, wanted) {
+			t.Errorf("标题栏里的清空按钮缺少：%s", wanted)
+		}
 	}
-	if strings.Contains(clearButton, `type="text"`) {
-		t.Error("清空按钮不该再是无边框的 text 按钮（用户要求红色边框）")
+	// 按钮体（到 /> 为止）里不能出现文字
+	clearButton := app[strings.Index(app, `className="head-icon-action"`):]
+	clearButton = clearButton[:strings.Index(clearButton, "/>")]
+	if strings.Contains(clearButton, ">清空") || strings.Contains(clearButton, "清空<") {
+		t.Error("标题栏里的清空按钮不该带文字")
+	}
+	action := cssRule(t, styles, ".card > .ant-card-head .head-icon-action.ant-btn {")
+	for _, wanted := range []string{"color: #fff;", "background: transparent;", "border: none;"} {
+		if !strings.Contains(action, wanted) {
+			t.Errorf("标题栏图标按钮缺少 %s，实际块：\n%s", wanted, action)
+		}
 	}
 }
 
@@ -1024,9 +1055,23 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 		t.Error("不该再有把状态片挤到第二行的媒体查询")
 	}
 
+	// 工具条这一行：查找框靠左、状态片靠右
+	search := cssBlock(t, styles, ".table-search {")
+	if !strings.Contains(search, "min-width: 150px;") {
+		t.Errorf("查找框要能压缩但不能挤掉状态片（min-width: 150px），实际块：\n%s", search)
+	}
+	strip := cssBlock(t, styles, ".status-strip {")
+	if !strings.Contains(strip, "justify-content: flex-end;") {
+		t.Errorf("三个状态片应当靠右，实际块：\n%s", strip)
+	}
+
 	chips := cssBlock(t, styles, ".status-chips {")
-	if !strings.Contains(chips, "grid-auto-columns: 1fr;") {
-		t.Errorf("状态片要等宽（1fr 轨道取最宽那个），实际块：\n%s", chips)
+	if !strings.Contains(chips, "grid-auto-columns: 86px;") {
+		t.Errorf("状态片要固定等宽（86px ≈ 原 57px × 1.5），不随数字位数变化，实际块：\n%s", chips)
+	}
+	count := cssBlock(t, styles, ".status-count {")
+	if !strings.Contains(count, "font-weight: 600;") {
+		t.Errorf("按钮里的数字要加粗，实际块：\n%s", count)
 	}
 
 	chip := cssBlock(t, styles, ".status-chip.ant-tag {")
@@ -1053,24 +1098,33 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 // 一个区域只留一个主按钮（数据整合 = primary，生成文件 = 次按钮），
 // 且没有 Ready 行时「生成文件」禁用（只有 Ready 会导出，点了也是白点）。
 func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
+	app := readFrontendSource(t, "src/App.tsx")
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 
-	if !strings.Contains(panels, `const readyCount = statuses.filter((status) => status === "Ready").length;`) {
-		t.Error("工具条应当按 Ready 行数决定「生成文件」能不能点")
+	// 门禁在 App 侧算（按钮住在标题栏里）：只有合格（Ready）行会被导出
+	if !strings.Contains(app, `const readyCount = statuses.filter((status) => status === "Ready").length;`) {
+		t.Error("标题栏应当按 Ready 行数决定「生成文件」能不能点")
 	}
-	exportButton := panels[strings.Index(panels, `icon={<FileDown size={16} />}`):]
-	exportButton = exportButton[:strings.Index(exportButton, "</Button>")]
+	exportButton := app[strings.Index(app, `aria-label="生成文件"`):]
+	exportButton = exportButton[:strings.Index(exportButton, "/>")]
 	if strings.Contains(exportButton, `type="primary"`) {
-		t.Error("「生成文件」应当是次按钮：一个区域只留「数据整合」一个主按钮")
+		t.Error("「生成文件」应当是次/图标按钮：一个区域只留「整合」一个主按钮")
 	}
-	if !strings.Contains(exportButton, "disabled={readyCount === 0}") {
+	if !strings.Contains(app, "disabled={readyCount === 0}") {
 		t.Error("没有 Ready 行时「生成文件」要禁用")
 	}
-	if !strings.Contains(panels, "还没有可导出的行（只有 Ready 状态会导出）") {
+	if strings.Contains(exportButton, ">生成文件<") {
+		t.Error("「生成文件」在标题栏里只留图标，不该带文字")
+	}
+	if !strings.Contains(app, "还没有可导出的行（只有合格的行会导出）") {
 		t.Error("禁用时要给出原因（Tooltip）")
 	}
-	if !strings.Contains(panels, `type="primary"`) || !strings.Contains(panels, "数据整合") {
-		t.Error("「数据整合」仍然是这个区域的主按钮")
+	// 「整合」是标题栏里唯一的主按钮
+	if !strings.Contains(app, `className="consolidation-run"`) || !strings.Contains(app, "整合") {
+		t.Error("「整合」仍然是这个区域的主按钮")
+	}
+	if strings.Contains(panels, "onConsolidate") || strings.Contains(panels, "onExport") {
+		t.Error("两个按钮已经搬到标题栏，面板里不该再持有这两个回调")
 	}
 }
 
@@ -1106,18 +1160,183 @@ func TestTheStatusChipsFilterTheResultTable(t *testing.T) {
 	for _, wanted := range []string{
 		"const [statusFilter, setStatusFilter] = useState<string | null>(null);",
 		"setStatusFilter((current) => (current === status ? null : status));",
-		"dataSource.filter((entry) => entry.status === statusFilter)",
+		".filter((entry) => statusFilter === null || entry.status === statusFilter)",
 		"rowClassName={(entry) => `result-row status-${entry.status}`}",
 		"data-filtered={statusFilter !== null}",
-		"`${statusFilter} 状态没有数据`",
+		"`${statusLabel(statusFilter)} 状态没有数据`", // 空态也用中文状态名
 	} {
 		if !strings.Contains(panels, wanted) {
 			t.Errorf("状态筛选缺少：%s", wanted)
 		}
 	}
-	// 筛选只影响显示：导出门禁仍然按全部行里的 Ready 数量算
-	if !strings.Contains(panels, `const readyCount = statuses.filter((status) => status === "Ready").length;`) {
+	// 状态片文案是中文（合格 / 缺失 / 重复），与日志口径一致
+	if !strings.Contains(panels, "statusLabel(status)") {
+		t.Error("状态片文案应当走 statusLabel（中文）")
+	}
+	theme := readFrontendSource(t, "src/theme.ts")
+	for _, wanted := range []string{
+		`Ready: "合格"`,
+		`Incomplete: "缺失"`,
+		`Duplicate: "重复"`,
+		`Conflict: "冲突"`,
+	} {
+		if !strings.Contains(theme, wanted) {
+			t.Errorf("状态中文名缺少：%s", wanted)
+		}
+	}
+	// 筛选只影响显示：导出门禁在 App 侧按全部行里的 Ready 数量算，不跟着筛选走
+	app := readFrontendSource(t, "src/App.tsx")
+	if !strings.Contains(app, `const readyCount = statuses.filter((status) => status === "Ready").length;`) {
 		t.Error("导出门禁不该跟着筛选走（仍是全部行里的 Ready 数量）")
+	}
+}
+
+// TestTheConsolidationHeadButtonsSitOnTheRedBar 固定数据整合标题栏里两个按钮的规格：
+// 「整合」白底红字、整条栏的正中、28px 高（38px 栏里上下各留 5px，不许出栏）；
+// 「生成文件」是去掉边框的白色图标按钮、与「整合」同高（28px），图标在 App 侧放大到 18px。
+func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
+	app := readFrontendSource(t, "src/App.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	runButton := cssRule(t, styles, ".consolidation-card .consolidation-run.ant-btn {")
+	for _, wanted := range []string{
+		"position: absolute;",
+		"top: 50%;", // 少了它绝对定位会从标题文字上沿往下排，下缘就出栏了
+		"left: 50%;",
+		"transform: translate(-50%, -50%);",
+		"height: 28px;", // 收窄后的高度：38px 的标题栏里上下各留 5px
+		"background: #fff;",
+		"color: #da291c;",
+	} {
+		if !strings.Contains(runButton, wanted) {
+			t.Errorf("「整合」按钮缺少 %s，实际块：\n%s", wanted, runButton)
+		}
+	}
+	// 图标按钮：无边框、白图标（沿用清空按钮那套），尺寸与「整合」同高
+	icon := cssRule(t, styles, ".consolidation-card > .ant-card-head .head-icon-action.ant-btn {")
+	for _, wanted := range []string{"width: 28px;", "height: 28px;", "padding: 0;"} {
+		if !strings.Contains(icon, wanted) {
+			t.Errorf("生成文件图标按钮缺少 %s，实际块：\n%s", wanted, icon)
+		}
+	}
+	for _, forbidden := range []string{"border:", "background:", "color:"} {
+		if strings.Contains(icon, forbidden) {
+			t.Errorf("生成文件图标按钮不该自己写 %s（无边框白图标由基础规则给），实际块：\n%s", forbidden, icon)
+		}
+	}
+	if !strings.Contains(app, "icon={<FileDown size={18} />}") {
+		t.Error("生成文件图标要放大到 18px")
+	}
+	// 两个标题栏按钮共用无边框白图标的基础规则；禁用时退回半透明白
+	clear := cssRule(t, styles, ".card > .ant-card-head .head-icon-action.ant-btn {")
+	for _, wanted := range []string{"color: #fff;", "border: none;", "background: transparent;"} {
+		if !strings.Contains(clear, wanted) {
+			t.Errorf("标题栏图标按钮的基础规则缺少 %s，实际块：\n%s", wanted, clear)
+		}
+	}
+	if !strings.Contains(styles, ".card > .ant-card-head .head-icon-action.ant-btn:disabled,") {
+		t.Error("标题栏图标按钮禁用时应当退回半透明白")
+	}
+	head := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-head-wrapper,")
+	if !strings.Contains(head, "align-items: center;") {
+		t.Errorf("标题栏内容要纵向居中，实际块：\n%s", head)
+	}
+}
+
+// TestTheConsolidationSearchFiltersTheTable 固定数据整合的查找框：
+// 它靠左、状态片靠右；输入即按整行任意单元格做包含匹配（不区分大小写），
+// 与状态筛选叠加生效；查不到时给专门的空态文案。
+func TestTheConsolidationSearchFiltersTheTable(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	for _, wanted := range []string{
+		"<Input", // antd 默认输入框
+		`className="table-search"`,
+		"allowClear",
+		`aria-label="查找表格内容"`,
+		`placeholder="查找表格内容"`,
+		"prefix={<Search size={14} aria-hidden=\"true\" />}",
+		`const [query, setQuery] = useState("");`,
+		"const needle = query.trim().toLowerCase();",
+		"entry.cells.some((cell) => String(cell ?? \"\").toLowerCase().includes(needle))",
+		"没有找到匹配的数据",
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("查找框缺少：%s", wanted)
+		}
+	}
+	// 关键字与状态筛选叠加：两个 filter 串在一起
+	if !strings.Contains(panels, ".filter((entry) => statusFilter === null || entry.status === statusFilter)") {
+		t.Error("关键字应当与状态筛选叠加生效")
+	}
+	// 查找框靠左、状态片靠右
+	search := cssRule(t, styles, ".table-search {")
+	if !strings.Contains(search, "flex: 0 1 240px;") {
+		t.Errorf("查找框宽度口径不对，实际块：\n%s", search)
+	}
+}
+
+// TestTheMessageDialogShowsStructuredDetails 固定提示弹窗的形态：
+// 标题前一个状态图标（成功绿对勾 / 失败红警示），结果摊成 antd 默认的键值表
+// （信息类别 / 导入数量），数量带千分位；失败时保留原来的多行原因文本。
+func TestTheMessageDialogShowsStructuredDetails(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	app := readFrontendSource(t, "src/App.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	// 1) 数据类型：明细是「标签 + 值」的数组
+	for _, wanted := range []string{
+		"export type MessageDetail = { label: string; value: string };",
+		"details?: MessageDetail[];",
+		"failed?: boolean;",
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("提示弹窗的数据类型缺少：%s", wanted)
+		}
+	}
+	// 2) 标题里的状态图标（Lucide，不用手写 SVG）
+	for _, wanted := range []string{
+		"<CheckCircle2",
+		"<CircleAlert",
+		"message-icon-ok",
+		"message-icon-failed",
+		`aria-hidden="true"`,
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("提示弹窗标题的状态图标缺少：%s", wanted)
+		}
+	}
+	// 3) 明细用 antd 默认的 Descriptions：一列、小尺寸、无冒号
+	for _, wanted := range []string{"<Descriptions", "column={1}", `size="small"`, "colon={false}", "<Typography.Text strong>"} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("提示弹窗的键值表缺少：%s", wanted)
+		}
+	}
+	// 4) 导入成功后要给出「信息类别 + 导入数量」，数量带千分位
+	for _, wanted := range []string{
+		`{ label: "信息类别", value: category }`,
+		"  SOURCES,", // 从 bridge 引入来源表，好把 key 翻成中文类别名
+		".find((item) => item.key === source)",
+		`toLocaleString("zh-CN")`,
+		"failed: result.failed",
+	} {
+		if !strings.Contains(app, wanted) {
+			t.Errorf("导入结果的组装缺少：%s", wanted)
+		}
+	}
+	// 5) 图标颜色走主题：成功用与日志「成功」同一个绿，失败用危险红
+	ok := cssRule(t, styles, ".message-icon-ok {")
+	if !strings.Contains(ok, "color: #389e0d;") {
+		t.Errorf("成功图标应当是状态绿，实际块：\n%s", ok)
+	}
+	failed := cssRule(t, styles, ".message-icon-failed {")
+	if !strings.Contains(failed, "color: #cf1322;") {
+		t.Errorf("失败图标应当是危险红，实际块：\n%s", failed)
+	}
+	label := cssRule(t, styles, ".message-details .ant-descriptions-item-label {")
+	if !strings.Contains(label, "color: rgba(0, 0, 0, 0.45);") {
+		t.Errorf("键值表的标签应当是次级灰，实际块：\n%s", label)
 	}
 }
 

@@ -9,7 +9,9 @@ import {
   Badge,
   Button,
   Card,
+  Input,
   DatePicker,
+  Descriptions,
   Empty,
   Flex,
   Modal,
@@ -24,10 +26,17 @@ import {
 import type { BadgeProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
-import { ArrowRight, FileDown, FileSpreadsheet, Merge, Search, Table as TableIcon, Trash2 } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleAlert,
+  FileSpreadsheet,
+  Search,
+  Table as TableIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { GROUP_GAP_AFTER, SOURCES } from "../bridge";
+import { SOURCES } from "../bridge";
 import {
   LOG_LEVELS,
   LOG_LEVEL_LABELS,
@@ -36,6 +45,7 @@ import {
   type LogEntry,
   type LogLevel,
 } from "../log";
+import { statusLabel } from "../theme";
 import type { ImportState } from "../types";
 
 /* ---------- 数据导入 ---------- */
@@ -44,7 +54,6 @@ type ImportPanelProps = {
   states: Record<string, ImportState>;
   onImport: (source: string) => void;
   onReview: (source: string) => void;
-  onClear: () => void;
 };
 
 /** 导入状态 → antd Badge 的语义色（imported / existing 都是"已有数据"，同色）。 */
@@ -60,10 +69,10 @@ function importBadge(state: string): BadgeProps["status"] {
   }
 }
 
-export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanelProps) {
+export function ImportPanel({ states, onImport, onReview }: ImportPanelProps) {
   return (
     <div>
-      {SOURCES.map((source, index) => {
+      {SOURCES.map((source) => {
         const current = states[source.key] ?? { state: "empty", label: "", tooltip: "" };
         return (
           <div key={source.key}>
@@ -103,22 +112,9 @@ export function ImportPanel({ states, onImport, onReview, onClear }: ImportPanel
                 </Tooltip>
               </div>
             </div>
-            {index === GROUP_GAP_AFTER - 1 && <div className="group-gap" />}
           </div>
         );
       })}
-      <Flex justify="flex-end">
-        <Tooltip title="清空导入数据">
-          <Button
-            danger
-            aria-label="清空导入数据"
-            icon={<Trash2 size={16} />}
-            onClick={onClear}
-          >
-            清空
-          </Button>
-        </Tooltip>
-      </Flex>
     </div>
   );
 }
@@ -151,15 +147,16 @@ export function RecordExportPanel({
     />
   );
 
-  // 记录导出在右列顶上只占一条：两个日期并排、中间一个箭头，回顾按钮靠右
+  // 记录导出在左列（340 宽）：两个日期 + 箭头 + 纯图标「回顾」，一行正好放下并整组居中。
+  // 回顾改成纯图标是为了让这一行塞进窄栏（带文字会多 52px，一行放不下），语义靠 Tooltip + aria-label。
   return (
     <div className="range">
       {picker(start, onStartChange, "起始日期")}
       <ArrowRight className="date-sep" size={14} aria-hidden="true" />
       {picker(end, onEndChange, "结束日期")}
-      <Button icon={<Search size={16} />} aria-label="回顾" onClick={onReview}>
-        回顾
-      </Button>
+      <Tooltip title="回顾">
+        <Button icon={<Search size={16} />} aria-label="回顾" onClick={onReview} />
+      </Tooltip>
     </div>
   );
 }
@@ -171,8 +168,6 @@ type ConsolidationPanelProps = {
   rows: string[][];
   statuses: string[];
   counts: Record<string, number>;
-  onConsolidate: () => void;
-  onExport: () => void;
 };
 
 /** 结果表的一行：原始单元格 + 状态（状态筛选与行底色都要用，所以连下标一起包起来）。 */
@@ -183,11 +178,11 @@ export function ConsolidationPanel({
   rows,
   statuses,
   counts,
-  onConsolidate,
-  onExport,
 }: ConsolidationPanelProps) {
-  // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（导出始终只看 Ready，与筛选无关）
+  // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（导出始终只看合格行，与筛选无关）
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  // 关键字：在整行任意单元格里做包含匹配（不区分大小写），与状态筛选叠加生效
+  const [query, setQuery] = useState("");
 
   const tableColumns: ColumnsType<ConsolidationRow> = columns.map((title, index) => ({
     title,
@@ -199,21 +194,25 @@ export function ConsolidationPanel({
     },
   }));
 
-  // 只有 Ready 行会被导出：没有它的时候「生成文件」没有意义
-  const readyCount = statuses.filter((status) => status === "Ready").length;
-
   const dataSource: ConsolidationRow[] = rows.map((cells, index) => ({
     key: String(index),
     status: statuses[index] ?? "Ready",
     cells,
   }));
-  const visible =
-    statusFilter === null ? dataSource : dataSource.filter((entry) => entry.status === statusFilter);
+  const needle = query.trim().toLowerCase();
+  const visible = dataSource
+    .filter((entry) => statusFilter === null || entry.status === statusFilter)
+    .filter(
+      (entry) =>
+        needle === "" ||
+        entry.cells.some((cell) => String(cell ?? "").toLowerCase().includes(needle)),
+    );
 
   const toggleStatus = (status: string) =>
     setStatusFilter((current) => (current === status ? null : status));
 
-  // 三个状态片（出现冲突时多一个）：等宽、与左右按钮同高、点击筛选
+  // 三个状态片（出现冲突时多一个）：等宽、与左右按钮同高、点击筛选。
+  // 文案用中文（合格 / 缺失 / 重复），与日志窗口口径一致；后端状态常量仍是英文。
   const chips: { status: string; color: string }[] = [
     { status: "Ready", color: "success" },
     { status: "Incomplete", color: "error" },
@@ -224,9 +223,16 @@ export function ConsolidationPanel({
   return (
     <>
       <div className="table-toolbar">
-        <Button type="primary" icon={<Merge size={16} />} onClick={onConsolidate}>
-          数据整合
-        </Button>
+        {/* 查找：输入即筛表格内容（与状态片叠加），靠左；状态片靠右 */}
+        <Input
+          className="table-search"
+          allowClear
+          value={query}
+          aria-label="查找表格内容"
+          placeholder="查找表格内容"
+          prefix={<Search size={14} aria-hidden="true" />}
+          onChange={(event) => setQuery(event.target.value)}
+        />
         <div
           className="status-strip"
           id="consolidation-summary"
@@ -241,7 +247,7 @@ export function ConsolidationPanel({
                 role="button"
                 tabIndex={0}
                 aria-pressed={statusFilter === status}
-                title={`只看 ${status} 的行（再点一次显示全部）`}
+                title={`只看「${statusLabel(status)}」的行（再点一次显示全部）`}
                 onClick={() => toggleStatus(status)}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter" && event.key !== " ") return;
@@ -249,24 +255,11 @@ export function ConsolidationPanel({
                   toggleStatus(status);
                 }}
               >
-                {status} {counts[status] ?? 0}
+                {statusLabel(status)} <span className="status-count">{counts[status] ?? 0}</span>
               </Tag>
             ))}
           </div>
         </div>
-        {/* 一个区域只留一个主按钮：生成文件是「整合之后才轮到」的动作，用次按钮 */}
-        <Tooltip title={readyCount === 0 ? "还没有可导出的行（只有 Ready 状态会导出）" : ""}>
-          <span>
-            <Button
-              type="default"
-              icon={<FileDown size={16} />}
-              disabled={readyCount === 0}
-              onClick={onExport}
-            >
-              生成文件
-            </Button>
-          </span>
-        </Tooltip>
       </div>
       {rows.length === 0 ? (
         <div className="table-empty">
@@ -287,7 +280,13 @@ export function ConsolidationPanel({
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={statusFilter ? `${statusFilter} 状态没有数据` : "暂无数据"}
+                  description={
+                    needle
+                      ? "没有找到匹配的数据"
+                      : statusFilter
+                        ? `${statusLabel(statusFilter)} 状态没有数据`
+                        : "暂无数据"
+                  }
                 />
               ),
             }}
@@ -328,7 +327,7 @@ export function LogPanel({ text }: { text: string }) {
     {
       title: "时间",
       dataIndex: "time",
-      width: 72,
+      width: 64,
       className: "log-time",
       render: (value: string) => <span title={value}>{value ? shortTime(value) : "—"}</span>,
     },
@@ -337,8 +336,8 @@ export function LogPanel({ text }: { text: string }) {
       dataIndex: "message",
       className: "log-message",
       render: (_: string, entry: LogEntry) => (
-        <Flex gap={6} align="flex-start">
-          {/* 级别：不再用带边框的 Tag（窄栏里太占宽度），改成两个字 + 级别色的紧凑文字 */}
+        <Flex gap={4} align="center">
+          {/* 级别：两个字 + 级别色，固定槽位内水平垂直都居中（不再靠上） */}
           <span
             className={`log-level log-level-${entry.level}`}
             title={LOG_LEVEL_LABELS[entry.level]}
@@ -364,22 +363,32 @@ export function LogPanel({ text }: { text: string }) {
           <span className="log-count">{entries.length} 条</span>
         </span>
       }
+      extra={
+        // 新日志置顶：标题栏里靠右，文字比标题小一号
+        <Flex className="log-sort" align="center" gap={6}>
+          <Typography.Text type="secondary">新日志置顶</Typography.Text>
+          <Switch size="small" checked={newestFirst} onChange={setNewestFirst} />
+        </Flex>
+      }
     >
-      {/* 筛选与排序放在标题条下面一行：标题条只留标题，正文区也不再被挤 */}
+      {/* 筛选单独一行：每个栏目的文字颜色跟日志里对应级别一致（信息蓝 / 成功绿 / 警告橙 / 错误红） */}
       <div className="log-toolbar">
         <Segmented
           size="small"
           value={filter}
           onChange={(value) => setFilter(value as LogFilter)}
           options={[
-            { label: "全部", value: "all" },
-            ...LOG_LEVELS.map((level) => ({ label: LOG_LEVEL_LABELS[level], value: level })),
+            { label: <span className="log-filter log-filter-all">全部</span>, value: "all" },
+            ...LOG_LEVELS.map((level) => ({
+              label: (
+                <span className={`log-filter log-filter-${level}`}>
+                  {LOG_LEVEL_LABELS[level]}
+                </span>
+              ),
+              value: level,
+            })),
           ]}
         />
-        <Flex align="center" gap={6}>
-          <Typography.Text type="secondary">新日志置顶</Typography.Text>
-          <Switch size="small" checked={newestFirst} onChange={setNewestFirst} />
-        </Flex>
       </div>
       <div className="log-list">
         <Table<LogEntry>
@@ -416,7 +425,17 @@ export function LoadingOverlay({ text }: { text: string | null }) {
 
 /* ---------- 结果弹窗 ---------- */
 
-export type MessageState = { title: string; message: string } | null;
+/** 提示弹窗里的一行键值（如「信息类别 / UDI团队信息」「导入数量 / 34,712 行」）。 */
+export type MessageDetail = { label: string; value: string };
+
+export type MessageState = {
+  title: string;
+  message: string;
+  /** 失败时标题前显示红色警示图标，成功时显示绿色对勾。 */
+  failed?: boolean;
+  /** 结构化明细：有它就把结果摊成两行键值，而不是丢一段纯文本。 */
+  details?: MessageDetail[];
+} | null;
 
 /**
  * 导入 / 导出 / 错误统一提示：就是 antd 默认的 Modal（标题 + 右上角 X + 右对齐底栏），
@@ -424,11 +443,23 @@ export type MessageState = { title: string; message: string } | null;
  * className 留作稳定的测试/定制挂点，本身不写任何样式。
  */
 export function MessageModal({ state, onClose }: { state: MessageState; onClose: () => void }) {
+  const failed = state?.failed ?? false;
+  const details = state?.details ?? [];
   return (
     <Modal
       className="app-message"
       open={state !== null}
-      title={state?.title ?? ""}
+      title={
+        // 标题前一个状态图标：成功绿对勾 / 失败红警示（颜色与日志里的级别色同一套）
+        <Flex align="center" gap={8}>
+          {failed ? (
+            <CircleAlert className="message-icon message-icon-failed" size={18} aria-hidden="true" />
+          ) : (
+            <CheckCircle2 className="message-icon message-icon-ok" size={18} aria-hidden="true" />
+          )}
+          <span>{state?.title ?? ""}</span>
+        </Flex>
+      }
       centered
       width={416}
       onCancel={onClose}
@@ -439,7 +470,22 @@ export function MessageModal({ state, onClose }: { state: MessageState; onClose:
       }
       destroyOnHidden
     >
-      <Typography.Paragraph className="message-text">{state?.message ?? ""}</Typography.Paragraph>
+      {details.length > 0 ? (
+        // 结果摊成 antd 默认的键值表：标签灰、值深色加粗
+        <Descriptions
+          className="message-details"
+          column={1}
+          size="small"
+          colon={false}
+          items={details.map((detail) => ({
+            key: detail.label,
+            label: detail.label,
+            children: <Typography.Text strong>{detail.value}</Typography.Text>,
+          }))}
+        />
+      ) : (
+        <Typography.Paragraph className="message-text">{state?.message ?? ""}</Typography.Paragraph>
+      )}
     </Modal>
   );
 }
