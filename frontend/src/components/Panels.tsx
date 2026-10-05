@@ -6,6 +6,7 @@
 //   四个模块 → Card（size="small"），标题排版交给 antd。
 
 import {
+  App as AntApp,
   Badge,
   Button,
   Card,
@@ -30,13 +31,15 @@ import {
   ArrowRight,
   CheckCircle2,
   CircleAlert,
+  Copy,
   FileSpreadsheet,
   Search,
   Table as TableIcon,
+  X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { SOURCES } from "../bridge";
+import { SOURCES, copyToClipboard } from "../bridge";
 import {
   LOG_LEVELS,
   LOG_LEVEL_LABELS,
@@ -314,6 +317,8 @@ type LogFilter = LogLevel | "all";
 export function LogPanel({ text }: { text: string }) {
   const [filter, setFilter] = useState<LogFilter>("all");
   const [newestFirst, setNewestFirst] = useState(true);
+  // 被点开的「警告 / 错误」条目：弹窗里给全文 + 复制
+  const [detail, setDetail] = useState<LogEntry | null>(null);
 
   const entries = useMemo(() => parseLog(text), [text]);
   // 过滤 + 排序都只影响显示，解析结果本身保持日志原有顺序
@@ -400,10 +405,75 @@ export function LogPanel({ text }: { text: string }) {
           dataSource={visible}
           columns={columns}
           rowKey={(entry) => entry.key}
+          // 警告 / 错误可以点开详情弹窗（鼠标悬浮本来就能看到全文，这里给"能复制"的入口）
+          onRow={(entry) => callbackRow(entry, setDetail)}
           locale={{ emptyText: "暂无日志" }}
         />
       </div>
+      <LogDetailModal entry={detail} onClose={() => setDetail(null)} />
     </Card>
+  );
+}
+
+/** 只有警告 / 错误那一行可点：点开详情弹窗（信息 / 成功保持纯展示）。 */
+function callbackRow(
+  entry: LogEntry,
+  open: (entry: LogEntry) => void,
+): React.HTMLAttributes<HTMLElement> {
+  if (entry.level !== "warning" && entry.level !== "error") return {};
+  return {
+    className: "log-row-actionable",
+    tabIndex: 0,
+    role: "button",
+    "aria-label": `查看${LOG_LEVEL_LABELS[entry.level]}详情`,
+    onClick: () => open(entry),
+    onKeyDown: (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      open(entry);
+    },
+  };
+}
+
+/** 日志详情弹窗：完整正文（不截断）+「复制」「关闭」两个图标按钮。 */
+export function LogDetailModal({ entry, onClose }: { entry: LogEntry | null; onClose: () => void }) {
+  const { message } = AntApp.useApp();
+  const level = entry?.level ?? "info";
+  const copy = async () => {
+    if (!entry) return;
+    const text = `[${entry.time}] [${LOG_LEVEL_LABELS[entry.level]}] ${entry.message}`;
+    const ok = await copyToClipboard(text);
+    if (ok) message.success("已复制全部信息");
+    else message.error("复制失败，请手动选中复制");
+  };
+  return (
+    <Modal
+      className="log-detail"
+      open={entry !== null}
+      centered
+      width={520}
+      onCancel={onClose}
+      title={
+        <Flex align="center" gap={8}>
+          <span className={`log-level log-level-${level}`}>{LOG_LEVEL_LABELS[level]}信息</span>
+        </Flex>
+      }
+      footer={
+        <Flex justify="flex-end" gap={8}>
+          <Tooltip title="复制全部信息">
+            <Button icon={<Copy size={16} />} aria-label="复制全部信息" onClick={copy} />
+          </Tooltip>
+          <Tooltip title="关闭">
+            <Button icon={<X size={16} />} aria-label="关闭" onClick={onClose} />
+          </Tooltip>
+        </Flex>
+      }
+    >
+      <div className="log-detail-meta">
+        <span className="log-detail-time">{entry?.time}</span>
+      </div>
+      <pre className="log-detail-text">{entry?.message}</pre>
+    </Modal>
   );
 }
 

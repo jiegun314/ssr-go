@@ -76,6 +76,32 @@ export type SettingsNode = {
   kind: "map" | "seq" | "string" | "number" | "bool" | "null";
   value?: string;
   children?: SettingsNode[];
+  /** 从文件根到这里的键路径（写回时按它定位） */
+  path?: string[];
+  /** 该节点上挂着的全部注释（原样展示） */
+  comment?: string;
+  /** input | number | switch | select | none */
+  control?: string;
+  options?: string[];
+  label?: string;
+  note?: string;
+  editable?: boolean;
+  reason?: string;
+  /** 列表是否允许增删条目 */
+  listEdit?: boolean;
+  flow?: boolean;
+  alias?: string;
+  style?: string;
+  min?: number;
+  max?: number;
+};
+
+/** 一次结构化修改：改标量，或对标量列表做增删。 */
+export type SettingsChange = {
+  path: string[];
+  action?: "set" | "append" | "remove";
+  index?: number;
+  value: string;
 };
 
 export type SettingsTab = {

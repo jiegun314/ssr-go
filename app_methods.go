@@ -133,6 +133,20 @@ func (app *App) markImportFailed(source string, importErr error) ImportResult {
 	return result
 }
 
+// CopyToClipboard 把文本写进系统剪贴板：日志详情弹窗的「复制」走这条路。
+//
+// Wails 的 webview 不一定把应用页面当成安全上下文，浏览器 Clipboard API 可能被拒；
+// 运行时自带的剪贴板不受这个限制，所以前端优先调它，失败再退回浏览器兜底方案。
+func (app *App) CopyToClipboard(text string) bool {
+	app.mu.Lock()
+	ctx := app.context
+	app.mu.Unlock()
+	if ctx == nil {
+		return false
+	}
+	return runtime.ClipboardSetText(ctx, text) == nil
+}
+
 // ClearResult 是「清空导入数据」的结果（R25）。
 type ClearResult struct {
 	Log     string   `json:"log"`

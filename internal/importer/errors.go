@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/jiegun314/ssr-go/internal/numfmt"
 )
 
 // Violation 是一个「单元格为空」的违规：哪一行、哪一列，条件必填还带命中的条件。
@@ -88,27 +90,61 @@ func NewMissingConditionalValuesError(sourceChineseName string, violations []Vio
 	}
 }
 
+// TypeCount 是一种违规类型的汇总：类型说明 + 命中它的行数（同一行只算一次）。
+type TypeCount struct {
+	Description string
+	Rows        int
+}
+
+// Error 只给「错误类型 + 该类型的行数」，不再逐行展开明细。
+//
+// 报错行数可能上千：逐行明细会让日志与悬浮提示（原生 title）又长又慢，
+// 前端渲染几百 KB 的文本节点时 hover 会卡住甚至出不来。具体到哪些行，
+// 前端本来就能按日志级别筛选、按结果表筛选查看，这里只留可读的汇总。
 func (errorValue *MissingRowValuesError) Error() string {
-	lines := make([]string, 0, len(errorValue.Violations))
-	for _, violation := range errorValue.Violations {
-		lines = append(lines, errorValue.describe(violation))
+	lines := []string{errorValue.countLine()}
+	for _, count := range errorValue.TypeCounts() {
+		lines = append(lines, fmt.Sprintf("- %s：%s 行", count.Description, numfmt.Format(count.Rows)))
 	}
-	return fmt.Sprintf("%s：%s：\n%s\n%s",
+	lines = append(lines, errorValue.Hint)
+	return fmt.Sprintf("%s：%s：\n%s",
 		errorValue.SourceChineseName,
 		errorValue.Heading,
 		strings.Join(lines, "\n"),
-		errorValue.Hint,
 	)
 }
 
-// describe 是一条明细行：条件必填会带上命中的条件。
-func (errorValue *MissingRowValuesError) describe(violation Violation) string {
-	base := fmt.Sprintf("- 第 %d 行：%s（%s）为空",
-		violation.RowNumber, violation.ChineseName, violation.DBField)
-	if errorValue.conditional {
-		return base + "，因为 " + violation.Condition
+// TypeCounts 按「列」归类违规：同一列的行数合在一起，行数多的排前面。
+//
+// 条件必填也只按列归类，不把每行各不相同的条件取值带进类型说明 ——
+// 否则类型数会跟行数一个量级，又变成"逐行明细"了。
+func (errorValue *MissingRowValuesError) TypeCounts() []TypeCount {
+	type bucket struct {
+		description string
+		rows        map[int]bool
 	}
-	return base
+	order := make([]string, 0, len(errorValue.Violations))
+	buckets := make(map[string]*bucket, len(errorValue.Violations))
+	for _, violation := range errorValue.Violations {
+		key := violation.DBField
+		current, ok := buckets[key]
+		if !ok {
+			current = &bucket{
+				description: fmt.Sprintf("%s（%s）为空", violation.ChineseName, violation.DBField),
+				rows:        map[int]bool{},
+			}
+			buckets[key] = current
+			order = append(order, key)
+		}
+		current.rows[violation.RowNumber] = true
+	}
+	counts := make([]TypeCount, 0, len(order))
+	for _, key := range order {
+		current := buckets[key]
+		counts = append(counts, TypeCount{Description: current.description, Rows: len(current.rows)})
+	}
+	sort.SliceStable(counts, func(i, j int) bool { return counts[i].Rows > counts[j].Rows })
+	return counts
 }
 
 // FailedRows 是至少有一个空单元格的数据行号，按文件顺序去重（一行多个空格子只算一行）。
@@ -128,6 +164,11 @@ func (errorValue *MissingRowValuesError) FailedRows() []int {
 
 // Summary 是弹窗里的那一行：只说有几行失败、几个单元格为空。
 func (errorValue *MissingRowValuesError) Summary() string {
-	return fmt.Sprintf("%s：有 %d 行数据导入失败（%d 个单元格为空）。",
-		errorValue.SourceChineseName, len(errorValue.FailedRows()), len(errorValue.Violations))
+	return errorValue.SourceChineseName + "：" + errorValue.countLine()
+}
+
+// countLine 是弹窗与日志共用的计数行（不带来源名），数字一律带千分位。
+func (errorValue *MissingRowValuesError) countLine() string {
+	return fmt.Sprintf("有 %s 行数据导入失败（%s 个单元格为空）。",
+		numfmt.Format(len(errorValue.FailedRows())), numfmt.Format(len(errorValue.Violations)))
 }

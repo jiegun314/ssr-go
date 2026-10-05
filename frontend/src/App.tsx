@@ -34,6 +34,7 @@ import type {
   ImportState,
   InitialState,
   ReviewResult,
+  SettingsChange,
   SettingsSaveResult,
   SettingsTab,
 } from "./types";
@@ -277,6 +278,24 @@ export default function App() {
     setEditing(false);
   }, [activeTab, editorValue]);
 
+  // 结构化保存：把表单里攒下的改动一次性提交，成功后热重载并刷新文档
+  const saveSettingsValues = useCallback(
+    async (changes: SettingsChange[]): Promise<boolean> => {
+      const result = await call<SettingsSaveResult>("SaveSettingsValues", activeTab, changes);
+      if (!result) return false;
+      setMessage({ title: result.title, message: result.message, failed: result.failed });
+      if (result.failed) return false;
+      const refreshed = await call<SettingsTab[]>("ConfigurationDocument");
+      if (Array.isArray(refreshed) && refreshed.length > 0) {
+        setTabs(refreshed);
+      }
+      // 配置已热重载：来源规则 / 日志列都可能变了，顺手刷新界面状态
+      await refreshInitial();
+      return true;
+    },
+    [activeTab, refreshInitial],
+  );
+
   /* ---------- 关于 / 附加窗口 ---------- */
 
   const openAbout = useCallback(async () => {
@@ -458,6 +477,7 @@ export default function App() {
         onCancelEdit={() => setEditing(false)}
         onEditorChange={setEditorValue}
         onSave={saveSettings}
+        onSaveValues={saveSettingsValues}
         onClose={() => setSettingsOpen(false)}
       />
       <AboutModal

@@ -1277,6 +1277,180 @@ func TestTheConsolidationSearchFiltersTheTable(t *testing.T) {
 	}
 }
 
+// TestWarningAndErrorLogsOpenACopyableDetailDialog 固定日志详情弹窗：
+// 只有「警告 / 错误」那一行可点（信息 / 成功保持纯展示），鼠标悬浮仍能看到全文；
+// 点开是完整正文（不截断）+「复制」「关闭」两个图标按钮，复制内容 = 时间 + 级别 + 全文，
+// 先走后端剪贴板（Wails 运行时，webview 里比浏览器 Clipboard API 可靠），失败再退回浏览器兜底。
+func TestWarningAndErrorLogsOpenACopyableDetailDialog(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	bridge := readFrontendSource(t, "src/bridge.ts")
+	styles := readFrontendSource(t, "src/styles.css")
+	methodsRaw, err := os.ReadFile("app_methods.go")
+	if err != nil {
+		t.Fatalf("读 app_methods.go 失败：%v", err)
+	}
+	methods := string(methodsRaw)
+
+	for _, wanted := range []string{
+		"onRow={(entry) => callbackRow(entry, setDetail)}",     // 行点击入口
+		`entry.level !== "warning" && entry.level !== "error"`, // 只有警告 / 错误可点
+		`className: "log-row-actionable"`,
+		"tabIndex: 0",
+		"查看${LOG_LEVEL_LABELS[entry.level]}详情", // 可读名称带级别
+		"onKeyDown: (event) => {",              // 键盘也能打开
+		"<LogDetailModal entry={detail}",
+		`className="log-detail"`,
+		`aria-label="复制全部信息"`,
+		`aria-label="关闭"`,
+		"icon={<Copy size={16} />}",
+		"icon={<X size={16} />}",
+		"const text = `[${entry.time}] [${LOG_LEVEL_LABELS[entry.level]}] ${entry.message}`;",
+		"await copyToClipboard(text)",
+		`message.success("已复制全部信息")`,
+		`className="log-detail-text"`,
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("日志详情弹窗缺少：%s", wanted)
+		}
+	}
+	// 悬浮看全文的口径不变（原生 title 就是完整正文）
+	if !strings.Contains(panels, "title={entry.message}") {
+		t.Error("鼠标悬浮仍要能看到完整信息（title）")
+	}
+	// 复制：后端优先 + 浏览器兜底
+	for _, wanted := range []string{
+		"export async function copyToClipboard(text: string): Promise<boolean>",
+		"app.CopyToClipboard(text)",
+		"navigator.clipboard?.writeText",
+		`document.execCommand("copy")`,
+	} {
+		if !strings.Contains(bridge, wanted) {
+			t.Errorf("复制入口缺少：%s", wanted)
+		}
+	}
+	if !strings.Contains(methods, "func (app *App) CopyToClipboard(text string) bool") ||
+		!strings.Contains(methods, "runtime.ClipboardSetText(ctx, text)") {
+		t.Error("后端要有 CopyToClipboard（Wails 运行时写系统剪贴板）")
+	}
+	// 可点行的光标 + 详情正文不截断（不 clamp，可滚动）
+	row := cssRule(t, styles, ".log-row-actionable {")
+	if !strings.Contains(row, "cursor: pointer;") {
+		t.Errorf("可点行应当是手型光标，实际块：\n%s", row)
+	}
+	detail := cssRule(t, styles, ".log-detail-text {")
+	for _, wanted := range []string{"white-space: pre-wrap;", "max-height:", "overflow: auto;"} {
+		if !strings.Contains(detail, wanted) {
+			t.Errorf("详情正文缺少 %s（要能看全、能滚动），实际块：\n%s", wanted, detail)
+		}
+	}
+	if strings.Contains(detail, "-webkit-line-clamp") {
+		t.Errorf("详情正文不该再截断行数，实际块：\n%s", detail)
+	}
+}
+
+// TestTheSettingsFormConvertsYamlToControls 固定「参数设定」的结构化表单（方案 B）：
+// 每一层 YAML 都分块显示、所有注释都显示出来；标量按后端给的 control 渲染成 antd 控件，
+// 只读项显示值与原因；列清单用表格 + 抽屉且禁止增删排序；标量列表可增删；
+// 改动先攒起来、由「保存改动」一次性提交给 SaveSettingsValues（后端只改被编辑的那几行）。
+func TestTheSettingsFormConvertsYamlToControls(t *testing.T) {
+	form := readFrontendSource(t, "src/components/SettingsForm.tsx")
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	app := readFrontendSource(t, "src/App.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	// 1) 分块 + 注释（显示时去掉行首 "#"）+ 递归
+	for _, wanted := range []string{
+		`<section className="settings-block" data-depth={depth} data-kind={node.kind}>`,
+		`<pre className="settings-comment">{stripCommentMarks(node.comment)}</pre>`,
+		"export function stripCommentMarks(text: string): string",
+		`return indent + trimmed.replace(/^#[ ]?/, "");`,
+		"export function SettingsBlock(",
+		"(node.children ?? []).map((child) => (",
+	} {
+		if !strings.Contains(form, wanted) {
+			t.Errorf("分块表单缺少：%s", wanted)
+		}
+	}
+	// 2) 控件映射：switch / number / select / input，只读项不给控件
+	for _, wanted := range []string{
+		`case "switch":`,
+		`case "number":`,
+		`case "select":`,
+		"<InputNumber",
+		"<Switch",
+		"<Select",
+		"<Input",
+		"if (!node.editable) {",
+		"<span className={`settings-readonly type-${node.kind}`}>{shown}</span>",
+		`node.reason || "只读"`,
+	} {
+		if !strings.Contains(form, wanted) {
+			t.Errorf("控件映射缺少：%s", wanted)
+		}
+	}
+	// 3) 列清单：表格 + 抽屉 + 明确"不支持增删排序"
+	for _, wanted := range []string{
+		"function isColumnList(",
+		"<Table<SettingsNode>",
+		"<Drawer",
+		"不支持新增 / 删除 / 排序",
+	} {
+		if !strings.Contains(form, wanted) {
+			t.Errorf("列清单缺少：%s", wanted)
+		}
+	}
+	// 4) 标量列表可增删
+	for _, wanted := range []string{
+		"function isScalarList(",
+		`action: "append"`,
+		`action: "remove"`,
+		"添加一条",
+	} {
+		if !strings.Contains(form, wanted) {
+			t.Errorf("标量列表缺少：%s", wanted)
+		}
+	}
+	// 5) 三种视图 + 攒改动 + 保存
+	for _, wanted := range []string{
+		`type SettingsView = "form" | "tree" | "raw";`,
+		`{ label: "表单", value: "form" }`,
+		`{ label: "结构树", value: "tree" }`,
+		`{ label: "原文", value: "raw" }`,
+		"onSaveValues",
+		"保存改动",
+		"撤销改动",
+		"<SettingsForm",
+	} {
+		if !strings.Contains(modals, wanted) {
+			t.Errorf("参数设定窗口缺少：%s", wanted)
+		}
+	}
+	if !strings.Contains(app, `call<SettingsSaveResult>("SaveSettingsValues", activeTab, changes)`) {
+		t.Error("保存改动应当调 SaveSettingsValues（结构化写回，只改被编辑的行）")
+	}
+	if !strings.Contains(app, `call<SettingsTab[]>("ConfigurationDocument")`) {
+		t.Error("保存成功后应当刷新配置文档")
+	}
+	// 6) 样式：分块描边直角 + 注释原样换行 + 只读灰
+	for _, wanted := range []string{
+		".settings-block {",
+		"border-radius: 0;",
+		".settings-comment {",
+		"white-space: pre-wrap;",
+		".settings-field {",
+		".settings-readonly {",
+		".settings-list-row {",
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("参数设定样式缺少：%s", wanted)
+		}
+	}
+	// 7) 原文视图还在（结构性改动与注释极端场景的兜底）
+	if !strings.Contains(modals, "settings-editor") {
+		t.Error("原文编辑作为兜底必须保留")
+	}
+}
+
 // TestTheMessageDialogShowsStructuredDetails 固定提示弹窗的形态：
 // 标题前一个状态图标（成功绿对勾 / 失败红警示），结果摊成 antd 默认的键值表
 // （信息类别 / 导入数量），数量带千分位；失败时保留原来的多行原因文本。

@@ -22,6 +22,10 @@ export function Consolidate() {
   return window['go']['main']['App']['Consolidate']();
 }
 
+export function CopyToClipboard(arg1) {
+  return window['go']['main']['App']['CopyToClipboard'](arg1);
+}
+
 export function Export(arg1, arg2) {
   return window['go']['main']['App']['Export'](arg1, arg2);
 }
@@ -68,6 +72,10 @@ export function ReviewSource(arg1, arg2, arg3) {
 
 export function SaveConfigurationFile(arg1, arg2) {
   return window['go']['main']['App']['SaveConfigurationFile'](arg1, arg2);
+}
+
+export function SaveSettingsValues(arg1, arg2) {
+  return window['go']['main']['App']['SaveSettingsValues'](arg1, arg2);
 }
 
 export function SelectExportTarget() {

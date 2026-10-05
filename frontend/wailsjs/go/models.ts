@@ -193,11 +193,43 @@ export namespace main {
 	        this.pageCount = source["pageCount"];
 	    }
 	}
+	export class SettingsChange {
+	    path: string[];
+	    action?: string;
+	    index?: number;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SettingsChange(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.action = source["action"];
+	        this.index = source["index"];
+	        this.value = source["value"];
+	    }
+	}
 	export class SettingsNode {
 	    key: string;
 	    kind: string;
 	    value?: string;
 	    children?: SettingsNode[];
+	    path?: string[];
+	    comment?: string;
+	    control?: string;
+	    options?: string[];
+	    label?: string;
+	    note?: string;
+	    editable?: boolean;
+	    reason?: string;
+	    listEdit?: boolean;
+	    flow?: boolean;
+	    alias?: string;
+	    style?: string;
+	    min?: number;
+	    max?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SettingsNode(source);
@@ -209,6 +241,20 @@ export namespace main {
 	        this.kind = source["kind"];
 	        this.value = source["value"];
 	        this.children = this.convertValues(source["children"], SettingsNode);
+	        this.path = source["path"];
+	        this.comment = source["comment"];
+	        this.control = source["control"];
+	        this.options = source["options"];
+	        this.label = source["label"];
+	        this.note = source["note"];
+	        this.editable = source["editable"];
+	        this.reason = source["reason"];
+	        this.listEdit = source["listEdit"];
+	        this.flow = source["flow"];
+	        this.alias = source["alias"];
+	        this.style = source["style"];
+	        this.min = source["min"];
+	        this.max = source["max"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

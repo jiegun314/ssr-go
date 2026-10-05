@@ -150,3 +150,36 @@ func newImportTestApp(t *testing.T) *App {
 	app.importer = importService
 	return app
 }
+
+// TestFormatCountAddsThousandsSeparators 固定导入状态里的行数口径：大于三位就加千分位，
+// 界面状态、悬浮提示与日志共用同一个 formatCount。
+func TestFormatCountAddsThousandsSeparators(t *testing.T) {
+	cases := map[int]string{
+		0:       "0",
+		7:       "7",
+		412:     "412",
+		1248:    "1,248",
+		3072:    "3,072",
+		34712:   "34,712",
+		1234567: "1,234,567",
+	}
+	for value, want := range cases {
+		if got := formatCount(value); got != want {
+			t.Errorf("formatCount(%d) = %q; want %q", value, got, want)
+		}
+	}
+	// 导入状态与日志都用它，不许各自拼 %d
+	source, err := os.ReadFile("app.go")
+	if err != nil {
+		t.Fatalf("读 app.go 失败：%v", err)
+	}
+	for _, wanted := range []string{
+		`fmt.Sprintf("现有%s条", formatCount(count))`,
+		`fmt.Sprintf("导入%s条记录", formatCount(count))`,
+		`fmt.Sprintf("%s导入成功，共 %s 行"`,
+	} {
+		if !strings.Contains(string(source), wanted) {
+			t.Errorf("app.go 里缺少千分位口径：%s", wanted)
+		}
+	}
+}

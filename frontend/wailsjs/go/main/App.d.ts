@@ -12,6 +12,8 @@ export function ConfigurationDocument():Promise<Array<main.SettingsTab>>;
 
 export function Consolidate():Promise<main.ConsolidateResult>;
 
+export function CopyToClipboard(arg1:string):Promise<boolean>;
+
 export function Export(arg1:string,arg2:string):Promise<main.ExportResult>;
 
 export function ExportReviewData(arg1:string,arg2:string):Promise<main.ExportResult>;
@@ -35,6 +37,8 @@ export function ReviewLog(arg1:string,arg2:string,arg3:number,arg4:number):Promi
 export function ReviewSource(arg1:string,arg2:number,arg3:number):Promise<main.ReviewResult>;
 
 export function SaveConfigurationFile(arg1:string,arg2:string):Promise<main.SettingsSaveResult>;
+
+export function SaveSettingsValues(arg1:string,arg2:Array<main.SettingsChange>):Promise<main.SettingsSaveResult>;
 
 export function SelectExportTarget():Promise<main.ExportTarget>;
 

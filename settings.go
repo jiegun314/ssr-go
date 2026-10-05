@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -15,11 +13,30 @@ import (
 
 // SettingsNode 是参数设定树状视图的一个节点：容器（map/seq）带 Children，
 // 标量带 Kind 与 Value（前端按类型着色）。数量不落字段，前端数 Children 即可。
+//
+// 结构化表单用的信息也挂在这个节点上：Path（写回时定位）、Comment（原样展示的注释）、
+// Control / Editable / Reason / Note（怎么渲染、能不能改、为什么不能改）。
 type SettingsNode struct {
 	Key      string         `json:"key"`  // 键名；列表项是下标（"0"、"1"…）
 	Kind     string         `json:"kind"` // map | seq | string | number | bool | null
 	Value    string         `json:"value,omitempty"`
 	Children []SettingsNode `json:"children,omitempty"`
+
+	// 结构化表单
+	Path     []string `json:"path,omitempty"`     // 从文件根到这里的键路径（列表项用下标）
+	Comment  string   `json:"comment,omitempty"`  // 该节点上挂着的全部注释（原样）
+	Control  string   `json:"control,omitempty"`  // input | number | switch | select | none
+	Options  []string `json:"options,omitempty"`  // select 的候选值
+	Label    string   `json:"label,omitempty"`    // 中文标签（没有就显示键名）
+	Note     string   `json:"note,omitempty"`     // 改动提示
+	Editable bool     `json:"editable,omitempty"` // 标量：能不能改
+	Reason   string   `json:"reason,omitempty"`   // 只读原因
+	ListEdit bool     `json:"listEdit,omitempty"` // 列表：能不能增删条目
+	Flow     bool     `json:"flow,omitempty"`     // 流式写法（{...} / [...]）→ 不支持行级编辑
+	Alias    string   `json:"alias,omitempty"`    // 别名引用（指向的锚点名）
+	Style    string   `json:"style,omitempty"`    // plain | single | double | literal | folded | flow
+	Min      *int     `json:"min,omitempty"`
+	Max      *int     `json:"max,omitempty"`
 }
 
 // SettingsTab 是「参数设定」窗口里的一个页签：一份配置文件的标题、路径与结构化内容。
@@ -67,7 +84,7 @@ func (app *App) ConfigurationDocument() []SettingsTab {
 			tabs[index].Note = fmt.Sprintf("解析失败：%s", err.Error())
 			continue
 		}
-		tabs[index].Tree = yamlNodeToTree(&document)
+		tabs[index].Tree = settingsTree(tabs[index].Key, &document)
 		tabs[index].Raw = string(content)
 	}
 	return tabs
@@ -81,61 +98,119 @@ func (app *App) ShowSettings() {
 	runtime.EventsEmit(app.context, "show-settings", nil)
 }
 
-// yamlNodeToTree 把 YAML 节点转成结构化树：映射的键、列表的下标都成为节点，
-// 容器带 Children（数量由前端数），标量带类型（前端按类型着色）。
-func yamlNodeToTree(node *yaml.Node) []SettingsNode {
+// settingsTree 把一份配置的 YAML 文档转成结构化树（带路径、注释与控件信息）。
+func settingsTree(fileKey string, document *yaml.Node) []SettingsNode {
+	policy := settingsPolicyFor(fileKey)
+	return settingsNodes(policy, document, nil)
+}
+
+// settingsNodes 递归构建节点；path 是"从文件根到这里"的键路径。
+func settingsNodes(policy settingsPolicy, node *yaml.Node, path []string) []SettingsNode {
 	switch node.Kind {
 	case yaml.DocumentNode:
 		if len(node.Content) == 0 {
 			return nil
 		}
-		return yamlNodeToTree(node.Content[0])
+		return settingsNodes(policy, node.Content[0], path)
 	case yaml.MappingNode:
 		nodes := make([]SettingsNode, 0, len(node.Content)/2)
 		for index := 0; index+1 < len(node.Content); index += 2 {
-			nodes = append(nodes, yamlChildToTree(node.Content[index].Value, node.Content[index+1]))
+			keyNode, valueNode := node.Content[index], node.Content[index+1]
+			nodes = append(nodes, settingsChild(policy, keyNode, valueNode, append(path, keyNode.Value)))
 		}
 		return nodes
 	case yaml.SequenceNode:
 		nodes := make([]SettingsNode, 0, len(node.Content))
 		for index, item := range node.Content {
-			nodes = append(nodes, yamlChildToTree(strconv.Itoa(index), item))
+			nodes = append(nodes, settingsChild(policy, nil, item, append(path, intToText(index))))
 		}
 		return nodes
 	default:
-		return []SettingsNode{scalarToTree("", node)}
+		return []SettingsNode{settingsScalar(policy, nil, node, path)}
 	}
 }
 
-// yamlChildToTree 生成一个「键/下标 + 值」的节点。
-func yamlChildToTree(key string, value *yaml.Node) SettingsNode {
-	switch value.Kind {
+// settingsChild 生成一个「键/下标 + 值」的节点。
+func settingsChild(policy settingsPolicy, keyNode *yaml.Node, valueNode *yaml.Node, path []string) SettingsNode {
+	key := path[len(path)-1]
+	comment := settingsComment(keyNode, valueNode)
+	switch valueNode.Kind {
 	case yaml.MappingNode:
-		return SettingsNode{Key: key, Kind: "map", Children: yamlNodeToTree(value)}
+		return SettingsNode{
+			Key: key, Kind: "map", Path: path, Comment: comment,
+			Label:    settingsLabelFor(policy, path),
+			Flow:     valueNode.Style == yaml.FlowStyle,
+			Reason:   settingsContainerReason(policy, path),
+			Children: settingsNodes(policy, valueNode, path),
+		}
 	case yaml.SequenceNode:
-		return SettingsNode{Key: key, Kind: "seq", Children: yamlNodeToTree(value)}
+		return SettingsNode{
+			Key: key, Kind: "seq", Path: path, Comment: comment,
+			Label:    settingsLabelFor(policy, path),
+			Flow:     valueNode.Style == yaml.FlowStyle,
+			ListEdit: settingsListEditable(policy, path),
+			Reason:   settingsContainerReason(policy, path),
+			Children: settingsNodes(policy, valueNode, path),
+		}
+	case yaml.AliasNode:
+		return SettingsNode{
+			Key: key, Kind: "string", Path: path, Comment: comment,
+			Value: valueNode.Value, Alias: valueNode.Value,
+			Control: "none", Editable: false,
+			Reason: "引用共享映射「" + valueNode.Value + "」：改请到「共享映射」里改本体（会一起生效）",
+			Style:  scalarStyle(valueNode),
+		}
 	default:
-		return scalarToTree(key, value)
+		return settingsScalar(policy, keyNode, valueNode, path)
 	}
 }
 
-// scalarToTree 判定标量类型（前端按类型着色）并保留显示文本。
-// 判定用 YAML 自己的 tag：配置里写 true / 1 / null 的写法要分别显示成布尔 / 数字 / 空。
-func scalarToTree(key string, value *yaml.Node) SettingsNode {
-	tag := strings.TrimPrefix(value.Tag, "!!")
-	switch tag {
-	case "int", "float":
-		return SettingsNode{Key: key, Kind: "number", Value: value.Value}
-	case "bool":
-		return SettingsNode{Key: key, Kind: "bool", Value: value.Value}
-	case "null":
-		return SettingsNode{Key: key, Kind: "null", Value: "null"}
-	default:
-		return SettingsNode{Key: key, Kind: "string", Value: value.Value}
+// settingsScalar 是一个标量节点：类型、控件、可编辑性与只读原因都在这里定。
+func settingsScalar(policy settingsPolicy, keyNode *yaml.Node, valueNode *yaml.Node, path []string) SettingsNode {
+	kind := yamlScalarKind(valueNode)
+	control, options, editable, reason, note := settingsControlFor(policy, path, kind, "")
+	node := SettingsNode{
+		Key: path[len(path)-1], Kind: kind, Value: valueNode.Value, Path: path,
+		Comment:  settingsComment(keyNode, valueNode),
+		Control:  control,
+		Options:  options,
+		Label:    settingsLabelFor(policy, path),
+		Note:     note,
+		Editable: editable,
+		Reason:   reason,
+		Style:    scalarStyle(valueNode),
 	}
+	if kind == "null" {
+		node.Value = "null"
+	}
+	if min, max, ok := settingsRangeFor(policy, path); ok {
+		node.Min, node.Max = &min, &max
+	}
+	// 值在原文里是多行写法（| / >）或流式写法时，行级编辑不安全 → 只读
+	if style := node.Style; style == "literal" || style == "folded" || style == "flow" {
+		node.Editable = false
+		node.Control = "none"
+		if node.Reason == "" {
+			node.Reason = "该值在原文里是多行或流式写法：请用『编辑原文』修改"
+		}
+	}
+	return node
 }
 
-// SettingsSaveResult 是「参数设定」里保存一份配置的结果。
+// settingsContainerReason 给容器节点一个只读说明（容器本身不可编辑，只有叶子可编辑）。
+func settingsContainerReason(policy settingsPolicy, path []string) string {
+	if policy.fileReadOnly != "" {
+		return policy.fileReadOnly
+	}
+	for _, rule := range policy.rules {
+		if rule.readOnly && pathMatchesPrefix(rule.match, path) {
+			return rule.reason
+		}
+	}
+	return ""
+}
+
+// SettingsSaveResult 是一次保存回给界面的结果。
 type SettingsSaveResult struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`

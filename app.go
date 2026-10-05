@@ -13,6 +13,7 @@ import (
 	"github.com/jiegun314/ssr-go/internal/config"
 	"github.com/jiegun314/ssr-go/internal/consolidation"
 	"github.com/jiegun314/ssr-go/internal/importer"
+	"github.com/jiegun314/ssr-go/internal/numfmt"
 	"github.com/jiegun314/ssr-go/internal/paths"
 	"github.com/jiegun314/ssr-go/internal/store"
 )
@@ -45,11 +46,13 @@ type App struct {
 	context context.Context
 	mu      sync.Mutex
 
-	loader   *config.Loader
-	repo     *store.Repository
-	importer *importer.Importer
-	service  *consolidation.Service
-	log      *store.OperationLog
+	loader *config.Loader
+	repo   *store.Repository
+	// wiredDatabasePath 是当前已连接数据库的路径：热重载时用它判断"路径是否改了"。
+	wiredDatabasePath string
+	importer          *importer.Importer
+	service           *consolidation.Service
+	log               *store.OperationLog
 
 	// logLines 是界面右下角「操作日志」里的内容（带时间戳的运行消息）。
 	logLines []string
@@ -117,56 +120,80 @@ func (app *App) startup(ctx context.Context) {
 	} else if snapshot != "" {
 		app.appendLog(LogInfo, "配置快照已保存："+snapshot)
 	}
-	if err := loader.ValidateAll(); err != nil {
-		app.fail("配置错误：" + err.Error())
+	if note, err := app.wireConfiguration(loader); err != nil {
+		app.fail(err.Error())
 		return
+	} else if note != "" {
+		app.appendLog(LogWarning, note)
 	}
 	setting, err := loader.LoadSetting()
 	if err != nil {
 		app.fail("配置错误：" + err.Error())
 		return
 	}
-	database, _ := setting["database"].(map[string]any)
-	repository, err := store.Open(loader.ResolvePath(text(database["path"])))
-	if err != nil {
-		app.fail("数据库错误：" + err.Error())
-		return
+	app.resetImportStates()
+	app.cleanupOnStartup(setting)
+	app.reportExistingCounts()
+}
+
+// wireConfiguration 用给定 loader 装配依赖：启动与「保存后热重载」共用这一条路径。
+//
+// 只重建"跟着配置走"的东西（importer / 整合服务 / 操作日志句柄），数据库连接继续复用；
+// 数据库路径变了不热切连接，返回提示让用户重启。返回的 note 为空表示无需特别说明。
+func (app *App) wireConfiguration(loader *config.Loader) (string, error) {
+	if err := loader.ValidateAll(); err != nil {
+		return "", fmt.Errorf("配置错误：%w", err)
 	}
-	app.loader = loader
-	app.repo = repository
-	app.importer, err = importer.NewImporter(loader, repository)
+	setting, err := loader.LoadSetting()
 	if err != nil {
-		app.fail("配置错误：" + err.Error())
-		return
+		return "", fmt.Errorf("配置错误：%w", err)
+	}
+	database, _ := setting["database"].(map[string]any)
+	databasePath := loader.ResolvePath(text(database["path"]))
+	note := ""
+	repository := app.repo
+	if repository == nil {
+		repository, err = store.Open(databasePath)
+		if err != nil {
+			return "", fmt.Errorf("数据库错误：%w", err)
+		}
+		app.repo = repository
+	} else if databasePath != "" && app.wiredDatabasePath != "" && databasePath != app.wiredDatabasePath {
+		note = "数据库路径已改：本次运行仍使用原数据库，重启后切换。"
+	}
+	if app.wiredDatabasePath == "" {
+		app.wiredDatabasePath = databasePath
+	}
+	importerValue, err := importer.NewImporter(loader, repository)
+	if err != nil {
+		return "", fmt.Errorf("配置错误：%w", err)
 	}
 	configValue, err := consolidation.LoadConfig(loader)
 	if err != nil {
-		app.fail("配置错误：" + err.Error())
-		return
+		return "", fmt.Errorf("配置错误：%w", err)
 	}
 	tables, _ := setting["tables"].(map[string]any)
 	operationLog, _ := tables["operation_log"].(map[string]any)
 	logColumns, err := loader.LoadLogColumns()
 	if err != nil {
-		app.fail("配置错误：" + err.Error())
-		return
+		return "", fmt.Errorf("配置错误：%w", err)
 	}
-	app.log, err = store.OpenOperationLog(repository, store.OperationLogOptions{
+	logStore, err := store.OpenOperationLog(repository, store.OperationLogOptions{
 		TableName:      text(operationLog["name"]),
 		TimeColumn:     text(tables["operation_log_time_column"]),
 		IdentityFields: configValue.IdentityFields,
 		LogColumns:     logColumns,
 	})
 	if err != nil {
-		app.fail("数据库错误：" + err.Error())
-		return
+		return "", fmt.Errorf("数据库错误：%w", err)
 	}
+	app.loader = loader
+	app.importer = importerValue
+	app.log = logStore
 	app.service = &consolidation.Service{
-		Config: configValue, Loader: loader, Repository: repository, Log: app.log,
+		Config: configValue, Loader: loader, Repository: repository, Log: logStore,
 	}
-	app.resetImportStates()
-	app.cleanupOnStartup(setting)
-	app.reportExistingCounts()
+	return note, nil
 }
 
 // cleanupOnStartup 按配置删除暂存表（R9），并写一行运行日志。
@@ -212,8 +239,8 @@ func (app *App) reportExistingCounts() {
 		app.importStates[source] = ImportState{
 			Source:   source,
 			State:    "existing",
-			Label:    fmt.Sprintf("现有%d条", count),
-			Tooltip:  fmt.Sprintf("现有数据：%d 行（上一次运行导入的，本次尚未导入）", count),
+			Label:    fmt.Sprintf("现有%s条", formatCount(count)),
+			Tooltip:  fmt.Sprintf("现有数据：%s 行（上一次运行导入的，本次尚未导入）", formatCount(count)),
 			RowCount: count,
 		}
 	}
@@ -319,6 +346,9 @@ func (app *App) saveFile(defaultName string) (string, error) {
 	})
 }
 
+// formatCount 给界面上的行数加千分位（1248 → 1,248），日志与导入状态共用同一口径。
+func formatCount(value int) string { return numfmt.Format(value) }
+
 // markImported 记录导入成功后的状态与日志。
 func (app *App) markImported(source string, fileName string) {
 	count, err := app.importer.CountImportedRows(source)
@@ -329,13 +359,13 @@ func (app *App) markImported(source string, fileName string) {
 	app.importStates[source] = ImportState{
 		Source:     source,
 		State:      "imported",
-		Label:      fmt.Sprintf("导入%d条记录", count),
-		Tooltip:    fmt.Sprintf("最近导入：%s，%d 行", importTime, count),
+		Label:      fmt.Sprintf("导入%s条记录", formatCount(count)),
+		Tooltip:    fmt.Sprintf("最近导入：%s，%s 行", importTime, formatCount(count)),
 		RowCount:   count,
 		ImportTime: importTime,
 	}
-	app.appendLog(LogSuccess, fmt.Sprintf("%s导入成功，共 %d 行",
-		app.importer.Rules[source].ChineseName, count))
+	app.appendLog(LogSuccess, fmt.Sprintf("%s导入成功，共 %s 行",
+		app.importer.Rules[source].ChineseName, formatCount(count)))
 }
 
 var _ = filepath.Base

@@ -238,9 +238,21 @@ func TestRequiredValueViolationsAreReportedPerCell(t *testing.T) {
 	if strings.Join(intsToText(missing.FailedRows()), ",") != "4,5" {
 		t.Fatalf("失败行号 = %v", missing.FailedRows())
 	}
+	// 只给「错误类型 + 该类型的行数」：产品代码在第 4、5 行都空 → 2 行；事业部只在第 5 行空 → 1 行
 	message := err.Error()
-	if !strings.Contains(message, "- 第 4 行：产品代码（material_code）为空") {
-		t.Fatalf("明细行不对：%s", message)
+	for _, wanted := range []string{
+		"- 产品代码（material_code）为空：2 行",
+		"- 事业部（franchise）为空：1 行",
+	} {
+		if !strings.Contains(message, wanted) {
+			t.Fatalf("类型汇总缺少 %q：%s", wanted, message)
+		}
+	}
+	if strings.Contains(message, "第 4 行") || strings.Contains(message, "第 5 行") {
+		t.Fatalf("不该再逐行展开：%s", message)
+	}
+	if counts := missing.TypeCounts(); len(counts) != 2 || counts[0].Rows != 2 {
+		t.Fatalf("类型汇总不对：%+v", counts)
 	}
 	if !strings.Contains(message, "导入文件存在必填列为空") {
 		t.Fatalf("标题不对：%s", message)
@@ -316,14 +328,15 @@ func TestR6ConditionalRequiredIsEnforcedWithRowNumbers(t *testing.T) {
 	if !strings.Contains(message, "导入文件存在条件必填列为空") {
 		t.Fatalf("标题不对：%s", message)
 	}
-	// 命中的条件要逐字写进明细：第 13 行的数量是 2，第 14 行是 2.5
-	if !strings.Contains(message,
-		"因为 最小销售单元中使用单元的数量（quantity_per_min_sales_unit） = 2 > 1") {
-		t.Fatalf("条件文案不对：%s", message)
+	// 报错行数可能上千：日志里只给「哪一列空 + 多少行」，不逐行带条件取值
+	if !strings.Contains(message, "- 使用单元产品标识（device_identifier_use_unit）为空：2 行") {
+		t.Fatalf("类型汇总不对：%s", message)
 	}
-	if !strings.Contains(message,
-		"因为 最小销售单元中使用单元的数量（quantity_per_min_sales_unit） = 2.5 > 1") {
-		t.Fatalf("条件文案不对：%s", message)
+	if strings.Contains(message, "因为") || strings.Contains(message, "第 13 行") {
+		t.Fatalf("不该再逐行展开条件明细：%s", message)
+	}
+	if lines := strings.Count(message, "\n") + 1; lines > 5 {
+		t.Fatalf("汇总最多几行，实际 %d 行：%s", lines, message)
 	}
 	// 失败导入不写库（R7）
 	count, err := repository.CountTableRows(importer.Rules["global_udi_input"].TargetTable)

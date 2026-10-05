@@ -92,9 +92,11 @@ func TestGeneratedSamplesReproduceTheDocumentedOutcome(t *testing.T) {
 		t.Fatal("invalid-conditions 的文件必须被拒绝")
 	}
 	message := stderr.String()
-	if !strings.Contains(message, "- 第 13 行：使用单元产品标识（device_identifier_use_unit）为空") ||
-		!strings.Contains(message, "- 第 14 行：使用单元产品标识（device_identifier_use_unit）为空") {
-		t.Fatalf("被拒行号文案不对：%s", message)
+	if !strings.Contains(message, "- 使用单元产品标识（device_identifier_use_unit）为空：2 行") {
+		t.Fatalf("被拒汇总文案不对：%s", message)
+	}
+	if strings.Contains(message, "第 13 行") || strings.Contains(message, "第 14 行") {
+		t.Fatalf("不该再逐行展开：%s", message)
 	}
 	if !strings.Contains(message, "导入文件存在条件必填列为空") {
 		t.Fatalf("被拒标题不对：%s", message)

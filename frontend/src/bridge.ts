@@ -59,6 +59,45 @@ function bridge(): Record<string, (...args: unknown[]) => Promise<unknown>> | nu
   return window.go?.main?.App ?? null;
 }
 
+/**
+ * 把文本复制到剪贴板：先让后端（Wails 运行时）写系统剪贴板，失败再退回浏览器方案。
+ * 返回是否成功，调用方据此给出「已复制 / 复制失败」的提示。
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  // 直接调桥接，不走 call()：复制是一瞬间的事，没必要闪一下「正在处理…」的载入图层
+  const app = bridge();
+  if (app && typeof app.CopyToClipboard === "function") {
+    try {
+      if (await app.CopyToClipboard(text)) return true;
+    } catch {
+      // 后端不可用（例如预览环境）→ 继续走浏览器方案
+    }
+  }
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // webview 里 Clipboard API 可能被安全上下文拦下，继续走兜底
+  }
+  try {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.top = "-1000px";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(area);
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
 const nextFrame = (): Promise<void> =>
   new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
