@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/jiegun314/ssr-go/internal/config"
+	"github.com/jiegun314/ssr-go/internal/configsnapshot"
 	"github.com/jiegun314/ssr-go/internal/consolidation"
 	"github.com/jiegun314/ssr-go/internal/importer"
 	"github.com/jiegun314/ssr-go/internal/numfmt"
@@ -115,7 +116,7 @@ func (app *App) startup(ctx context.Context) {
 			filepath.Join("config", config.DefaultsDirectory, name)))
 	}
 	// 兜一层配置快照：默认文件只解决"缺失"，改坏了还得能回退。
-	if snapshot, err := snapshotUserConfig(loader.Resolver.ConfigDir, time.Now()); err != nil {
+	if snapshot, err := configsnapshot.SnapshotUserConfig(loader.Resolver.ConfigDir, time.Now()); err != nil {
 		app.appendLog(LogWarning, "配置快照失败："+err.Error())
 	} else if snapshot != "" {
 		app.appendLog(LogInfo, "配置快照已保存："+snapshot)

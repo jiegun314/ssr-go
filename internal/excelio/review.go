@@ -1,4 +1,4 @@
-package main
+package excelio
 
 import (
 	"os"
@@ -7,11 +7,11 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// writeReviewWorkbook 把回顾数据写成一份新的 Excel：第一行是中文表头，之后是数据。
+// WriteReviewWorkbook 把回顾数据写成一份新的 Excel：第一行是中文表头，之后是数据。
 //
 // 与现状实现一致（pandas `to_excel(index=False)`）：新建工作簿、列序 = 配置顺序、
 // 所有值按文本写（导入的单元格本来就是文本，前导零不会丢）。
-func writeReviewWorkbook(target string, columns []string, rows [][]string) error {
+func WriteReviewWorkbook(target string, columns []string, rows [][]string) error {
 	workbook := excelize.NewFile()
 	defer workbook.Close()
 	const sheet = "Sheet1"

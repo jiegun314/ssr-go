@@ -1,4 +1,7 @@
-package main
+// Package configsnapshot 在启动时给 config/ 留一份快照，并按份数滚动清理（R28）。
+//
+// 快照是"改坏了还能回退"的兜底：默认配置只解决"文件缺失"，覆盖不了"内容被改坏"。
+package configsnapshot
 
 import (
 	"fmt"
@@ -20,7 +23,7 @@ const configSnapshotKeep = 5
 //
 // 默认文件机制只解决"配置缺失"，解决不了"配置被改坏"——所以启动时兜一层：
 // 内容与最近一份快照完全相同时不重复建（避免每次启动都堆目录），超过保留份数就删最旧的。
-func snapshotUserConfig(configDir string, now time.Time) (string, error) {
+func SnapshotUserConfig(configDir string, now time.Time) (string, error) {
 	if configDir == "" {
 		return "", nil
 	}

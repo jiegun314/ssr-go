@@ -1,4 +1,4 @@
-package main
+package configsnapshot
 
 import (
 	"os"
@@ -12,13 +12,22 @@ import (
 // TestConfigSnapshotKeepsTheLastFewVersions 固定启动快照的策略：
 // 内容没变不重复建目录，变了才新建，并且只保留最近 configSnapshotKeep 份。
 func TestConfigSnapshotKeepsTheLastFewVersions(t *testing.T) {
-	workspace := t.TempDir()
-	configDir := filepath.Join(workspace, "config")
-	copyDirectoryForTest(t, "config", configDir)
+	// 自己造一个配置目录：本包测试的 CWD 是包目录，不能再依赖"仓库根"的助手。
+	configDir := filepath.Join(t.TempDir(), "config")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	settingPath := filepath.Join(configDir, config.SettingFile)
+	if err := os.WriteFile(settingPath, []byte("APP_NAME: \"test\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, config.ImportMappingFile),
+		[]byte("version: \"1.0\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	at := time.Date(2026, 9, 20, 22, 30, 0, 0, time.UTC)
-	first, err := snapshotUserConfig(configDir, at)
+	first, err := SnapshotUserConfig(configDir, at)
 	if err != nil {
 		t.Fatalf("首次快照失败：%v", err)
 	}
@@ -30,7 +39,7 @@ func TestConfigSnapshotKeepsTheLastFewVersions(t *testing.T) {
 	}
 
 	// 内容没变：不重复建
-	if again, err := snapshotUserConfig(configDir, at.Add(time.Minute)); err != nil {
+	if again, err := SnapshotUserConfig(configDir, at.Add(time.Minute)); err != nil {
 		t.Fatal(err)
 	} else if again != "" {
 		t.Errorf("内容没变却又建了一份：%s", again)
@@ -47,7 +56,7 @@ func TestConfigSnapshotKeepsTheLastFewVersions(t *testing.T) {
 		if err := os.WriteFile(settingPath, changed, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := snapshotUserConfig(configDir, at.Add(time.Duration(index+1)*time.Minute)); err != nil {
+		if _, err := SnapshotUserConfig(configDir, at.Add(time.Duration(index+1)*time.Minute)); err != nil {
 			t.Fatalf("第 %d 次快照失败：%v", index+1, err)
 		}
 	}
@@ -62,7 +71,7 @@ func TestConfigSnapshotKeepsTheLastFewVersions(t *testing.T) {
 
 // TestConfigSnapshotSkipsAnEmptyDirectory 配置目录里一份都没有时不建快照（也没什么可保的）。
 func TestConfigSnapshotSkipsAnEmptyDirectory(t *testing.T) {
-	snapshot, err := snapshotUserConfig(t.TempDir(), time.Now())
+	snapshot, err := SnapshotUserConfig(t.TempDir(), time.Now())
 	if err != nil {
 		t.Fatalf("空目录快照失败：%v", err)
 	}

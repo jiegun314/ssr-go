@@ -11,6 +11,8 @@ import (
 
 	"github.com/jiegun314/ssr-go/internal/buildinfo"
 	"github.com/jiegun314/ssr-go/internal/consolidation"
+	"github.com/jiegun314/ssr-go/internal/excelio"
+	"github.com/jiegun314/ssr-go/internal/fileutil"
 	"github.com/jiegun314/ssr-go/internal/importer"
 	"github.com/jiegun314/ssr-go/internal/store"
 )
@@ -312,7 +314,7 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	}
 	// 用户路径与导出目录里的副本重合时跳过复制（R20，否则会抛 SameFileError）
 	if filepath.Clean(target) != filepath.Clean(exported.FilePath) {
-		if err := copyFile(exported.FilePath, target); err != nil {
+		if err := fileutil.CopyFile(exported.FilePath, target); err != nil {
 			app.appendLog(LogError, "导出失败："+err.Error())
 			return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
 		}
@@ -547,7 +549,7 @@ func (app *App) ExportReviewData(fileType string, target string) ExportResult {
 	if err != nil {
 		return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
 	}
-	if err := writeReviewWorkbook(target, columns, rows); err != nil {
+	if err := excelio.WriteReviewWorkbook(target, columns, rows); err != nil {
 		return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
 	}
 	app.appendLog(LogSuccess, fmt.Sprintf("回顾数据已导出到 %s（%d 行）", target, len(rows)))
