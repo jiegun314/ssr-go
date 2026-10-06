@@ -55,8 +55,8 @@ func TestTheLogWindowKeepsItsDesignContracts(t *testing.T) {
 		".log-level-info {", ".log-level-success {",
 		".log-level-warning {", ".log-level-error {",
 		".log-text {",
-		"-webkit-line-clamp: 2;",   // 正文最多两行
-		"overflow-wrap: anywhere;", // 长路径 / 长报错要换行
+		"-webkit-line-clamp: 2;",             // 正文最多两行
+		"overflow-wrap: anywhere;",           // 长路径 / 长报错要换行
 		"min-height: var(--log-min-height);", // 日志卡的下限（值见 design-tokens.ts）
 	} {
 		if !strings.Contains(styles, wanted) {
