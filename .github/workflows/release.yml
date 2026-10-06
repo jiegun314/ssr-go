@@ -1,5 +1,8 @@
-# macOS 与 Windows 的构建 + 发布（不做 Linux，见 AGENTS.md §7.6：没有交叉编译，
-# 每个平台各自原生构建）。
+# macOS 与 Windows 的构建 + 发布：tag 触发时出正式产物并挂到 Release。
+# 不做 Linux（没有交叉编译，每个平台各自原生构建，见 AGENTS.md §6）。
+#
+# 分工：日常测试与静态检查在 ci.yml（push main / PR）；本工作流在 PR 上也跑一遍，
+# 作为"打包能过"的预演，但只有 tag 才会真正发布。
 name: release
 
 on:
@@ -9,21 +12,29 @@ on:
   pull_request:
   workflow_dispatch:
 
+# 发布流水线不能中途取消（避免 Release 出现半套资产），同 ref 排队执行
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
+          cache: true
       - name: 单元测试
-        run: go test ./...
+        run: go test -count=1 ./...
       - name: 日志列必须与导出模板一致（防止生成物漂移）
         run: go run ./cmd/ssr-core genlogcolumns --check --config config
 
   build:
     needs: test
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -41,6 +52,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
+          cache: true
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -48,8 +60,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: 安装前端依赖（React + antd）
         run: npm ci --prefix frontend
-      - name: 安装 Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: 安装 Wails CLI（版本与 go.mod 对齐，保证构建可复现）
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0
       - name: 校验版本前置条件（HEAD 有 tag、工作区干净）
         shell: bash
         run: |
@@ -72,6 +84,7 @@ jobs:
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     steps:

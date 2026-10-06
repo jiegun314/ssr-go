@@ -1,0 +1,35 @@
+# 编辑器统一约定（.editorconfig）
+#
+# 目的：跨 macOS / Windows 协作时不产生无意义的整文件 diff。
+# 全仓库现状是 LF + UTF-8（无 BOM），这里把"现状"写成规则，而不是引入新风格。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Go 由 gofmt 决定格式：缩进是 Tab，行尾空格会被 gofmt 去掉
+[*.go]
+indent_style = tab
+indent_size = 4
+
+# 配置与文档：YAML 用 2 空格；Markdown 保留行尾空格（换行语义）
+[*.{yaml,yml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# 生成物：不要手工排版
+[frontend/wailsjs/**]
+insert_final_newline = true
+
+# 打包/二进制产物（正常不入库，避免编辑器乱改）
+[*.{zip,exe,ico,icns,sqlite3,xlsx}]
+insert_final_newline = false
+trim_trailing_whitespace = false

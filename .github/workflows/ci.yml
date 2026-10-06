@@ -1,0 +1,64 @@
+# 每次推送到 main 与每个 PR 都跑的快速校验（不构建发布包）。
+#
+# 分工：
+#   ci.yml      —— 测试与静态检查（快，ubuntu 单平台）
+#   release.yml —— tag 触发，两个平台各自原生构建并挂到 Release（见 AGENTS.md §6）
+#
+# 版本、目录职责与界面口径见 AGENTS.md。
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 同一分支连续推送时只保留最新一次（PR 也一样）
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+      - name: 单元与集成测试
+        run: go test -count=1 ./...
+      - name: 日志列必须与导出模板一致（防止生成物漂移）
+        run: go run ./cmd/ssr-core genlogcolumns --check --config config
+      - name: gofmt 检查（只查入库的 Go 文件）
+        run: |
+          files="$(git ls-files '*.go')"
+          if [ -z "$files" ]; then
+            echo "没有入库的 Go 文件，跳过"; exit 0
+          fi
+          # shellcheck disable=SC2086  # 这里就是要把文件列表拆成多个参数
+          unformatted="$(gofmt -l $files)"
+          if [ -n "$unformatted" ]; then
+            echo "以下文件未格式化，请运行 gofmt -w："
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: 安装前端依赖（React + antd）
+        run: npm ci --prefix frontend
+      - name: 类型检查与构建（npm run build = tsc --noEmit + vite build）
+        run: npm run build --prefix frontend

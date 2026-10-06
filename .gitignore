@@ -23,7 +23,7 @@
 .DS_Store
 *.swp
 
-# 验收截图等临时文件不要进仓库（截图归档在 ssr_go/docs/rewrite/）
+# 验收截图等临时文件不要进仓库（历史材料归档在 docs/archive/）
 /*.png
 /*.jpg
 
