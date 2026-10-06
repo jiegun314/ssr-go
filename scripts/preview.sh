@@ -2,10 +2,11 @@
 # SSR 前端本地预览：不需要 Go 后端与 Wails 运行时，直接把 frontend/dist 起成一个本地页面，
 # 并注入一份模拟的 Wails 桥接（window.go / window.runtime），用来核对界面与「操作日志」窗口。
 #
-#   ./frontend/preview.sh              # 用现有 dist（改过源码就先加 --build）
-#   ./frontend/preview.sh --build      # 先 npm run build 再预览
-#   ./frontend/preview.sh --no-open    # 不自动开浏览器
-#   PORT=9000 ./frontend/preview.sh    # 换起始端口（被占用会自动往后找）
+#   ./scripts/preview.sh              # 用现有 dist（改过源码就先加 --build）
+#   ./scripts/preview.sh --build      # 先 npm run build 再预览
+#   ./scripts/preview.sh --no-open    # 不自动开浏览器
+#   PORT=9000 ./scripts/preview.sh    # 换起始端口（被占用会自动往后找）
+#   make preview                      # 等价于 --build
 #
 # 页面里的按钮都是活的：导入 / 整合 / 导出 / 回顾 / 保存配置 都会往日志里写一条
 # 带级别、带中文的新日志，方便核对日志窗口的分栏目、换行与分割线。
@@ -15,8 +16,8 @@
 #   message 提示弹窗   log-error / log-warning 切到某个日志栏目
 set -euo pipefail
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DIST="$DIR/dist"
+FRONTEND="$(cd "$(dirname "${BASH_SOURCE[0]}")/../frontend" && pwd)"
+DIST="$FRONTEND/dist"
 PORT="${PORT:-8788}"
 BUILD=0
 OPEN_BROWSER=1
@@ -32,7 +33,7 @@ done
 
 if [ "$BUILD" = 1 ]; then
   echo "▸ 构建前端：npm run build"
-  (cd "$DIR" && npm run build)
+  (cd "$FRONTEND" && npm run build)
 fi
 if [ ! -f "$DIST/index.html" ]; then
   echo "找不到 $DIST/index.html —— 先执行 (cd frontend && npm run build)，或加 --build" >&2
@@ -81,7 +82,7 @@ cat > "$WORK/index.html" <<HTML
 HTML
 
 cat > "$WORK/mock.js" <<'MOCK'
-// 模拟 Wails 注入的 window.go / window.runtime。仅由 frontend/preview.sh 使用，不进构建产物。
+// 模拟 Wails 注入的 window.go / window.runtime。仅由 scripts/preview.sh 使用，不进构建产物。
 (function () {
   const LEVEL_LABEL = { info: "信息", success: "成功", warning: "警告", error: "错误" };
   const handlers = {};
@@ -284,7 +285,7 @@ for offset in 0 1 2 3 4 5 6 7 8 9; do
   SERVER_PID=""
 done
 if [ -z "$SERVER_PID" ]; then
-  echo "端口 ${PORT}..$((PORT + 9)) 都被占用，换一个：PORT=9000 ./frontend/preview.sh" >&2
+  echo "端口 ${PORT}..$((PORT + 9)) 都被占用，换一个：PORT=9000 ./scripts/preview.sh" >&2
   exit 1
 fi
 

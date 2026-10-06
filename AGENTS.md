@@ -19,15 +19,17 @@
 | `main.go` | 桌面入口：Wails 选项、窗口尺寸、资源与任务栏身份 |
 | `app.go` / `app_methods.go` | `App` 类型与**前端可调用的绑定方法**（`window.go.main.App.*`）；`wireConfiguration` 负责装配依赖（启动与热重载共用） |
 | `settings*.go` | 参数设定：树/表单读取、结构化行级写回、热重载 |
-| `menu_actions.go` / `files.go` / `review_export.go` / `config_snapshot.go` | 菜单动作、文件复制、回顾导出、配置快照 |
+| `menu_actions.go` | 菜单动作（打开参数设定、关于、快照目录等） |
 | `*_test.go`（根） | 集成与**跨语言契约**测试（前端源码文本、设计口径、发布包结构） |
 | `internal/config` | 四份配置的读取、校验、路径解析（**行为来源**，不要在这里改口径） |
 | `internal/rules` | 必填与条件必填（`required_when`）的判定 |
 | `internal/importer` | Excel → 暂存表；`internal/store` SQLite 访问（暂存/整合/日志/对齐） |
 | `internal/consolidation` / `internal/changedetect` | 整合流程与变更描述 |
 | `internal/excelio` / `internal/sample` / `internal/validation` | Excel 读写、样本工厂、整合前的前置检查 |
+| `internal/fileutil` / `internal/configsnapshot` | 文件复制（流式 + fsync）、启动时的配置快照与滚动清理 |
 | `internal/buildinfo` / `internal/paths` / `internal/numfmt` / `internal/appicon` | 版本、路径解析、千分位、图标 |
 | `cmd/ssr-core` | 命令行入口；`tools.go` 里的生成器常量与 `config/log_columns.yaml` 保持逐字节一致 |
+| `scripts/` / `Makefile` | 本地发布、界面预览脚本；常用任务的固定入口（`make help`） |
 | `frontend/` | React + antd 前端；`frontend/dist` 与 `frontend/wailsjs` **都提交入库**（前者供 `//go:embed`，后者供 TS 编译） |
 | `config/` | 四份 YAML（同时是发布包 `config/defaults/` 的来源） |
 | `testdata/` | 测试用样本工作簿与 golden 基线（`.tsv`） |
@@ -56,12 +58,13 @@ npm ci --prefix frontend && npm run build             # 前端（build 里含 ts
 wails build                                           # 桌面产物（版本由 git tag / ldflags 注入）
 wails dev                                             # 开发模式
 
-./release-local.sh                                    # 刷新本地运行包 release/SingleSourceReady/
+./scripts/release-local.sh                           # 刷新本地运行包 release/SingleSourceReady/（make local）
 go run ./cmd/ssr-core release --allow-dirty --no-zip   # 本地自测发布包组装
 go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 必须打过 v<版本> tag 且工作区干净）
 ```
 
-- 只想看界面、不启 Go 后端：`./frontend/preview.sh --build`（注入模拟的 Wails 桥接）。
+- 只想看界面、不启 Go 后端：`./scripts/preview.sh --build`（注入模拟的 Wails 桥接；`make preview` 等价）。
+- 常用任务也可以走 `make help`：`make test` / `make check` / `make frontend` / `make local` / `make preview` / `make package`。
 - 装 Wails CLI 请与 `go.mod` 的版本对齐：`go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0`。
 
 ## 5. 测试约定

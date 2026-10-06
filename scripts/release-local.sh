@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # 本地发布：把当前工作区构建成可执行包，**覆盖式解压**到 release/SingleSourceReady/。
 #
-#   ./release-local.sh              # 构建 + 覆盖 release/SingleSourceReady/
+#   ./scripts/release-local.sh              # 构建 + 覆盖 release/SingleSourceReady/
+#   make local                              # 同上（Makefile 里的固定入口）
 #
 # 与正式发布（`go run ./cmd/ssr-core release`）的区别：
 #   - 允许脏工作区（版本带 +dirty），给本地自测用；
@@ -13,7 +14,7 @@
 # 版本号仍然写在 VERSION 与「关于」窗口里（来自 git tag + 工作区是否干净）。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="$ROOT/release/SingleSourceReady"
 OUT_REL="build/local-publish"   # --out 走相对路径（相对项目根），临时产物目录
 SCRATCH="$ROOT/$OUT_REL"
