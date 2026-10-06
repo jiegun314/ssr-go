@@ -11,6 +11,43 @@
 
 （暂无）
 
+## [2.3.2] - 2026-10-06
+
+这一版没有新的业务功能，做的是**工程规范与结构治理**（第 1–4 批），外加一项用户可见的改进：
+界面上的报错统一成中文。完整说明见 [Release v2.3.2](https://github.com/jiegun314/ssr-go/releases/tag/v2.3.2)。
+
+### 变更
+
+- **界面报错统一为中文**：内部错误与操作日志仍保留英文原文（便于检索、对照上游库），
+  但给用户看的对话框文案统一经 `userMessage` 包装 —— 认识的错误（文件类型不支持、文件不存在/被移动、
+  没有权限、数据库被占用/损坏、不是有效的 Excel、工作表找不到、没有可读数据行、源=目标文件、
+  配置校验类）给中文说法；不认识的用「操作失败：」起头并附原文；已经含中文的原样显示。
+- **日志级别口径合一**：级别标签以 Go 的 `logLevelLabels` 为真源，前端逐条比对；
+  四个级别色只在 `frontend/src/design-tokens.ts` 定义，CSS 用 `var(--log-*)` 引用。
+- **设计 token 单一来源**：颜色与关键尺寸（品牌红、危险红、模块描边、日志标题条灰底、
+  时间列宽 / 级别槽位 / 日志卡下限 / 状态片宽）集中到 `frontend/src/design-tokens.ts`，
+  `styles.css` 用 `:root` 变量引用，由一个前端测试校验两者一致。
+- **前端类型改为从 Wails 生成模型派生**（`wailsjs/go/models.ts`），不再手写字段清单：
+  Go 结构体加字段后前端会自动跟上，不一致由 `tsc --noEmit` 立刻发现。
+- **结构整理**：纯工具函数移入 `internal/`（`fileutil` / `configsnapshot` / `excelio.review`）；
+  本地发布与界面预览脚本收进 `scripts/`；新增 `Makefile` 任务入口（`make help`）；
+  前端契约测试按主题拆成 7 个文件。
+- **CI 拆分**：`ci.yml`（push main / PR：Go 测试 + 日志列一致性 + gofmt + go vet + 前端测试与构建）
+  与 `release.yml`（tag：两个平台原生构建并发布）；固定 `wails@v2.16.0` 保证构建可复现，
+  加 Go/npm 缓存与并发控制。
+
+### 新增
+
+- **前端行为测试**：引入 vitest + jsdom + @testing-library/react，26 条用例覆盖操作日志（筛选、
+  置顶、详情弹窗与复制内容）、数据整合结果表（状态片筛选、查找、空态）、参数设定表单
+  （控件渲染、只读项、注释口径、列表增删、列清单抽屉、保存载荷）与设计 token 一致性。
+- 工程文件：`LICENSE`（MIT）、`.editorconfig`、`CHANGELOG.md`、`AGENTS.md`（工程约定索引）。
+
+### 修复
+
+- `gofmt` 检查在"索引里仍列着已删除路径"时误报（重构期间会出现）。
+
+
 ## [2.3.1] - 2026-10-05
 
 完整说明见 [Release v2.3.1](https://github.com/jiegun314/ssr-go/releases/tag/v2.3.1)。
@@ -65,6 +102,7 @@
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v2.3.1...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v2.3.2...HEAD
+[2.3.2]: https://github.com/jiegun314/ssr-go/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/jiegun314/ssr-go/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/jiegun314/ssr-go/compare/v0.2.23...v2.3.0
