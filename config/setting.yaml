@@ -2,9 +2,9 @@
 APP_NAME: "SingleSourceReady"
 APP_DESCRIPTION: "SingleSourceReady - UDI数据整合工具"
 APP_SHORT_NAME: "SSR"
-# 回退版本号。真正的版本来自 git tag：打包时 scripts/gen_build_info.py 把它写成
-# core/_build_info.py（不提交），运行期由 core/build_info.py 依次读「构建期模块 →
-# git → 这里」。只有既没有构建期模块、又没有 git 时才用这个值，所以按需更新即可。
+# 回退版本号。真正的版本来自 git tag：发布构建用 ldflags 把构建期信息写进二进制，
+# 运行期依次读「构建期常量 → git → 这里」。只有三者都拿不到时才用这个值，
+# 所以按需更新即可。
 APP_VERSION: "0.2.1"
 
 database:

@@ -15,18 +15,16 @@ import (
 	"github.com/jiegun314/ssr-go/internal/store"
 )
 
-// logColumnsComment 与 Python 版 scripts/build_log_columns.py 的 COMMENT 逐字一致。
-//
-// 这里刻意保留 Python 的示例命令：config/ 是本仓库与 Python 仓库共享的行为来源，
-// 两边的 log_columns.yaml 必须逐字节相同（Go 的等价命令见 README）。
+// logColumnsComment 是 config/log_columns.yaml 的头部注释，必须与文件逐字一致
+// （genlogcolumns --check 会逐字节比对，注释里写的是本仓库真实的生成命令）。
 const logColumnsComment = `# Columns of one stored operation log record.
 #
 # The log keeps one column per exported column of the target export template, in
 # the order of its header row, so a stored record can be read back and reviewed
 # like the exported file. The file is generated, not maintained: change the
-# template or setting.yaml and run
+# template or setting.yaml and regenerate it with
 #
-#     python scripts/build_log_columns.py
+#     go run ./cmd/ssr-core genlogcolumns
 #
 # instead of editing the column list by hand.
 #

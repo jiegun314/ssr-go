@@ -26,7 +26,7 @@ const (
 	SettingFile              = "setting.yaml"
 	ImportMappingFile        = "excel_import_mapping.yaml"
 	ConsolidationMappingFile = "consolidation_mapping.yaml"
-	// LogColumnsFile 由 scripts/build_log_columns.py 从导出模板表头生成。
+	// LogColumnsFile 由 ssr-core genlogcolumns 从导出模板表头生成。
 	LogColumnsFile = "log_columns.yaml"
 )
 
