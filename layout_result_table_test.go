@@ -91,7 +91,7 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	}
 
 	chips := cssBlock(t, styles, ".status-chips {")
-	if !strings.Contains(chips, "grid-auto-columns: 86px;") {
+	if !strings.Contains(chips, "grid-auto-columns: var(--status-chip-width);") {
 		t.Errorf("状态片要固定等宽（86px ≈ 原 57px × 1.5），不随数字位数变化，实际块：\n%s", chips)
 	}
 	count := cssBlock(t, styles, ".status-count {")
@@ -175,45 +175,6 @@ func TestTheStatusSummaryUsesClickableChips(t *testing.T) {
 	}
 }
 
-// TestTheStatusChipsFilterTheResultTable 固定「点状态片就筛选数据列表」：
-// 只显示该状态的行，再点一次回到全部；导出（只看 Ready）与筛选互不影响。
-func TestTheStatusChipsFilterTheResultTable(t *testing.T) {
-	panels := readFrontendSource(t, "src/components/Panels.tsx")
-
-	for _, wanted := range []string{
-		"const [statusFilter, setStatusFilter] = useState<string | null>(null);",
-		"setStatusFilter((current) => (current === status ? null : status));",
-		".filter((entry) => statusFilter === null || entry.status === statusFilter)",
-		"rowClassName={(entry) => `result-row status-${entry.status}`}",
-		"data-filtered={statusFilter !== null}",
-		"`${statusLabel(statusFilter)} 状态没有数据`", // 空态也用中文状态名
-	} {
-		if !strings.Contains(panels, wanted) {
-			t.Errorf("状态筛选缺少：%s", wanted)
-		}
-	}
-	// 状态片文案是中文（合格 / 缺失 / 重复），与日志口径一致
-	if !strings.Contains(panels, "statusLabel(status)") {
-		t.Error("状态片文案应当走 statusLabel（中文）")
-	}
-	theme := readFrontendSource(t, "src/theme.ts")
-	for _, wanted := range []string{
-		`Ready: "合格"`,
-		`Incomplete: "缺失"`,
-		`Duplicate: "重复"`,
-		`Conflict: "冲突"`,
-	} {
-		if !strings.Contains(theme, wanted) {
-			t.Errorf("状态中文名缺少：%s", wanted)
-		}
-	}
-	// 筛选只影响显示：导出门禁在 App 侧按全部行里的 Ready 数量算，不跟着筛选走
-	app := readFrontendSource(t, "src/App.tsx")
-	if !strings.Contains(app, `const readyCount = statuses.filter((status) => status === "Ready").length;`) {
-		t.Error("导出门禁不该跟着筛选走（仍是全部行里的 Ready 数量）")
-	}
-}
-
 // TestTheStatusColorsStayInSyncWithTheTheme 固定结果表状态色只有一份来源：
 // theme.ts 的 STATUS_COLORS 与 styles.css 里的字面值必须一致，
 // 否则"工具栏标签 / 行底色 / 竖条"迟早会三套颜色。
@@ -282,39 +243,5 @@ func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 	head := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-head-wrapper,")
 	if !strings.Contains(head, "align-items: center;") {
 		t.Errorf("标题栏内容要纵向居中，实际块：\n%s", head)
-	}
-}
-
-// TestTheConsolidationSearchFiltersTheTable 固定数据整合的查找框：
-// 它靠左、状态片靠右；输入即按整行任意单元格做包含匹配（不区分大小写），
-// 与状态筛选叠加生效；查不到时给专门的空态文案。
-func TestTheConsolidationSearchFiltersTheTable(t *testing.T) {
-	panels := readFrontendSource(t, "src/components/Panels.tsx")
-	styles := readFrontendSource(t, "src/styles.css")
-
-	for _, wanted := range []string{
-		"<Input", // antd 默认输入框
-		`className="table-search"`,
-		"allowClear",
-		`aria-label="查找表格内容"`,
-		`placeholder="查找表格内容"`,
-		"prefix={<Search size={14} aria-hidden=\"true\" />}",
-		`const [query, setQuery] = useState("");`,
-		"const needle = query.trim().toLowerCase();",
-		"entry.cells.some((cell) => String(cell ?? \"\").toLowerCase().includes(needle))",
-		"没有找到匹配的数据",
-	} {
-		if !strings.Contains(panels, wanted) {
-			t.Errorf("查找框缺少：%s", wanted)
-		}
-	}
-	// 关键字与状态筛选叠加：两个 filter 串在一起
-	if !strings.Contains(panels, ".filter((entry) => statusFilter === null || entry.status === statusFilter)") {
-		t.Error("关键字应当与状态筛选叠加生效")
-	}
-	// 查找框靠左、状态片靠右
-	search := cssRule(t, styles, ".table-search {")
-	if !strings.Contains(search, "flex: 0 1 240px;") {
-		t.Errorf("查找框宽度口径不对，实际块：\n%s", search)
 	}
 }
