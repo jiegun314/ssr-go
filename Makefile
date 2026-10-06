@@ -7,7 +7,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 FRONTEND := frontend
 
-.PHONY: help build test check fmt vet frontend frontend-install dev preview local package version clean
+.PHONY: help build test check fmt vet frontend frontend-test frontend-install dev preview local package version clean
 
 help: ## 显示所有目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -19,8 +19,9 @@ build: ## 编译全部 Go 包
 test: ## 全部测试（提交前必跑）
 	go test -count=1 ./...
 
-check: ## 提交前的完整校验：测试 + 生成物一致 + gofmt + vet
+check: ## 提交前的完整校验：Go 测试 + 前端测试 + 生成物一致 + gofmt + vet
 	$(MAKE) test
+	$(MAKE) frontend-test
 	go run ./cmd/ssr-core genlogcolumns --check --config config
 	$(MAKE) fmt
 	$(MAKE) vet
@@ -40,6 +41,9 @@ frontend-install: ## 安装前端依赖（npm ci）
 
 frontend: ## 前端类型检查与构建（tsc --noEmit + vite build）
 	npm run build --prefix $(FRONTEND)
+
+frontend-test: ## 前端单元测试（vitest + jsdom，测真实渲染与交互）
+	npm test --prefix $(FRONTEND)
 
 dev: ## 开发模式：Wails 热重载，接真实后端
 	wails dev

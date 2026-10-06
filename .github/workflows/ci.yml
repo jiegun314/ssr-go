@@ -61,5 +61,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: 安装前端依赖（React + antd）
         run: npm ci --prefix frontend
+      - name: 前端单元测试（vitest + jsdom，测行为：筛选 / 弹窗 / 控件 / 保存载荷）
+        run: npm test --prefix frontend
       - name: 类型检查与构建（npm run build = tsc --noEmit + vite build）
         run: npm run build --prefix frontend
