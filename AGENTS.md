@@ -112,6 +112,10 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 必
   `theme.ts` 只做转出）。
 - 功能模块：**直角** + `1px solid #d9d9d9` 描边（比 antd 默认的 `#f0f0f0` 更深）。
 - 数字一律千分位（`internal/numfmt`）；文案中文；日期格式统一。
+- **错误文案分两层**：内部错误保持英文（便于检索与对照上游库），**给用户看的对话框文案统一走
+  `userMessage`**（`user_message.go`：认识的错误给中文说法，不认识的用"操作失败："起头并附原文；
+  已经含中文的原样显示）。操作日志里仍记英文原文（技术记录）。新增错误码/库错误时，
+  往 `uiErrorRules` 里加一条整串匹配的规则，并补 `user_message_test.go` 的用例。
 - 颜色与关键尺寸只在 `frontend/src/design-tokens.ts` 定义一次，`styles.css` 用 `:root` 变量引用；
   具体宽度与位置口径由根目录 `layout_*_test.go` 固定（按主题拆分）—— 改 CSS 时别只看截图，先看契约。
 
@@ -140,5 +144,6 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 必
   只有 Go 侧没有的 `AboutInfo` 与纯前端的 `SourceDefinition` 手写。
   改 Go 结构体后重新生成模型即可，前端不必同步字段清单（`tsc --noEmit` 会立刻发现不一致）。
 - 根目录 `package main` 偏重：`App` 与 Wails 绑定方法都在根，搬迁受 `window.go.main.App` 命名空间约束。
-- 错误文案中英混用（校验器英文、界面中文）：计划在 UI 边界统一包装，内部错误保持英文便于检索。
-- 日志级别/颜色的口径分散在 Go、TS、CSS 三处，目前靠契约测试兜住。
+- 日志级别的口径已合一：标签以 Go 的 `logLevelLabels` 为真源（`log_test.go` 逐条比对 `log.ts`），
+  四个级别色只在 `frontend/src/design-tokens.ts` 定义（CSS 用 `var(--log-*)`）。
+  还差一块：**值类型着色**（`theme.ts` 的 `VALUE_COLORS` 与 CSS 的 `.type-*`）仍是两处，可按同样办法收敛。

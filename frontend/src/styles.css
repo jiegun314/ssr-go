@@ -36,6 +36,10 @@ body,
   --log-level-slot: 32px;
   --log-min-height: 72px;
   --status-chip-width: 86px;
+  --log-info: #1677ff;
+  --log-success: #389e0d;
+  --log-warning: #d48806;
+  --log-error: #CF1322;
 }
 
 body {
@@ -545,19 +549,19 @@ body {
 }
 
 .log-filter-info {
-  color: #1677ff;
+  color: var(--log-info);
 }
 
 .log-filter-success {
-  color: #389e0d;
+  color: var(--log-success);
 }
 
 .log-filter-warning {
-  color: #d48806;
+  color: var(--log-warning);
 }
 
 .log-filter-error {
-  color: #cf1322;
+  color: var(--log-error);
 }
 
 /* 选中的栏目是红底，文字必须是白的（否则级别色压在红底上） */
@@ -602,19 +606,19 @@ body {
 }
 
 .log-level-info {
-  color: #1677ff;
+  color: var(--log-info);
 }
 
 .log-level-success {
-  color: #389e0d;
+  color: var(--log-success);
 }
 
 .log-level-warning {
-  color: #d48806;
+  color: var(--log-warning);
 }
 
 .log-level-error {
-  color: #cf1322;
+  color: var(--log-error);
 }
 
 .log-table .log-time {

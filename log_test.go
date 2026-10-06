@@ -137,10 +137,32 @@ func TestTheFrontendParsesTheSameLogFormat(t *testing.T) {
 	if !strings.Contains(script, logLinePattern) {
 		t.Errorf("frontend/src/log.ts 里的行正则与 Go 的行契约不一致，应当是：\n%s", logLinePattern)
 	}
+	// 级别标签必须逐条相等（不是"包含"）：Go 写日志、TS 解析日志，标签是唯一桥梁
 	for level, label := range logLevelLabels {
-		if !strings.Contains(script, label) {
-			t.Errorf("frontend/src/log.ts 里缺少级别标签 %q（对应 %s）", label, level)
+		// log.ts 里写作：  info: "信息",
+		expected := string(level) + `: "` + label + `",`
+		if !strings.Contains(script, expected) {
+			t.Errorf("frontend/src/log.ts 的级别标签与 Go 不一致，应当是：%s", expected)
 		}
+	}
+	// 级别色只在 design-tokens.ts 定义一次，CSS 规则用 var() 引用
+	tokens := readFrontendSource(t, "src/design-tokens.ts")
+	styles := readFrontendSource(t, "src/styles.css")
+	for level := range logLevelLabels {
+		if !strings.Contains(tokens, string(level)+`: "#`) {
+			t.Errorf("design-tokens.ts 里缺少 %s 的级别色", level)
+		}
+		if !strings.Contains(tokens, `"log-`+string(level)+`": LOG_LEVEL_COLORS.`+string(level)) {
+			t.Errorf("design-tokens.ts 的 CSS_TOKENS 里缺少 log-%s 的映射", level)
+		}
+		for _, selector := range []string{".log-level-", ".log-filter-"} {
+			if !strings.Contains(styles, selector+string(level)+" {") {
+				t.Errorf("styles.css 里缺少规则 %s%s", selector, level)
+			}
+		}
+	}
+	if !strings.Contains(styles, "color: var(--log-info);") {
+		t.Error("级别色应当在 styles.css 里用 var(--log-*) 引用，而不是写字面量")
 	}
 	for _, level := range []LogLevel{LogInfo, LogSuccess, LogWarning, LogError} {
 		if !strings.Contains(script, `"`+string(level)+`"`) {

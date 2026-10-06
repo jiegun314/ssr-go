@@ -42,11 +42,18 @@ describe("设计 token 单一来源", () => {
     const body = styles
       .replace(/:root\s*\{[\s\S]*?\}/, "")
       .replace(/\/\*[\s\S]*?\*\//g, "");
-    // 颜色是无歧义的（同一个色值只可能表达同一个意思）→ 规则里不许再出现字面量
-    for (const value of Object.values(CSS_TOKENS).filter((token) => token.startsWith("#"))) {
-      expect(body, `CSS 规则里仍有字面量 ${value}，应当用 var()`).not.toContain(value);
+    // 这些"同一语义"的规则必须走变量（同色值在别处可能是别的意思，例如状态条、值着色，
+    // 所以不能对整份 CSS 做"不许出现该字面量"的粗暴检查）
+    const sameMeaningRules = [
+      ".log-level-info", ".log-level-success", ".log-level-warning", ".log-level-error",
+      ".log-filter-info", ".log-filter-success", ".log-filter-warning", ".log-filter-error",
+    ];
+    for (const selector of sameMeaningRules) {
+      const block = new RegExp(`${selector.replace(/\./g, "\\.")}\\s*\\{([^}]*)\\}`).exec(body);
+      expect(block, `找不到规则 ${selector}`).not.toBeNull();
+      expect(block?.[1], `${selector} 应当用 var(--log-*)`).toMatch(/var\(--log-/);
+      expect(block?.[1], `${selector} 里不该再写颜色字面量`).not.toMatch(/#[0-9a-fA-F]{3,6}/);
     }
-    // 尺寸可能被别处合法复用（例如 32px 的行高），所以只在上一条测试里校验"关键规则用了变量"
   });
 
   it("关键规则确实引用了这些变量", () => {

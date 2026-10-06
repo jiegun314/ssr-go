@@ -34,6 +34,17 @@ export const LOG_MIN_HEIGHT = "72px";
 export const STATUS_CHIP_WIDTH = "86px";
 
 /**
+ * 日志级别色（前端 src/log.ts 的四个级别）：与 Go 侧 app.go 的 logLevelLabels 一一对应。
+ * 值同时用在 CSS（.log-level-* ）里，所以走 CSS 变量。
+ */
+export const LOG_LEVEL_COLORS: Record<"info" | "success" | "warning" | "error", string> = {
+  info: "#1677ff",
+  success: "#389e0d",
+  warning: "#d48806",
+  error: "#CF1322",
+};
+
+/**
  * 需要与 CSS 自定义属性对齐的 token 清单：
  * 键是 styles.css :root 里的变量名（不含 --），值是它必须等于的 token 值。
  */
@@ -46,4 +57,8 @@ export const CSS_TOKENS: Record<string, string> = {
   "log-level-slot": LOG_LEVEL_SLOT,
   "log-min-height": LOG_MIN_HEIGHT,
   "status-chip-width": STATUS_CHIP_WIDTH,
+  "log-info": LOG_LEVEL_COLORS.info,
+  "log-success": LOG_LEVEL_COLORS.success,
+  "log-warning": LOG_LEVEL_COLORS.warning,
+  "log-error": LOG_LEVEL_COLORS.error,
 };
