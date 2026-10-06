@@ -21,6 +21,16 @@ import (
 	"testing"
 )
 
+// readSourceFile 读仓库里任意相对路径的文本文件（契约测试用）。
+func readSourceFile(t *testing.T, name string) string {
+	t.Helper()
+	content, err := os.ReadFile(name)
+	if err != nil {
+		t.Fatalf("读不到 %s：%v", name, err)
+	}
+	return string(content)
+}
+
 func readFrontendSource(t *testing.T, name string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("frontend", name))

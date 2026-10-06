@@ -71,7 +71,7 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ImportResult{Source: source, Failed: true, Title: "错误", Message: err.Error()}
+		return ImportResult{Source: source, Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
 	path := filePath
@@ -163,16 +163,16 @@ func (app *App) ClearImportedData() ClearResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ClearResult{Failed: true, Title: "错误", Message: err.Error()}
+		return ClearResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
 	names, err := store.SourceCleanupNames(app.loader)
 	if err != nil {
-		return ClearResult{Failed: true, Title: "错误", Message: err.Error()}
+		return ClearResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	tableNames, err := store.SourceCleanupTableNames(app.loader)
 	if err != nil {
-		return ClearResult{Failed: true, Title: "错误", Message: err.Error()}
+		return ClearResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	if _, failed := store.DropTables(app.repo, tableNames); len(failed) > 0 {
 		message := store.FormatTableFailure(failed)
@@ -216,13 +216,13 @@ func (app *App) Consolidate() ConsolidateResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ConsolidateResult{Failed: true, Title: "错误", Message: err.Error()}
+		return ConsolidateResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
 	outcome, err := app.service.Consolidate()
 	if err != nil {
 		app.appendLog(LogError, "数据整合失败："+err.Error())
-		return ConsolidateResult{Log: app.logText(), Title: "数据缺失", Message: err.Error(), Failed: true}
+		return ConsolidateResult{Log: app.logText(), Title: "数据缺失", Message: userMessage(err), Failed: true}
 	}
 	counts := map[string]int{}
 	for _, row := range outcome.Rows {
@@ -295,7 +295,7 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ExportResult{Failed: true, Title: "导出失败", Message: err.Error()}
+		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err)}
 	}
 	defer app.endOperation()
 	if target == "" {
@@ -310,13 +310,13 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	exported, err := app.service.ExportConsolidationResult(defaultName, now)
 	if err != nil {
 		app.appendLog(LogError, "导出失败："+err.Error())
-		return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
+		return ExportResult{Log: app.logText(), Title: "导出失败", Message: userMessage(err), Failed: true}
 	}
 	// 用户路径与导出目录里的副本重合时跳过复制（R20，否则会抛 SameFileError）
 	if filepath.Clean(target) != filepath.Clean(exported.FilePath) {
 		if err := fileutil.CopyFile(exported.FilePath, target); err != nil {
 			app.appendLog(LogError, "导出失败："+err.Error())
-			return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
+			return ExportResult{Log: app.logText(), Title: "导出失败", Message: userMessage(err), Failed: true}
 		}
 	}
 	if err := app.service.RecordConsolidationResult(now); err != nil {
@@ -336,7 +336,7 @@ func (app *App) ReviewLog(start string, end string, page int, pageSize int) Revi
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ReviewResult{Failed: true, Title: "错误", Message: err.Error()}
+		return ReviewResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
 	if pageSize <= 0 {
@@ -347,7 +347,7 @@ func (app *App) ReviewLog(start string, end string, page int, pageSize int) Revi
 	}
 	rows, err := app.log.ReadByTime(start, end)
 	if err != nil {
-		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: err.Error()}
+		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	columns := app.log.TableColumns()
 	pageCount := (len(rows) + pageSize - 1) / pageSize
@@ -428,7 +428,7 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ReviewResult{Failed: true, Title: "错误", Message: err.Error()}
+		return ReviewResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
 	if pageSize <= 0 {
@@ -439,7 +439,7 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 	}
 	columns, rows, err := app.reviewData(source)
 	if err != nil {
-		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: err.Error()}
+		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	pageCount := (len(rows) + pageSize - 1) / pageSize
 	if pageCount == 0 {
@@ -539,7 +539,7 @@ func (app *App) ExportReviewData(fileType string, target string) ExportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
-		return ExportResult{Failed: true, Title: "导出失败", Message: err.Error()}
+		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err)}
 	}
 	defer app.endOperation()
 	if target == "" {
@@ -547,10 +547,10 @@ func (app *App) ExportReviewData(fileType string, target string) ExportResult {
 	}
 	columns, rows, err := app.reviewData(fileType)
 	if err != nil {
-		return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
+		return ExportResult{Log: app.logText(), Title: "导出失败", Message: userMessage(err), Failed: true}
 	}
 	if err := excelio.WriteReviewWorkbook(target, columns, rows); err != nil {
-		return ExportResult{Log: app.logText(), Title: "导出失败", Message: err.Error(), Failed: true}
+		return ExportResult{Log: app.logText(), Title: "导出失败", Message: userMessage(err), Failed: true}
 	}
 	app.appendLog(LogSuccess, fmt.Sprintf("回顾数据已导出到 %s（%d 行）", target, len(rows)))
 	return ExportResult{
