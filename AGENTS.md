@@ -31,6 +31,7 @@
 | `cmd/ssr-core` | 命令行入口；`tools.go` 里的生成器常量与 `config/log_columns.yaml` 保持逐字节一致 |
 | `scripts/` / `Makefile` | 本地发布、界面预览脚本；常用任务的固定入口（`make help`） |
 | `frontend/` | React + antd 前端；`frontend/dist` 与 `frontend/wailsjs` **都提交入库**（前者供 `//go:embed`，后者供 TS 编译） |
+| `frontend/src/__tests__/` | 前端**行为**测试（vitest + jsdom + testing-library），配置在 `frontend/vitest.config.ts`，垫片在 `frontend/src/test/setup.ts` |
 | `config/` | 四份 YAML（同时是发布包 `config/defaults/` 的来源） |
 | `testdata/` | 测试用样本工作簿与 golden 基线（`.tsv`） |
 | `docs/archive/` | 迁移期（Python + PySide6 原型）对照材料，仅历史存档 |
@@ -54,7 +55,9 @@ go test -count=1 ./...                                # 全部测试（提交前
 go run ./cmd/ssr-core genlogcolumns --check --config config   # 日志列生成物不许漂移
 go run ./cmd/ssr-core version                         # 版本信息
 
-npm ci --prefix frontend && npm run build             # 前端（build 里含 tsc --noEmit）
+npm ci --prefix frontend                              # 前端依赖
+npm run build --prefix frontend                       # 前端类型检查与构建（含 tsc --noEmit）
+npm test --prefix frontend                            # 前端行为测试（vitest + jsdom）
 wails build                                           # 桌面产物（版本由 git tag / ldflags 注入）
 wails dev                                             # 开发模式
 
@@ -64,17 +67,24 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 必
 ```
 
 - 只想看界面、不启 Go 后端：`./scripts/preview.sh --build`（注入模拟的 Wails 桥接；`make preview` 等价）。
-- 常用任务也可以走 `make help`：`make test` / `make check` / `make frontend` / `make local` / `make preview` / `make package`。
+- 常用任务也可以走 `make help`：`make test` / `make check` / `make frontend` / `make frontend-test` /
+  `make local` / `make preview` / `make package`。`make check` = Go 测试 + 前端测试 + 生成物一致 + gofmt + vet。
 - 装 Wails CLI 请与 `go.mod` 的版本对齐：`go install github.com/wailsapp/wails/v2/cmd/wails@v2.16.0`。
 
 ## 5. 测试约定
 
-- 分层：`internal/*` 放单元与 golden 测试（样本在 `testdata/`，比对基线是 `.tsv`）；根 `package main` 放集成与契约测试。
-- 根目录的 `layout_test.go` 是**对前端源码文本**的契约断言（类名、CSS 规则、中文文案）。改界面时它必须一起改；
-  它的定位是"设计口径护栏"（颜色、字号、模块直角、固定宽度），**不是行为测试**。
-- 断言里的取值要从**唯一来源**取（`cmd/ssr-core/tools.go` 的常量、`config/*.yaml`、`frontend/src/theme.ts`），
+**两套测试，各管一段，别互相替代：**
+
+| | 位置 | 管什么 |
+| --- | --- | --- |
+| 前端行为测试 | `frontend/src/__tests__/*.test.tsx`（vitest + jsdom + testing-library） | 渲染出来的东西与交互结果：筛选、排序、点开弹窗、复制内容、控件改值与**保存载荷**、抽屉内容、空态文案 |
+| Go 单元/golden | `internal/*`（样本在 `testdata/`，基线是 `.tsv`） | 业务逻辑、配置校验、导入/整合/导出结果 |
+| Go 契约测试 | 根目录 `layout_*_test.go`（对前端**源码文本**断言） | **设计口径与跨语言一致性**：颜色 token、固定宽度、中文文案、产物内嵌、`frontend/dist` 与模板一致 |
+
+- 能写成行为测试的，就写进行为测试：源码字符串断言只能证明"某段文字还在"，证明不了"跑起来对"。
+- Go 契约测试里的取值要从**唯一来源**取（`cmd/ssr-core/tools.go` 的常量、`config/*.yaml`、`frontend/src/theme.ts`），
   不要在测试里复制魔法值。
-- 契约测试的意义：这些口径跨语言（Go 断言 TS/CSS），一旦有人"顺手简化"就会报错。
+- 改界面时的最低要求：`npm test --prefix frontend` 与 `go test -count=1 ./...` 都要过；改了设计口径要同步 Go 契约。
 
 ## 6. 版本与发布
 
@@ -98,10 +108,12 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 必
 ## 8. 界面口径
 
 - **一律用 antd 默认值**（字号、圆角、间距、控件高度、表格内边距），只覆盖品牌色：
-  `BRAND_RED = #DA291C`（强生企业红）、`DANGER_RED = #CF1322`，见 `frontend/src/theme.ts`。
+  `BRAND_RED = #DA291C`（强生企业红）、`DANGER_RED = #CF1322`（真源在 `frontend/src/design-tokens.ts`，
+  `theme.ts` 只做转出）。
 - 功能模块：**直角** + `1px solid #d9d9d9` 描边（比 antd 默认的 `#f0f0f0` 更深）。
 - 数字一律千分位（`internal/numfmt`）；文案中文；日期格式统一。
-- 具体宽度与位置口径由 `layout_test.go` 固定 —— 改 CSS 时别只看截图，先看契约。
+- 颜色与关键尺寸只在 `frontend/src/design-tokens.ts` 定义一次，`styles.css` 用 `:root` 变量引用；
+  具体宽度与位置口径由根目录 `layout_*_test.go` 固定（按主题拆分）—— 改 CSS 时别只看截图，先看契约。
 
 ## 9. 提交与协作
 
@@ -120,7 +132,13 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 必
 
 ## 11. 已知欠账（欢迎逐步偿还）
 
-- 前端没有单元测试：行为断言目前借用 Go 的源码契约（见 §5）；计划引入 vitest + @testing-library/react。
+- 设计口径已收敛成 **design token 单一来源**（`frontend/src/design-tokens.ts` ↔ `styles.css` 的
+  `:root` 变量，一致性由 `frontend/src/__tests__/designTokens.test.ts` 校验）；
+  Go 契约只断言"规则里用了哪个变量"，不再断言颜色字面量。
+- 前端类型的来源：`frontend/src/types.ts` 从生成的 `frontend/wailsjs/go/models.ts` **派生**
+  （`Data<>` 剥掉生成类上的 `convertValues`，需要收窄的用 `Omit` + 交叉类型补联合类型），
+  只有 Go 侧没有的 `AboutInfo` 与纯前端的 `SourceDefinition` 手写。
+  改 Go 结构体后重新生成模型即可，前端不必同步字段清单（`tsc --noEmit` 会立刻发现不一致）。
 - 根目录 `package main` 偏重：`App` 与 Wails 绑定方法都在根，搬迁受 `window.go.main.App` 命名空间约束。
 - 错误文案中英混用（校验器英文、界面中文）：计划在 UI 边界统一包装，内部错误保持英文便于检索。
 - 日志级别/颜色的口径分散在 Go、TS、CSS 三处，目前靠契约测试兜住。
