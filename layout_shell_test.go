@@ -103,8 +103,8 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 //   - 每个模块一条淡色描边，模块之间只留 8px 间距 —— 区隔靠颜色和线条，不靠留白。
 func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
-	theme := readFrontendSource(t, "src/theme.ts")
-	brand := themeConstant(t, theme, "export const BRAND_RED")
+	tokens := readFrontendSource(t, "src/design-tokens.ts")
+	brand := themeConstant(t, tokens, "export const BRAND_RED")
 
 	header := cssBlock(t, styles, ".card:not(.log-card) > .ant-card-head {")
 	if !strings.Contains(header, "background: "+brand+";") {
@@ -116,7 +116,7 @@ func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 	}
 
 	logHead := cssBlock(t, styles, ".log-card > .ant-card-head {")
-	if !strings.Contains(logHead, "background: #e8e8e8;") {
+	if !strings.Contains(logHead, "background: var(--log-head-bg);") {
 		t.Errorf("操作日志的标题条应当是更深一档的灰底，实际块：\n%s", logHead)
 	}
 	logTitle := cssBlock(t, styles, ".log-card > .ant-card-head .ant-card-head-title {")
@@ -125,7 +125,7 @@ func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 	}
 
 	card := cssRule(t, styles, ".card {")
-	if !strings.Contains(card, "border: 1px solid #d9d9d9;") {
+	if !strings.Contains(card, "border: 1px solid var(--module-border);") {
 		t.Errorf("模块应当有一条淡色描边，实际块：\n%s", card)
 	}
 	shell := cssBlock(t, styles, ".app-shell {")
@@ -179,8 +179,13 @@ func TestTheUIKeepsTheProductColorsAndFont(t *testing.T) {
 	theme := readFrontendSource(t, "src/theme.ts")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	if !strings.Contains(theme, `export const BRAND_RED = "#DA291C"`) {
+	// 颜色 token 的真源在 design-tokens.ts（CSS 变量的一致性由前端测试校验）
+	tokens := readFrontendSource(t, "src/design-tokens.ts")
+	if !strings.Contains(tokens, `export const BRAND_RED = "#DA291C"`) {
 		t.Error("品牌红应当是强生企业红 #DA291C")
+	}
+	if !strings.Contains(readFrontendSource(t, "src/theme.ts"), `from "./design-tokens"`) {
+		t.Error("theme.ts 应当从 design-tokens.ts 取颜色，而不是自己再写一遍色值")
 	}
 	for _, tokenName := range []string{"colorPrimary", "colorInfo", "colorLink"} {
 		if !strings.Contains(theme, tokenName+": BRAND_RED") {

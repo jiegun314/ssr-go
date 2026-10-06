@@ -25,6 +25,19 @@ body,
   margin: 0;
 }
 
+/* 设计 token 的 CSS 侧声明：值必须与 frontend/src/design-tokens.ts 一致
+   （designTokens.test.ts 会逐条比对；改值请两处一起改，或者只改 TS 后跑测试看差异）。 */
+:root {
+  --brand-red: #DA291C;
+  --danger-red: #CF1322;
+  --module-border: #d9d9d9;
+  --log-head-bg: #e8e8e8;
+  --log-time-width: 64px;
+  --log-level-slot: 32px;
+  --log-min-height: 72px;
+  --status-chip-width: 86px;
+}
+
 body {
   background: #f5f5f5; /* antd colorBgLayout：灰底 + 白卡片 */
   -webkit-font-smoothing: antialiased;
@@ -90,7 +103,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid #d9d9d9; /* 比 antd 默认的 #f0f0f0 明显加深，模块间隔窄时也能一眼分开 */
+  border: 1px solid var(--module-border); /* 比 antd 默认的 #f0f0f0 明显加深，模块间隔窄时也能一眼分开 */
   border-radius: 0; /* 功能模块一律直角 */
 }
 
@@ -345,7 +358,7 @@ body {
   display: inline-grid;
   grid-auto-flow: column;
   /* 固定轨道宽度（原 86px ≈ 原来的 57px × 1.5）：数字位数变化时按钮宽度不动 */
-  grid-auto-columns: 86px;
+  grid-auto-columns: var(--status-chip-width);
   align-items: stretch;
   gap: 8px;
   min-width: 0;
@@ -465,14 +478,14 @@ body {
  * 窗口高度的变化全部由这张卡吸收（flex-basis 0），所以它不需要拖动条。
  */
 .log-card {
-  min-height: 72px;
+  min-height: var(--log-min-height);
 }
 
 /* 操作日志的标题条：灰底 + 品牌红字，级别栏目（Segmented）与「新日志置顶」就放在这一行里，
    不再单独占一行 —— 省下来的高度全部给日志正文。 */
 .log-card > .ant-card-head {
-  background: #e8e8e8; /* 比模块描边(#e5e5e5)浅一点、比 colorFillAlter 明显深一档的灰 */
-  border-bottom-color: #d9d9d9;
+  background: var(--log-head-bg); /* 比模块描边浅一点、比 colorFillAlter 明显深一档的灰 */
+  border-bottom-color: var(--module-border);
 }
 
 /* 标题栏里的内容统一垂直居中对齐（标题 + 条数 + 右侧「新日志置顶」开关） */
@@ -582,7 +595,7 @@ body {
   align-items: center;
   justify-content: center;
   /* 两个汉字 24px，槽位给到 32px：文字在槽位里横向居中，同时比原来的 44px 窄 */
-  width: 32px;
+  width: var(--log-level-slot);
   font-size: 12px;
   line-height: 22px;
   white-space: nowrap;
@@ -605,6 +618,7 @@ body {
 }
 
 .log-table .log-time {
+  width: var(--log-time-width);
   color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
   text-align: left; /* 时间靠左排布 */
   white-space: nowrap;

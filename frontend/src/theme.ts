@@ -6,14 +6,11 @@
 
 import type { ThemeConfig } from "antd";
 
-/** 品牌红：强生企业红（PANTONE 485 C）。主按钮 / 链接 / 强调色，白字对比度 4.87:1。 */
-export const BRAND_RED = "#DA291C";
+import { BRAND_RED, DANGER_RED } from "./design-tokens";
 
-/**
- * 危险红：antd 默认的 colorError 是 #ff4d4f，白底只有 3.27:1，
- * 小字与图标都不到 AA；换成同色系的 red-7，同时也是「Incomplete」状态色。
- */
-export const DANGER_RED = "#CF1322";
+// 颜色 token 的真源在 design-tokens.ts（与 styles.css 的 :root 变量一一对应），
+// 这里只做转出，避免同一个色值在两处各写一遍。
+export { BRAND_RED, DANGER_RED } from "./design-tokens";
 
 /**
  * 界面字体栈：antd 默认栈（system-ui 系列）后面补上中文字体。
