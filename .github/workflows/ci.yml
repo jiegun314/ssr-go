@@ -34,9 +34,10 @@ jobs:
         run: go run ./cmd/ssr-core genlogcolumns --check --config config
       - name: gofmt 检查（只查入库的 Go 文件）
         run: |
-          files="$(git ls-files '*.go')"
+          # 只检查磁盘上真实存在的文件（重构中途 index 可能还留着已删路径）
+          files="$(git ls-files '*.go' | while read -r f; do [ -f "$f" ] && echo "$f"; done)"
           if [ -z "$files" ]; then
-            echo "没有入库的 Go 文件，跳过"; exit 0
+            echo "没有需要检查的 Go 文件，跳过"; exit 0
           fi
           # shellcheck disable=SC2086  # 这里就是要把文件列表拆成多个参数
           unformatted="$(gofmt -l $files)"
