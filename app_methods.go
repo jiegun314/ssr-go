@@ -242,6 +242,21 @@ func (app *App) Consolidate() ConsolidateResult {
 		summary = append(summary, fmt.Sprintf("冲突 %d 行", conflicts))
 	}
 	app.appendLog(LogSuccess, "数据整合完成："+strings.Join(summary, "，"))
+	// 安全网：动作是 Modify 却没有任何变更描述 —— 正常不会出现（完全一致的行会被判为
+	// 「重复」且不进导出），真出现时留一条警告便于排查，不改行状态。
+	if warnings := outcome.ChangeDescriptionWarnings; len(warnings) > 0 {
+		shown := warnings
+		if len(shown) > 10 {
+			shown = shown[:10]
+		}
+		detail := strings.Join(shown, "、")
+		if len(warnings) > len(shown) {
+			detail += fmt.Sprintf(" 等 %d 行", len(warnings))
+		}
+		app.appendLog(LogWarning, fmt.Sprintf(
+			"有 %d 行判定为 Modify 但没有变更描述（已按原样导出，请核对）：%s",
+			len(warnings), detail))
+	}
 	columns := append([]string{"status"}, app.service.Config.FieldNames...)
 	rows := make([][]string, 0, len(outcome.Rows))
 	statuses := make([]string, 0, len(outcome.Rows))

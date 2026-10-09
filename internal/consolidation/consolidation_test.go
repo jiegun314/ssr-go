@@ -107,8 +107,13 @@ func TestR18AChangedColumnIsDescribedAndStaysExportable(t *testing.T) {
 		if row.Values["status"] != StatusReady {
 			t.Errorf("%s 状态 = %q; want Ready", row.Key, row.Values["status"])
 		}
-		if row.Values["Change Description"] != "Product Name/Generic Name changed" {
+		// 措辞取自配置：{column}变更（中文后缀，见 consolidation_mapping.yaml）
+		if row.Values["Change Description"] != "Product Name/Generic Name变更" {
 			t.Errorf("%s 描述 = %q", row.Key, row.Values["Change Description"])
+		}
+		// 数据要求：这一行在库里已有同一身份 → Modify
+		if row.Values["Choose Action"] != "Modify" {
+			t.Errorf("%s Choose Action = %q; want Modify", row.Key, row.Values["Choose Action"])
 		}
 	}
 	if len(affected) == 0 || strings.Join(second.ChangedData, "|") != strings.Join(affected, "|") {

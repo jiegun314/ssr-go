@@ -87,6 +87,11 @@ func fieldNamesWithLogColumns(t *testing.T, loader *config.Loader) []string {
 
 // TestConsolidationMatchesThePythonBaseline 是整合阶段的 golden diff（数据口径①）。
 //
+// 注意：`Choose Action` 一列**有意偏离** Python 基线 —— 修正后的数据要求是
+// 「只能是 Add 或 Modify，不可能为空」，由 (Catalog or Reference Number, Primary DI)
+// 是否已在操作日志里判定（见 consolidation_mapping.yaml 的 record_action）。
+// 基线里那一列仍是 Python 时代的固定文本 "Add or Modify"。
+//
 // 对照物 `baseline/整合结果.tsv` 由 Python 现状实现产出：status + 30 个导出列 +
 // material_code，行序固定。Go 实现必须逐格一致——包括样本里刻意设计的脏数据
 // （DI 写成数字丢掉前导零，因此多一行结果）与 MISSING 行。

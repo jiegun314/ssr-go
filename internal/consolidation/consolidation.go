@@ -166,15 +166,18 @@ func LoadChangeRule(loader *config.Loader) (*changedetect.Rule, error) {
 		return nil, err
 	}
 	return &changedetect.Rule{
-		Field:          rule.Field,
-		Fields:         rule.Fields,
-		Labels:         rule.Labels,
-		IdentityFields: rule.IdentityFields,
-		CompareFields:  rule.CompareFields,
-		IgnoreFields:   rule.IgnoreFields,
-		OnNewRecord:    rule.OnNewRecord,
-		OnNoChange:     rule.OnNoChange,
-		OnOtherChange:  rule.OnOtherChange,
+		Field:                rule.Field,
+		Fields:               rule.Fields,
+		Labels:               rule.Labels,
+		IdentityFields:       rule.IdentityFields,
+		CompareFields:        rule.CompareFields,
+		IgnoreFields:         rule.IgnoreFields,
+		OnNewRecord:          rule.OnNewRecord,
+		OnNoChange:           rule.OnNoChange,
+		OnOtherChange:        rule.OnOtherChange,
+		ActionField:          rule.ActionField,
+		ActionOnNewRecord:    rule.ActionOnNewRecord,
+		ActionOnStoredRecord: rule.ActionOnStoredRecord,
 	}, nil
 }
 
@@ -183,8 +186,10 @@ type Outcome struct {
 	Rows          []changedetect.Row
 	MissingData   []string
 	DuplicateData []string
-	ChangedData   []string
-	ConflictData  []string
+	// ChangeDescriptionWarnings 是"动作是 Modify 但变更描述为空"的行键（安全网，正常为空）。
+	ChangeDescriptionWarnings []string
+	ChangedData               []string
+	ConflictData              []string
 }
 
 // Service 执行一次整合。
@@ -231,6 +236,8 @@ func (service *Service) Consolidate() (Outcome, error) {
 	}
 	outcome.DuplicateData = duplicates
 	outcome.ChangedData = changed
+	service.flagMissingDerivedValues(&outcome, service.noMatchValue())
+	outcome.ChangeDescriptionWarnings = detector.EmptyChangeDescriptions(outcome.Rows)
 	if err := service.write(outcome.Rows); err != nil {
 		return Outcome{}, err
 	}
@@ -588,6 +595,57 @@ func (service *Service) mapResultRow(
 	return nil
 }
 
+// noMatchValue 是"值拿不到"时写进单元格的占位文本（no_match.value，默认 MISSING）。
+func (service *Service) noMatchValue() string {
+	for _, sourceName := range service.Config.SourceOrder {
+		noMatch, _ := service.Config.SourceRules[sourceName]["no_match"].(map[string]any)
+		if value := textOf(noMatch["value"]); value != "" {
+			return value
+		}
+	}
+	return "MISSING"
+}
+
+// isDerivedTransform 判断导出列是不是由变更比较派生出来的（没有来源、运行期才算）。
+func isDerivedTransform(definition map[string]any) bool {
+	transform, _ := definition["transform"].(map[string]any)
+	transformType := textOf(transform["type"])
+	return transformType == config.ChangeDescriptionTransform || transformType == config.RecordActionTransform
+}
+
+// flagMissingDerivedValues 在变更比较填好派生列之后收尾：
+//
+//   - 动作列（Choose Action）声明的是 required（数据要求：Add / Modify，不可能为空）：
+//     仍然为空就照常判缺失 —— 这是防御性的，正常情况下它一定有值；
+//   - 变更描述列不在这里判缺失：与历史记录完全一致的行已经判为「重复」、不进导出，
+//     所以进导出的 Modify 行必然有差异；真为空只留一条警告（见 Outcome.ChangeDescriptionWarnings）。
+func (service *Service) flagMissingDerivedValues(outcome *Outcome, noMatchValue string) {
+	// 这里离填值阶段较远，缺失集合从 Outcome 里重建，保证 MissingData 不重复
+	incomplete := make(map[string]bool, len(outcome.MissingData))
+	for _, key := range outcome.MissingData {
+		incomplete[key] = true
+	}
+	for columnName, definition := range service.Config.Fields {
+		if !isDerivedTransform(definition) {
+			continue
+		}
+		transform, _ := definition["transform"].(map[string]any)
+		if textOf(transform["type"]) != config.RecordActionTransform {
+			continue
+		}
+		if textOf(definition["mandatory_status"]) != "required" {
+			continue
+		}
+		for _, row := range outcome.Rows {
+			if !rules.IsBlankValue(row.Values[columnName]) {
+				continue
+			}
+			markIncomplete(outcome, incomplete, row.Key, row.Values)
+			row.Values[columnName] = noMatchValue
+		}
+	}
+}
+
 // flagMissingRequiredValues 是导出前的最后一道校验（R16）。
 func (service *Service) flagMissingRequiredValues(
 	row store.Row,
@@ -601,6 +659,11 @@ func (service *Service) flagMissingRequiredValues(
 		definition := service.Config.Fields[columnName]
 		status := textOf(definition["mandatory_status"])
 		if status != "required" && status != "required_if_applicable" {
+			continue
+		}
+		// 派生列（Choose Action / Change Description）此刻还没算出来：
+		// 它们由变更比较在之后填值，这里跳过，由 flagMissingDerivedValues 收尾。
+		if isDerivedTransform(definition) {
 			continue
 		}
 		if !service.isRequiredForRow(definition, selected) {

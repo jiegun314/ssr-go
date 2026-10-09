@@ -232,7 +232,8 @@ func (loader *Loader) ValidateConsolidationMapping(
 		case mandatoryStatus == "required":
 			_, hasLiteral := transform["value"]
 			transformType, _ := asString(transform["type"])
-			if !hasLiteral && transformType != ChangeDescriptionTransform {
+			if !hasLiteral && transformType != ChangeDescriptionTransform &&
+				transformType != RecordActionTransform {
 				return errorf(
 					"Literal transform value is required for source-less required field: %s",
 					outputName)
@@ -242,7 +243,10 @@ func (loader *Loader) ValidateConsolidationMapping(
 	if err := validateDuplicateCheck(dataset, outputFields); err != nil {
 		return err
 	}
-	return validateChangeDescriptionTransform(dataset, outputFields)
+	if err := validateChangeDescriptionTransform(dataset, outputFields); err != nil {
+		return err
+	}
+	return validateRecordActionTransform(dataset, outputFields)
 }
 
 // validateTransform 要求声明的 transform 类型是字段循环真正认识的那种。
@@ -255,7 +259,7 @@ func validateTransform(outputName string, transform map[string]any) error {
 	}
 	transformType, _ := asString(rawType)
 	allowed := append([]string{}, TransformTypes...)
-	allowed = append(allowed, ChangeDescriptionTransform)
+	allowed = append(allowed, ChangeDescriptionTransform, RecordActionTransform)
 	if !contains(allowed, transformType) {
 		return errorf("Unsupported transform type for %s: %q", outputName, transformType)
 	}
@@ -302,6 +306,69 @@ func validateDuplicateCheck(dataset map[string]any, exportFields map[string]any)
 		return errorf(
 			"consolidation.target_dataset.duplicate_check.identity_fields must also be export columns in consolidation.target_dataset.fields: %s",
 			strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+// validateRecordActionTransform 校验"记录动作"派生列（Choose Action）。
+//
+// 数据要求：这一列只能是 Add 或 Modify，不可能为空 —— 所以：
+//   - 恰好一列，且 mandatory_status = required；
+//   - on_new_record / on_stored_record 都必须是非空字符串；
+//   - 身份字段与变更描述共用 duplicate_check.identity_fields，不允许另写一份；
+//   - 派生列不能自己声明 source，也不能出现在身份字段里。
+func validateRecordActionTransform(dataset map[string]any, exportFields map[string]any) error {
+	derived := []string{}
+	for _, name := range sortedKeys(exportFields) {
+		definition, _ := exportFields[name].(map[string]any)
+		transform, _ := definition["transform"].(map[string]any)
+		transformType, _ := asString(transform["type"])
+		if transformType == RecordActionTransform {
+			derived = append(derived, name)
+		}
+	}
+	if len(derived) == 0 {
+		return nil
+	}
+	if len(derived) > 1 {
+		return errorf("Only one record action column is supported: %s", strings.Join(derived, ", "))
+	}
+	fieldName := derived[0]
+	definition, _ := exportFields[fieldName].(map[string]any)
+	transform, _ := definition["transform"].(map[string]any)
+	label := "consolidation.target_dataset.fields." + fieldName
+	transformLabel := label + ".transform"
+
+	duplicateCheck, _ := dataset["duplicate_check"].(map[string]any)
+	if contains(stringList(duplicateCheck["identity_fields"]), fieldName) {
+		return errorf(
+			"%s is derived from the stored records, so it can not be part of consolidation.target_dataset.duplicate_check.identity_fields",
+			label)
+	}
+	if mandatoryStatus, _ := asString(definition["mandatory_status"]); mandatoryStatus != "required" {
+		return errorf(
+			"%s must declare mandatory_status 'required' (the data requirement is Add or Modify, never empty)",
+			label)
+	}
+	if source, _ := definition["source"].(map[string]any); len(source) > 0 {
+		return errorf("%s is derived, so its source has to stay empty", label)
+	}
+	identityReference := ChangeIdentityReference
+	if value, present := transform["identity_fields"]; present {
+		identityReference, _ = asString(value)
+	}
+	if identityReference != ChangeIdentityReference {
+		return errorf("%s.identity_fields must be '%s'", transformLabel, ChangeIdentityReference)
+	}
+	for _, key := range []string{"on_new_record", "on_stored_record"} {
+		value, present := transform[key]
+		if !present || value == nil {
+			return errorf("%s.%s is required (Add / Modify text)", transformLabel, key)
+		}
+		text, ok := asString(value)
+		if !ok || strings.TrimSpace(text) == "" {
+			return errorf("%s.%s must be a non-empty string", transformLabel, key)
+		}
 	}
 	return nil
 }

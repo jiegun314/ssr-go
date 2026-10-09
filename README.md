@@ -84,8 +84,13 @@ Excel 来源 ×4 → （配置校验：表头 / 必填 / 条件必填 / 值归�
 ### 变更检测
 
 - 身份 = **产品代码（Catalog or Reference Number）+ Primary DI**；医保编码不属于身份；
-- 与操作日志中同一身份的最新记录逐列比较：无变化 → `Duplicate`（不重复导出）；有变化 → 保持 `Ready`
-  并生成 `Change Description`（如 `Product Name/Generic Name changed`、`Medical Insurance Code changed`）。
+- 与操作日志中同一身份的最新记录逐列比较：
+  - 无变化 → `Duplicate`（不重复导出）；
+  - 有变化 → 保持 `Ready`，并生成 `Change Description`（如 `Package Type变更；Package DI变更`，
+    按导出列顺序罗列，措辞与分隔符都在配置里）；
+- **`Choose Action` 按行判定**（数据要求：只能是 `Add` 或 `Modify`，不可能为空）：
+  - 操作日志里**没有**同一身份的最新记录 → `Add`（`Change Description` 留空）；
+  - **已经有** → `Modify`（此时必然至少有一处差异，因为完全一致的行已判为 `Duplicate` 不进导出）。
 
 ### 导出
 

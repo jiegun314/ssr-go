@@ -44,6 +44,9 @@
   `config/*.yaml`、`config/.backup/`、`data/` 下的数据库。
 - `config/log_columns.yaml` 是**生成物**：头部注释与内容由 `cmd/ssr-core/tools.go` 的 `logColumnsComment` /
   `RenderLogColumns` 产出，两者必须逐字节一致 —— CI 用 `genlogcolumns --check` 把关。
+- 两列是**运行期派生**的（由变更比较填值，不读来源表）：`Choose Action`（`transform.type: record_action`，
+  只能是 Add 或 Modify）与 `Change Description`（`change_description`）。判定键与重复检查共用
+  `duplicate_check.identity_fields`，不允许另写一份；比较顺序 = 导出列的**配置声明顺序**。
 - 「参数设定」的结构化写回（`settings_write.go`）**只改被编辑的那几行**：注释、空行、键序、引号风格、锚点与别名都不动；
   先备份 `.bak`，再整体校验，失败自动还原。
 

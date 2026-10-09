@@ -44,6 +44,10 @@ var TransformTypes = []string{"direct", "first_not_null", "concatenate"}
 // ChangeDescriptionTransform 是由变更比较派生出来的列（不是从来源表读的）。
 const ChangeDescriptionTransform = "change_description"
 
+// RecordActionTransform 是"这条记录对数据库来说是新增还是修改"的派生列
+// （数据要求：Choose Action 只能是 Add 或 Modify，不可能为空）。
+const RecordActionTransform = "record_action"
+
 // NoMatchActions 是来源没有基准记录时的四种动作（R13）。
 var NoMatchActions = []string{"emit_incomplete", "empty", "skip", "error"}
 
@@ -308,6 +312,12 @@ type ChangeDescriptionRule struct {
 	OnNewRecord    string
 	OnNoChange     string
 	OnOtherChange  map[string]any
+
+	// ActionField 是动作派生列（Choose Action）：库里没有同一身份 → ActionOnNewRecord，
+	// 已经有 → ActionOnStoredRecord。两者共用同一套身份字段（duplicate_check.identity_fields）。
+	ActionField          string
+	ActionOnNewRecord    string
+	ActionOnStoredRecord string
 }
 
 // LoadChangeDescriptionRule 解析由变更比较派生的导出列；没有该列时返回 nil。
@@ -324,47 +334,72 @@ func (loader *Loader) LoadChangeDescriptionRule() (*ChangeDescriptionRule, error
 		return nil, err
 	}
 	fields, _ := dataset["fields"].(map[string]any)
+	// 导出列顺序来自配置声明顺序（不是 map 的字母序）：变更描述按这个顺序罗列差异项。
 	fieldNames := mappingKeys(fields)
+	if document, docErr := loader.LoadDocument(ConsolidationMappingFile); docErr == nil {
+		if declared := document.Keys("target_dataset", "fields"); len(declared) > 0 {
+			fieldNames = declared
+		}
+	}
+
+	// 一趟扫完两列：变更描述（change_description）与记录动作（record_action）。
+	// 两列都可能单独存在，所以不能边扫边返回。
+	descriptionField, descriptionTransform := "", map[string]any{}
+	actionField, actionTransform := "", map[string]any{}
 	for _, fieldName := range fieldNames {
 		definition, _ := fields[fieldName].(map[string]any)
 		transform, _ := definition["transform"].(map[string]any)
 		transformType, _ := transform["type"].(string)
-		if transformType != ChangeDescriptionTransform {
-			continue
-		}
-		identityFields, err := loader.LoadDuplicateCheckIdentityFields()
-		if err != nil {
-			return nil, err
-		}
-		labels := map[string]string{}
-		for name, raw := range fields {
-			item, _ := raw.(map[string]any)
-			label, _ := item["chinese_name"].(string)
-			if label == "" {
-				label = name
+		switch transformType {
+		case ChangeDescriptionTransform:
+			if descriptionField == "" {
+				descriptionField, descriptionTransform = fieldName, transform
 			}
-			labels[name] = label
+		case RecordActionTransform:
+			if actionField == "" {
+				actionField, actionTransform = fieldName, transform
+			}
 		}
-		compareFields, present := transform["compare_fields"]
-		if !present {
-			compareFields = "all"
-		}
-		onNewRecord, _ := transform["on_new_record"].(string)
-		onNoChange, _ := transform["on_no_change"].(string)
-		onOtherChange, _ := transform["on_other_change"].(map[string]any)
-		return &ChangeDescriptionRule{
-			Field:          fieldName,
-			Fields:         fieldNames,
-			Labels:         labels,
-			IdentityFields: identityFields,
-			CompareFields:  compareFields,
-			IgnoreFields:   stringList(transform["ignore_fields"]),
-			OnNewRecord:    onNewRecord,
-			OnNoChange:     onNoChange,
-			OnOtherChange:  onOtherChange,
-		}, nil
 	}
-	return nil, nil
+	if descriptionField == "" && actionField == "" {
+		return nil, nil
+	}
+	identityFields, err := loader.LoadDuplicateCheckIdentityFields()
+	if err != nil {
+		return nil, err
+	}
+	labels := map[string]string{}
+	for name, raw := range fields {
+		item, _ := raw.(map[string]any)
+		label, _ := item["chinese_name"].(string)
+		if label == "" {
+			label = name
+		}
+		labels[name] = label
+	}
+	compareFields, present := descriptionTransform["compare_fields"]
+	if !present {
+		compareFields = "all"
+	}
+	onNewRecord, _ := descriptionTransform["on_new_record"].(string)
+	onNoChange, _ := descriptionTransform["on_no_change"].(string)
+	onOtherChange, _ := descriptionTransform["on_other_change"].(map[string]any)
+	actionOnNewRecord, _ := actionTransform["on_new_record"].(string)
+	actionOnStored, _ := actionTransform["on_stored_record"].(string)
+	return &ChangeDescriptionRule{
+		Field:                descriptionField,
+		Fields:               fieldNames,
+		Labels:               labels,
+		IdentityFields:       identityFields,
+		CompareFields:        compareFields,
+		IgnoreFields:         stringList(descriptionTransform["ignore_fields"]),
+		OnNewRecord:          onNewRecord,
+		OnNoChange:           onNoChange,
+		OnOtherChange:        onOtherChange,
+		ActionField:          actionField,
+		ActionOnNewRecord:    actionOnNewRecord,
+		ActionOnStoredRecord: actionOnStored,
+	}, nil
 }
 
 // ResolvePath 把配置里的路径解析成绝对路径（相对配置目录的父目录）。

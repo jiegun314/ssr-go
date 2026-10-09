@@ -137,14 +137,20 @@ target_dataset:
         type: direct
 
 
+    # 数据要求：这一列只能是 Add 或 Modify，不可能为空。
+    # 判定用的是与重复检查、变更比较完全相同的一对身份字段
+    # （duplicate_check.identity_fields = Catalog or Reference Number + Primary DI）：
+    # 操作日志里没有同一身份的最新记录 → Add；已经有 → Modify。
     Choose Action:
       category: "DEVICE KEY IDENTIFICATION"
       comments: "Add or Modify"
       mandatory_status: "required"
       source: {}
       transform:
-        type: direct
-        value: "Add or Modify"
+        type: "record_action"
+        identity_fields: "duplicate_check"
+        on_new_record: "Add"
+        on_stored_record: "Modify"
 
     Unified Social Credit Code:
       category: "UNIFIED SOCIAL CREDIT CODE"
@@ -208,8 +214,10 @@ target_dataset:
           mode: "auto"
           # {column} is the export column name, {chinese_name} uses the
           # chinese_name of the mapping when the field declares one.
-          template: "{column} changed"
-          separator: "; "
+          # 中文后缀 + 全角分号：多项变更形如「Package Type变更；Package DI变更」，
+          # 顺序按导出列顺序。
+          template: "{column}变更"
+          separator: "；"
 
     Product Name/Generic Name:
       category: "PRODUCT NAME/GENERIC NAME"

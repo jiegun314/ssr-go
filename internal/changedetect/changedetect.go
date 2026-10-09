@@ -48,6 +48,12 @@ type Rule struct {
 	OnNewRecord    string
 	OnNoChange     string
 	OnOtherChange  map[string]any
+
+	// ActionField 是"记录动作"派生列（数据要求：只能是 Add 或 Modify，不可能为空）。
+	// 身份命中历史记录 → ActionOnStoredRecord，否则 ActionOnNewRecord。
+	ActionField          string
+	ActionOnNewRecord    string
+	ActionOnStoredRecord string
 }
 
 // Row 是一行整合结果：Key 是 result_identity，Values 是列 → 值。
@@ -91,19 +97,62 @@ func (service *Service) Field() string {
 	return service.Rule.Field
 }
 
+// ActionField 返回接收记录动作的导出列，没有配置时返回空。
+func (service *Service) ActionField() string {
+	if service.Rule == nil {
+		return ""
+	}
+	return service.Rule.ActionField
+}
+
+// EmptyChangeDescriptions 返回"动作是 Modify 但变更描述为空"的**可导出行**键。
+//
+// 只看会被导出的行（status = Ready）：与历史记录完全一致的行已判为 Duplicate（不进导出），
+// 缺失行也不进导出 —— 它们没有变更描述是正常的，不该被点出来。
+// 于是正常情况下一行都不会命中；真命中说明有值得排查的情况，交给调用方记一条警告。
+func (service *Service) EmptyChangeDescriptions(rows []Row) []string {
+	if service.Rule == nil || service.Rule.Field == "" || service.Rule.ActionField == "" {
+		return nil
+	}
+	offending := []string{}
+	for _, row := range rows {
+		if row.Values["status"] != "Ready" {
+			continue // 重复 / 缺失 / 冲突：不进导出，没有描述是正常的
+		}
+		if row.Values[service.Rule.ActionField] != service.Rule.ActionOnStoredRecord {
+			continue
+		}
+		if Normalize(row.Values[service.Rule.Field]) == "" {
+			offending = append(offending, row.Key)
+		}
+	}
+	return offending
+}
+
 // Apply 填好派生列与状态，返回重复与变更的结果键。
 //
-// Conflict 的行在比较之前就被拒绝了，不参与判定。
+// Conflict 的行不参与"重复/变更"判定，但仍然要填好动作列：
+// 结果表里会显示它们，Choose Action 不该是空的。
 func (service *Service) Apply(rows []Row) (duplicateCodes []string, changedCodes []string, err error) {
 	field := service.Field()
 	duplicateCodes = []string{}
 	changedCodes = []string{}
+	actionField := service.ActionField()
 	for _, row := range rows {
+		_, stored := service.Latest[service.identityKey(row.Values)]
+		if actionField != "" {
+			// 数据要求：Add / Modify 二选一，永远不留空
+			if stored {
+				row.Values[actionField] = service.Rule.ActionOnStoredRecord
+			} else {
+				row.Values[actionField] = service.Rule.ActionOnNewRecord
+			}
+		}
 		if row.Values["status"] == "Conflict" {
 			continue
 		}
 		if field == "" {
-			if _, stored := service.Latest[service.identityKey(row.Values)]; stored {
+			if stored {
 				row.Values["status"] = "Duplicate"
 				duplicateCodes = append(duplicateCodes, row.Key)
 			}
@@ -219,6 +268,10 @@ func (service *Service) comparableColumns(snapshot store.Row) []string {
 			continue
 		}
 		if contains(service.IdentityFields, column) || column == service.Rule.Field {
+			continue
+		}
+		// 动作列也是派生列：它由身份命中与否决定，不该与历史记录里的自己比较
+		if service.Rule.ActionField != "" && column == service.Rule.ActionField {
 			continue
 		}
 		if contains(service.Rule.IgnoreFields, column) {
