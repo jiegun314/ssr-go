@@ -11,6 +11,30 @@
 
 （暂无）
 
+## [2.3.3] - 2026-10-09
+
+### 修复
+
+- **导出文件的 `Choose Action` 与 `Change Description` 两列按修正后的数据要求生成**：
+  - `Choose Action` 以前是固定文本 `Add or Modify`（不符合要求），现在**按行判定**：
+    以 **Catalog or Reference Number + Primary DI** 为身份，操作日志里没有同一身份的最新记录 → `Add`，
+    已经有 → `Modify`；该列**不可能为空**（配置里声明为派生列 `record_action`，且 `mandatory_status: required`）。
+  - `Change Description` 在 `Modify` 时列出与同一身份记录的差异项，形如
+    `Package Type变更；Package DI变更`（多项用全角分号连接，**顺序＝导出列顺序**）；
+    `Add` 行留空。措辞与分隔符仍可在 `consolidation_mapping.yaml` 里配置。
+  - 与历史记录完全一致的行照旧判为「重复」、不进导出，所以进导出的 `Modify` 行必然至少有一处差异。
+  - 新增安全网：万一出现「判定为 Modify 但没有差异项」的**可导出**行，会在操作日志里留一条警告
+    （不改行状态；重复 / 缺失行不会有这条警告）。
+
+### 变更
+
+- 差异项的罗列顺序由 map 的字母序改为**配置里导出列的声明顺序**（与导出、日志列同一套口径）。
+
+> 注意：这一版修正的是**行为**，`config/consolidation_mapping.yaml` 的 `target_dataset.fields` 里
+> `Choose Action` / `Change Description` 两块需要同步更新。发布包**不会覆盖**你已有的 `config/*.yaml`，
+> 所以升级后请把这两块改成新写法（或删掉该文件让程序从 `config/defaults/` 重新生成一份）。
+
+
 ## [2.3.2] - 2026-10-06
 
 这一版没有新的业务功能，做的是**工程规范与结构治理**（第 1–4 批），外加一项用户可见的改进：
@@ -102,7 +126,8 @@
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v2.3.2...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v2.3.3...HEAD
+[2.3.3]: https://github.com/jiegun314/ssr-go/compare/v2.3.2...v2.3.3
 [2.3.2]: https://github.com/jiegun314/ssr-go/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/jiegun314/ssr-go/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/jiegun314/ssr-go/compare/v0.2.23...v2.3.0
