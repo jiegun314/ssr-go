@@ -233,3 +233,21 @@ func TestNoPySideLeftoversInTheDesign(t *testing.T) {
 		}
 	}
 }
+
+// TestTheWindowNeverScrollsAsAWhole 固定「整窗永不出现文档级滚动条」：
+//
+// antd 的下拉与弹层挂在 body 下（position: absolute），会把文档的可滚动高度撑出去 ——
+// 典型现象是"在结果表里选每页行数时，右侧冒出一条多余的垂直滚动条"。
+// 窗口外壳本来就设计成"刚好一屏 + 各面板内部各自滚动"（.left / .tblwrap / 日志正文
+// 都有自己的 overflow），所以根节点链上必须 overflow: hidden。
+func TestTheWindowNeverScrollsAsAWhole(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+
+	root := cssBlock(t, styles, "#root > .ant-app {")
+	if !strings.Contains(root, "height: 100%;") {
+		t.Errorf("根节点应当撑满窗口高度，实际块：\n%s", root)
+	}
+	if !strings.Contains(root, "overflow: hidden;") {
+		t.Errorf("根节点必须 overflow: hidden（否则 antd 弹层会把文档撑出滚动条），实际块：\n%s", root)
+	}
+}

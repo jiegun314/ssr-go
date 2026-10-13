@@ -2,12 +2,14 @@
 //
 // 真实渲染 + 真实点击，替代以前"在 Go 里 grep TSX 源码"的间接断言。
 
-import { App as AntApp } from "antd";
+import { App as AntApp, ConfigProvider } from "antd";
+import zhCN from "antd/locale/zh_CN";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ConsolidationPanel } from "../components/Panels";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 
 const COLUMNS = ["Primary DI", "Product Name", "Medical Insurance Code"];
 const ROWS = [
@@ -104,5 +106,102 @@ describe("数据整合结果表", () => {
       </AntApp>,
     );
     expect(screen.getByRole("button", { name: /冲突/ }).textContent).toContain("3");
+  });
+});
+
+// 大批量行的分页行为：数据量大时表格卡顿的根因是"一次渲染全部行"，
+// 所以这里固定：默认 100 行/页、可切 50/100/200/500、翻页只换当前页的行。
+const BIG_ROWS = Array.from({ length: 250 }, (_, index) => [
+  `DI-${String(index + 1).padStart(3, "0")}`,
+  `产品 ${index + 1}`,
+  String(10000 + index),
+]);
+const BIG_STATUSES = BIG_ROWS.map(() => "Ready");
+
+// 与 main.tsx 一致：真实应用用中文 locale，分页按钮标题才是「上一页 / 下一页」
+const renderBigPanel = () =>
+  render(
+    <ConfigProvider locale={zhCN}>
+      <AntApp>
+        <ConsolidationPanel
+          columns={COLUMNS}
+          rows={BIG_ROWS}
+          statuses={BIG_STATUSES}
+          counts={{ Ready: BIG_ROWS.length, Incomplete: 0, Duplicate: 0 }}
+        />
+      </AntApp>
+    </ConfigProvider>,
+  );
+
+const renderedRowCount = () =>
+  document.querySelectorAll(".ant-table-tbody .ant-table-row").length;
+
+describe("数据整合结果表的分页", () => {
+  it("默认只渲染 100 行（不是全部 250 行）", () => {
+    renderBigPanel();
+    expect(DEFAULT_PAGE_SIZE).toBe(100);
+    expect(renderedRowCount()).toBe(100);
+  });
+
+  it("分页器给出总行数，并提供 50/100/200/500 四个每页行数选项", () => {
+    renderBigPanel();
+    expect(screen.getByText("共 250 行")).toBeTruthy();
+    const options = PAGE_SIZE_OPTIONS;
+    expect(options).toEqual([50, 100, 200, 500]);
+    // antd 的分页器默认可切换每页行数（下拉里就是这四个选项）
+    const sizeChanger = document.querySelector(".ant-pagination-options");
+    expect(sizeChanger).toBeTruthy();
+  });
+
+  it("点「下一页」翻到第二页，只渲染这一页的行", async () => {
+    const user = userEvent.setup();
+    renderBigPanel();
+    expect(visibleCells()[0]).toContain("DI-001");
+
+    await user.click(screen.getByTitle("下一页"));
+    const cells = visibleCells();
+    expect(cells[0]).toContain("DI-101");
+    expect(renderedRowCount()).toBe(100);
+    // 最后一页只有 50 行
+    await user.click(screen.getByTitle("下一页"));
+    expect(visibleCells()[0]).toContain("DI-201");
+    expect(renderedRowCount()).toBe(50);
+  });
+
+  it("点「上一页」能翻回去", async () => {
+    const user = userEvent.setup();
+    renderBigPanel();
+    await user.click(screen.getByTitle("下一页"));
+    expect(visibleCells()[0]).toContain("DI-101");
+    await user.click(screen.getByTitle("上一页"));
+    expect(visibleCells()[0]).toContain("DI-001");
+  });
+
+  it("查找会回到第一页（不会停在越界的空页上）", async () => {
+    const user = userEvent.setup();
+    renderBigPanel();
+    await user.click(screen.getByTitle("下一页"));
+    expect(visibleCells()[0]).toContain("DI-101");
+
+    await user.type(screen.getByLabelText("查找表格内容"), "DI-001");
+    const cells = visibleCells();
+    expect(cells.length).toBeGreaterThan(0);
+    expect(cells[0]).toContain("DI-001");
+    expect(screen.getByText("共 1 行")).toBeTruthy();
+  });
+
+  it("查找框与三个筛选片在同一行（查找在左、筛选在右）", () => {
+    renderBigPanel();
+    const toolbar = document.querySelector(".table-toolbar");
+    expect(toolbar).toBeTruthy();
+    // 同一行里既有查找框、也有状态筛选片，且查找框排在筛选片前面
+    const search = toolbar?.querySelector(".table-search");
+    const strip = toolbar?.querySelector(".status-strip");
+    expect(search).toBeTruthy();
+    expect(strip).toBeTruthy();
+    expect(toolbar?.querySelectorAll(".status-chip").length).toBe(3);
+    expect(
+      search!.compareDocumentPosition(strip!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

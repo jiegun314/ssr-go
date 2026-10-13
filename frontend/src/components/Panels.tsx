@@ -11,6 +11,7 @@ import {
   Button,
   Card,
   Input,
+  Pagination,
   DatePicker,
   Descriptions,
   Empty,
@@ -37,7 +38,9 @@ import {
   Table as TableIcon,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 
 import { SOURCES, copyToClipboard } from "../bridge";
 import {
@@ -186,33 +189,59 @@ export function ConsolidationPanel({
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   // 关键字：在整行任意单元格里做包含匹配（不区分大小写），与状态筛选叠加生效
   const [query, setQuery] = useState("");
+  // 分页：默认 DEFAULT_PAGE_SIZE 行/页。列定义也记忆化 —— 数据量大时不必每次重算。
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  const tableColumns: ColumnsType<ConsolidationRow> = columns.map((title, index) => ({
-    title,
-    key: String(index),
-    ellipsis: false,
-    render: (_: unknown, entry: ConsolidationRow) => {
-      const value = entry.cells[index];
-      return value === "MISSING" ? <span className="cell-MISSING">{value}</span> : value;
-    },
-  }));
+  const tableColumns: ColumnsType<ConsolidationRow> = useMemo(
+    () =>
+      columns.map((title, index) => ({
+        title,
+        key: String(index),
+        ellipsis: false,
+        render: (_: unknown, entry: ConsolidationRow) => {
+          const value = entry.cells[index];
+          return value === "MISSING" ? <span className="cell-MISSING">{value}</span> : value;
+        },
+      })),
+    [columns],
+  );
 
-  const dataSource: ConsolidationRow[] = rows.map((cells, index) => ({
-    key: String(index),
-    status: statuses[index] ?? "Ready",
-    cells,
-  }));
+  const dataSource: ConsolidationRow[] = useMemo(
+    () =>
+      rows.map((cells, index) => ({
+        key: String(index),
+        status: statuses[index] ?? "Ready",
+        cells,
+      })),
+    [rows, statuses],
+  );
   const needle = query.trim().toLowerCase();
-  const visible = dataSource
-    .filter((entry) => statusFilter === null || entry.status === statusFilter)
-    .filter(
-      (entry) =>
-        needle === "" ||
-        entry.cells.some((cell) => String(cell ?? "").toLowerCase().includes(needle)),
-    );
+  const visible = useMemo(
+    () =>
+      dataSource
+        .filter((entry) => statusFilter === null || entry.status === statusFilter)
+        .filter(
+          (entry) =>
+            needle === "" ||
+            entry.cells.some((cell) => String(cell ?? "").toLowerCase().includes(needle)),
+        ),
+    [dataSource, statusFilter, needle],
+  );
 
-  const toggleStatus = (status: string) =>
+  // 只把当前页交给 Table 渲染：数据量大时这是"不卡"的关键
+  const paged = useMemo(
+    () => visible.slice((page - 1) * pageSize, page * pageSize),
+    [visible, page, pageSize],
+  );
+
+  // 重新整合（rows 换了）之后回到第一页：否则可能停在一个已经空的页上
+  useEffect(() => setPage(1), [rows]);
+
+  const toggleStatus = (status: string) => {
     setStatusFilter((current) => (current === status ? null : status));
+    setPage(1);
+  };
 
   // 三个状态片（出现冲突时多一个）：等宽、与左右按钮同高、点击筛选。
   // 文案用中文（合格 / 缺失 / 重复），与日志窗口口径一致；后端状态常量仍是英文。
@@ -225,8 +254,9 @@ export function ConsolidationPanel({
 
   return (
     <>
+      {/* 工具条：查找框与状态筛选片在**同一行** —— 查找框居左、三个筛选片居右
+          （控件都用 antd 默认样式）；查找是"输入即筛表格内容"，与状态筛选叠加生效 */}
       <div className="table-toolbar">
-        {/* 查找：输入即筛表格内容（与状态片叠加），靠左；状态片靠右 */}
         <Input
           className="table-search"
           allowClear
@@ -234,7 +264,10 @@ export function ConsolidationPanel({
           aria-label="查找表格内容"
           placeholder="查找表格内容"
           prefix={<Search size={14} aria-hidden="true" />}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setPage(1);
+          }}
         />
         <div
           className="status-strip"
@@ -274,7 +307,7 @@ export function ConsolidationPanel({
             size="small"
             sticky
             pagination={false}
-            dataSource={visible}
+            dataSource={paged}
             columns={tableColumns}
             rowKey={(entry) => entry.key}
             rowClassName={(entry) => `result-row status-${entry.status}`}
@@ -292,6 +325,25 @@ export function ConsolidationPanel({
                   }
                 />
               ),
+            }}
+          />
+        </div>
+      )}
+      {/* 分页：默认 100 行/页，可切 50/100/200/500，带上一页 / 下一页。
+          放在滚动容器外，翻页键始终可见。 */}
+      {visible.length > 0 && (
+        <div className="table-pager">
+          <Pagination
+            current={page}
+            pageSize={pageSize}
+            total={visible.length}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            showSizeChanger
+            showTotal={(total) => `共 ${total} 行`}
+            onChange={(nextPage, nextPageSize) => {
+              // 改了每页行数就回第一页（否则当前页可能已经越界）
+              setPage(nextPageSize === pageSize ? nextPage : 1);
+              setPageSize(nextPageSize);
             }}
           />
         </div>

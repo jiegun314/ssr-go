@@ -150,13 +150,13 @@ export default function App() {
 
   /* ---------- 数据回顾 ---------- */
 
-  const loadReviewPage = useCallback(async (page: number) => {
+  const loadReviewPage = useCallback(async (page: number, pageSize: number = REVIEW_PAGE_SIZE) => {
     const session = reviewSession.current;
     if (!session) return;
     const result =
       session.kind === "log"
-        ? await call<ReviewResult>("ReviewLog", session.start, session.end, page, REVIEW_PAGE_SIZE)
-        : await call<ReviewResult>("ReviewSource", session.source, page, REVIEW_PAGE_SIZE);
+        ? await call<ReviewResult>("ReviewLog", session.start, session.end, page, pageSize)
+        : await call<ReviewResult>("ReviewSource", session.source, page, pageSize);
     if (!result) return;
     setLog(result.log);
     if (result.failed) {

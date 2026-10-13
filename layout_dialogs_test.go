@@ -189,14 +189,20 @@ func TestTheMessageDialogShowsStructuredDetails(t *testing.T) {
 }
 
 // TestTheReviewModalKeepsTheFooterLayout 固定回顾窗口的底栏：
-// 导出在最左、翻页居中、关闭在最右（同一行），每页 100 行。
+// 导出在最左、翻页居中、关闭在最右（同一行），每页行数与结果表同一套口径
+// （默认 100，可切 50/100/200/500）。分页行为本身在 frontend/src/__tests__/reviewModal.test.tsx。
 func TestTheReviewModalKeepsTheFooterLayout(t *testing.T) {
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
 	if !strings.Contains(modals, `justify="center"`) {
 		t.Error("翻页组件应当在底栏居中")
 	}
-	if !strings.Contains(modals, "<Pagination") || !strings.Contains(modals, "pageSize={result?.pageSize ?? 100}") {
-		t.Error("回顾窗口要分页，默认每页 100 行")
+	if !strings.Contains(modals, "<Pagination") ||
+		!strings.Contains(modals, "pageSize={result?.pageSize ?? DEFAULT_PAGE_SIZE}") {
+		t.Error("回顾窗口要分页，默认每页行数取共用常量")
+	}
+	if !strings.Contains(modals, "pageSizeOptions={PAGE_SIZE_OPTIONS}") ||
+		!strings.Contains(modals, "showSizeChanger") {
+		t.Error("回顾窗口要能切换每页行数（50/100/200/500）")
 	}
 	if !strings.Contains(modals, "导出") || !strings.Contains(modals, "关闭") {
 		t.Error("底栏要有导出与关闭按钮")

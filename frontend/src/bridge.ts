@@ -1,3 +1,5 @@
+import { DEFAULT_PAGE_SIZE } from "./tablePagination";
+
 // 与 Go 侧的桥接：调用绑定方法（带载入图层）、订阅事件、以及界面上的固定口径。
 
 import type { SourceDefinition } from "./types";
@@ -23,7 +25,8 @@ export const SOURCES: SourceDefinition[] = [
 
 // 第一个分组之后插一个空行（对应原界面的 horizontalSpacer）。
 
-export const REVIEW_PAGE_SIZE = 100;
+// 数据回顾默认每页行数（与结果表共用同一个默认值）
+export const REVIEW_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 // 长任务的载入文案：与原来的状态栏原文一致。
 export const BUSY_TEXT: Record<string, string> = {

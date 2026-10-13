@@ -23,6 +23,10 @@ body,
 #root > .ant-app {
   height: 100%;
   margin: 0;
+  /* 整窗永不出现文档级滚动条：antd 的下拉/弹层挂在 body 下（position: absolute），
+     会把文档的可滚动高度撑出去 —— 选每页行数时就冒出一条多余的右侧滚动条。
+     窗口外壳本来就是"刚好一屏 + 各面板内部滚动"，所以这里直接掐掉。 */
+  overflow: hidden;
 }
 
 /* 设计 token 的 CSS 侧声明：值必须与 frontend/src/design-tokens.ts 一致
@@ -332,11 +336,13 @@ body {
 
 /* 工具条：一行放完 —— 左边「数据整合」、中间状态筛选片、右边「生成文件」，
    窗口压到最小也不换行（状态片按需收窄，见 .status-chips）。 */
+/* 工具条：查找框与状态筛选片同一行 —— 查找框居左、三个筛选片居右
+   （两端对齐；控件本身仍用 antd 默认样式） */
 .table-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: space-between; /* 查找框靠左、状态片靠右 */
+  justify-content: space-between;
   flex-wrap: nowrap;
   gap: 8px;
   margin-bottom: 12px;
@@ -409,6 +415,14 @@ body {
 /* 有筛选生效时，其余状态片淡出，当前筛选一眼可见 */
 .status-strip[data-filtered="true"] .status-chip:not([aria-pressed="true"]) {
   opacity: 0.5;
+}
+
+/* 分页器：在结果表滚动容器**外面**（翻页键始终可见），沿用 antd 默认样式与右对齐 */
+.table-pager {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 /* 结果表的滚动容器：只加一条淡色描边把表格和卡片内容区分开，

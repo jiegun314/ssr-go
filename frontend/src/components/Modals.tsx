@@ -10,6 +10,7 @@ import type { DataNode } from "antd/es/tree";
 import { FileDown } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 import type { AboutInfo, ReviewResult, SettingsChange, SettingsNode, SettingsTab } from "../types";
 import { SettingsForm } from "./SettingsForm";
 
@@ -37,7 +38,7 @@ type ReviewModalProps = {
   open: boolean;
   result: ReviewResult | null;
   exporting: boolean;
-  onPage: (page: number) => void;
+  onPage: (page: number, pageSize: number) => void;
   onExport: () => void;
   onClose: () => void;
 };
@@ -71,10 +72,15 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
           <Flex flex="1 1 auto" justify="center">
             <Pagination
               current={result?.page ?? 1}
-              pageSize={result?.pageSize ?? 100}
+              pageSize={result?.pageSize ?? DEFAULT_PAGE_SIZE}
               total={result?.total ?? 0}
-              showSizeChanger={false}
-              onChange={onPage}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              showSizeChanger
+              showTotal={(total) => `共 ${total} 行`}
+              // 换了每页行数就回第一页（与结果表口径一致）
+              onChange={(page, pageSize) =>
+                onPage(pageSize !== (result?.pageSize ?? DEFAULT_PAGE_SIZE) ? 1 : page, pageSize)
+              }
             />
           </Flex>
           <Button type="primary" onClick={onClose}>

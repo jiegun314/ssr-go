@@ -67,7 +67,7 @@ func TestTheEmptyResultTableHasNoFrame(t *testing.T) {
 }
 
 // TestTheToolbarFitsTheNarrowestWindow 固定数据整合工具条在最小窗口（969 宽）下的行为：
-// 一行放完 —— 左边「数据整合」、中间状态筛选片、右边「生成文件」，**不换行**；
+// 工具条（查找框 + 状态筛选片）同一行 —— 查找框居左、筛选片居右，**不换行**；
 // 三个状态片等宽（取最宽那个）、与左右按钮同高（32px），文字不换行（放不下就收窄）。
 func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
@@ -80,14 +80,20 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 		t.Error("不该再有把状态片挤到第二行的媒体查询")
 	}
 
-	// 工具条这一行：查找框靠左、状态片靠右
+	// 工具条这一行：查找框居左、三个筛选片居右（两端对齐）
+	if !strings.Contains(toolbar, "justify-content: space-between;") {
+		t.Errorf("查找框要居左、筛选片要居右（space-between），实际块：\n%s", toolbar)
+	}
+	if strings.Contains(styles, ".table-search-row {") {
+		t.Error("查找框不再单独占一行（已与状态片同排）")
+	}
 	search := cssBlock(t, styles, ".table-search {")
 	if !strings.Contains(search, "min-width: 150px;") {
 		t.Errorf("查找框要能压缩但不能挤掉状态片（min-width: 150px），实际块：\n%s", search)
 	}
 	strip := cssBlock(t, styles, ".status-strip {")
 	if !strings.Contains(strip, "justify-content: flex-end;") {
-		t.Errorf("三个状态片应当靠右，实际块：\n%s", strip)
+		t.Errorf("状态片自身靠右排布，实际块：\n%s", strip)
 	}
 
 	chips := cssBlock(t, styles, ".status-chips {")
