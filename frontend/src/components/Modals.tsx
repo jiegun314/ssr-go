@@ -351,10 +351,11 @@ export function SettingsModal({
 type AboutModalProps = {
   open: boolean;
   info: AboutInfo | null;
+  onIconClick: () => void;
   onClose: () => void;
 };
 
-export function AboutModal({ open, info, onClose }: AboutModalProps) {
+export function AboutModal({ open, info, onIconClick, onClose }: AboutModalProps) {
   return (
     <Modal
       className="about-window"
@@ -372,7 +373,7 @@ export function AboutModal({ open, info, onClose }: AboutModalProps) {
           src="logo.png"
           alt="SingleSourceReady"
           title="关于"
-          
+          onClick={onIconClick}
         />
         <Typography.Title className="name" level={5}>
           SingleSource Ready (SSR)
@@ -389,3 +390,25 @@ export function AboutModal({ open, info, onClose }: AboutModalProps) {
 }
 
 /* ---------- 附加窗口（图片窗口） ---------- */
+
+type HiddenModalProps = { open: boolean; onClose: () => void };
+
+export function HiddenModal({ open, onClose }: HiddenModalProps) {
+  return (
+    <Modal
+      className="hidden-window"
+      open={open}
+      centered
+      footer={null}
+      width={323}
+      maskClosable
+      onCancel={onClose}
+      destroyOnHidden
+    >
+      <div className="hidden-body">
+        <img src="puppy.png" alt="🐶Puppy Approved!🐾" />
+        <h3 className="hidden-title">🐶Puppy Approved!🐾</h3>
+      </div>
+    </Modal>
+  );
+}

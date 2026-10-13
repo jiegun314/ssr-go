@@ -21,7 +21,7 @@ func TestTheFrontendShipsInsideTheBinary(t *testing.T) {
 	for _, entry := range entries {
 		found[entry.Name()] = true
 	}
-	for _, wanted := range []string{"index.html", "logo.png"} {
+	for _, wanted := range []string{"index.html", "logo.png", "puppy.png", "puppy-voice.mp3"} {
 		if !found[wanted] {
 			t.Errorf("frontend/dist 里缺少 %s（构建产物要提交进仓库）", wanted)
 		}
@@ -43,7 +43,7 @@ func TestTheFrontendShipsInsideTheBinary(t *testing.T) {
 		t.Errorf("dist/assets 里应该有打包后的 js 与 css（js=%v css=%v）", hasJS, hasCSS)
 	}
 	// 源码里也要有那三份静态文件（public/ 是它们的家）
-	for _, wanted := range []string{"logo.png"} {
+	for _, wanted := range []string{"logo.png", "puppy.png", "puppy-voice.mp3"} {
 		if _, err := os.Stat(filepath.Join("frontend", "public", wanted)); err != nil {
 			t.Errorf("frontend/public 里缺少 %s：%v", wanted, err)
 		}
