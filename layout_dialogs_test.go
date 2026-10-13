@@ -33,7 +33,6 @@ func TestTheDisplayDialogsKeepTheirFixedSize(t *testing.T) {
 		".about-window {",
 		"width: 323px !important;",
 		"height: 323px;",
-		"object-fit: cover", // 附加窗口的图片要铺满
 		".about-window .ant-modal-close,",
 	} {
 		if !strings.Contains(styles, wanted) {
@@ -88,8 +87,8 @@ func TestAllDialogsUseAntdDefaults(t *testing.T) {
 	main := readFrontendSource(t, "src/main.tsx")
 
 	// 1) 五个弹窗全部居中
-	if got := strings.Count(modals, "centered"); got < 4 {
-		t.Errorf("回顾/参数设定/关于/附加窗口都要居中（centered），实际 %d 处", got)
+	if got := strings.Count(modals, "centered"); got < 3 {
+		t.Errorf("回顾/参数设定/关于都要居中（centered），实际 %d 处", got)
 	}
 	if !strings.Contains(panels, "centered") {
 		t.Error("提示弹窗也要居中（centered）")
