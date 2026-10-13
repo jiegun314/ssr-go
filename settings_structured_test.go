@@ -144,8 +144,10 @@ func TestStructuredSaveRefusesDangerousPaths(t *testing.T) {
 	}{
 		{"DB 字段名", config.ImportMappingFile,
 			[]string{"sources", "ra_input", "columns", "0", "db_field"}, "暂存表"},
-		{"样本工厂专用块", config.ImportMappingFile,
-			[]string{"sources", "ra_input", "columns", "0", "sample", "english_name"}, "样本工厂"},
+		// 样本元数据已经拆到 config/sample_mapping.yaml（可选、且不是设置页签），
+		// 所以导入映射里不再有 sample 子块可改；这里改为验证"文件不允许被改"的那道门。
+		{"不是设置页签的文件", config.SampleMappingFile,
+			[]string{"sources", "ra_input", "product_name", "english_name"}, "不允许修改的文件"},
 		{"条件表达式", config.ImportMappingFile,
 			[]string{"sources", "global_udi_input", "columns", "9", "required_when"}, "只读"},
 		{"日志列生成物", config.LogColumnsFile, []string{"before", "0"}, "生成物"},
@@ -330,9 +332,10 @@ func TestSettingsTreeCarriesCommentsControlsAndReadOnlyReasons(t *testing.T) {
 	if dbField == nil || dbField.Editable || dbField.Reason == "" {
 		t.Errorf("DB 字段名必须只读且给出原因：%+v", dbField)
 	}
-	sample := findSettingsNode(importTab.Tree, "sources", "ra_input", "columns", "0", "sample")
-	if sample == nil || sample.Editable || sample.Reason == "" {
-		t.Errorf("样本工厂专用块必须只读：%+v", sample)
+	// 样本元数据（english_name / data_type / allowed_values）已经拆到
+	// config/sample_mapping.yaml，导入映射树里不该再有 sample 子块。
+	if sample := findSettingsNode(importTab.Tree, "sources", "ra_input", "columns", "0", "sample"); sample != nil {
+		t.Errorf("导入映射里不该再有 sample 子块（已拆到 %s）：%+v", config.SampleMappingFile, sample)
 	}
 	columns := findSettingsNode(importTab.Tree, "sources", "ra_input", "columns")
 	if columns == nil || columns.ListEdit {

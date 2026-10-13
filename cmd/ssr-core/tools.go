@@ -31,8 +31,10 @@ const logColumnsComment = `# Columns of one stored operation log record.
 # before / after list the columns the template does not define. A stored record
 # needs them anyway - when it was logged, what happened, and how it was
 # consolidated - so they surround the exported columns. The order below is the
-# order the log table stores and the log review shows; a column without a value
-# stays empty.
+# order the log table stores and the log review shows; the columns list is
+# generated from the export template header, so it matches the template item by
+# item (the export side relies on that order too). A column without a value stays
+# empty.
 `
 
 // LogColumnsDefinition 是 config/log_columns.yaml 的内容。

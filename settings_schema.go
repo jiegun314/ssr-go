@@ -154,6 +154,11 @@ func settingsPolicyFor(fileKey string) settingsPolicy {
 			rules: []settingsRule{
 				{match: "version", readOnly: true, reason: "版本号由程序维护"},
 				{match: "target_dataset.display_name", label: "导出数据集名称"},
+				// 导出列的必填口径：词表固定，给下拉；空串是旧写法（等价 optional），
+				// 这里不列进候选项，但仍然能被校验接受（老配置照跑）。
+				{match: "target_dataset.fields.*.mandatory_status", label: "必填口径", control: "select",
+					options: []string{"optional", "required", "required_if_applicable", "user_defined"}},
+				{match: "target_dataset.fields.*.comments", label: "说明（只给人看）"},
 				{match: "target_dataset.duplicate_check.identity_fields", label: "重复判定字段"},
 				{match: "target_dataset.merge_rules.base_source.source", label: "基准来源", control: "select"},
 				{match: "target_dataset.merge_rules.base_source.key", label: "基准来源主键"},

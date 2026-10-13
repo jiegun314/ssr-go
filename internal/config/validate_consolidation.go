@@ -178,7 +178,11 @@ func (loader *Loader) ValidateConsolidationMapping(
 			return err
 		}
 		mandatoryStatus, _ := asString(definition["mandatory_status"])
-		if !contains([]string{"required", "required_if_applicable", "user_defined", ""},
+		// 导出列的必填口径：optional（不要求）/ required / required_if_applicable /
+		// user_defined（取自 setting.yaml 的用户自定义值）。
+		// 空串是**旧写法**，等价 optional —— 发布包不覆盖用户配置，所以继续接受它，
+		// 但新配置请写 optional（读起来不用猜）。
+		if !contains([]string{"optional", "required", "required_if_applicable", "user_defined", ""},
 			mandatoryStatus) {
 			return errorf("Unsupported mandatory_status for %s: %q", outputName, mandatoryStatus)
 		}
@@ -464,7 +468,8 @@ func validateChangeDescriptionTransform(dataset map[string]any, exportFields map
 			"%s.on_other_change.mode is 'source', so %s has to declare the file and field that hold the text",
 			transformLabel, label)
 	}
-	if mandatoryStatus, _ := asString(definition["mandatory_status"]); mandatoryStatus == "" {
+	if mandatoryStatus, _ := asString(definition["mandatory_status"]); mandatoryStatus == "" ||
+		mandatoryStatus == "optional" {
 		return errorf(
 			"%s: mandatory_status '' ignores the declared source, so the text of the source field would never be read",
 			label)

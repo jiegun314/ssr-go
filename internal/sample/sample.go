@@ -279,8 +279,9 @@ func defaultValue(column map[string]any, sourceName string, rowIndex int) any {
 // writeSourceSet 写一套工作簿（每个来源一份）。
 // sampleHint 取"只给样本工厂用"的列元数据（english_name / data_type / allowed_values）。
 //
-// 新配置把它们收在列的 sample: 子块里（一眼能看出导入不读）；老配置是平铺在列上的，
-// 所以这里优先读子块、读不到再回退顶层 —— 用户目录里那份没被升级覆盖的旧配置照样能用。
+// 现在的家是 config/sample_mapping.yaml（导入 / 整合 / 导出都不读它），
+// loader 读导入映射时会把它合并回列的 sample: 子块 —— 所以这里仍然是
+// "优先读子块、读不到再回退顶层"：老配置（元数据内联在列上、或平铺在顶层）照样能用。
 func sampleHint(column map[string]any, key string) any {
 	if hints, ok := column["sample"].(map[string]any); ok {
 		if value, present := hints[key]; present {

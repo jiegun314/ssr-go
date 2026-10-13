@@ -555,7 +555,8 @@ func (service *Service) mapResultRow(
 					key, columnName)
 			}
 			row[columnName] = textOf(value)
-		case mandatoryStatus == "":
+		case mandatoryStatus == "" || mandatoryStatus == "optional":
+			// "" 是旧写法（等价 optional）：这一列不要求，也不从来源取，留空
 			row[columnName] = ""
 		case len(sourceDefinition) == 0:
 			// 固定文本列（例如 Choose Action = "Add or Modify"）

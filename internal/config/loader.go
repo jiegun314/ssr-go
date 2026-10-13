@@ -28,6 +28,11 @@ const (
 	ConsolidationMappingFile = "consolidation_mapping.yaml"
 	// LogColumnsFile 由 ssr-core genlogcolumns 从导出模板表头生成。
 	LogColumnsFile = "log_columns.yaml"
+
+	// SampleMappingFile 是**样本工厂专用**的列元数据（english_name / data_type /
+	// allowed_values）。导入、整合、导出都不读它；它是可选文件 —— 不存在时表示
+	// "样本元数据写在导入映射的列里"（老写法），程序照常运行。
+	SampleMappingFile = "sample_mapping.yaml"
 )
 
 // 日志记录自己的列：导出模板里没有它们，但表缺了它们就存不下应用写的东西。
@@ -205,7 +210,86 @@ func (loader *Loader) LoadSetting() (map[string]any, error) {
 
 // LoadImportMapping 读 config/excel_import_mapping.yaml。
 func (loader *Loader) LoadImportMapping() (map[string]any, error) {
-	return loader.LoadYAML(ImportMappingFile)
+	imports, err := loader.LoadYAML(ImportMappingFile)
+	if err != nil {
+		return nil, err
+	}
+	loader.mergeSampleHints(imports)
+	return imports, nil
+}
+
+// loadYAMLAt 读指定路径的 YAML（LoadYAML 的"路径已定"版本）。
+func (loader *Loader) loadYAMLAt(path string, label string) (map[string]any, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, errorf("Configuration file not found: %s", path)
+		}
+		return nil, errorf("Configuration file not readable: %s: %v", path, err)
+	}
+	var decoded any
+	if err := yaml.Unmarshal(content, &decoded); err != nil {
+		return nil, errorf("Invalid YAML in %s: %v", path, err)
+	}
+	value, ok := decoded.(map[string]any)
+	if !ok {
+		return nil, errorf("%s is not a mapping: %s", label, path)
+	}
+	return value, nil
+}
+
+// LoadSampleMapping 读 config/sample_mapping.yaml；没有时返回 nil（可选文件）。
+//
+// 查找顺序：正式名文件 → config/defaults/ 下的默认文件（**只读，不生成正式名文件**）。
+// 后者是为"全新安装"准备的：启动补齐只处理四份行为配置，样本元数据不进那一套，
+// 所以新装环境里应该直接用包里的默认文件 —— 否则样本工厂会拿不到元数据。
+func (loader *Loader) LoadSampleMapping() (map[string]any, error) {
+	path := loader.Resolver.ConfigFile(SampleMappingFile)
+	if _, err := os.Stat(path); err != nil {
+		fallback := filepath.Join(loader.Resolver.ConfigDir, DefaultsDirectory, SampleMappingFile)
+		if _, fallbackErr := os.Stat(fallback); fallbackErr != nil {
+			return nil, nil
+		}
+		path = fallback
+	}
+	return loader.loadYAMLAt(path, SampleMappingFile)
+}
+
+// mergeSampleHints 把 sample_mapping.yaml 的条目合并回每一列的 sample: 子块。
+//
+// 为什么合并：internal/sample 读的是"列的 sample 子块"（老配置是平铺在列上的顶层键），
+// 合并之后样本工厂一行都不用改，而导入映射里只剩运行期真正读的键。
+// 专用文件的条目**优先于**内联子块 —— 它才是样本元数据的家。
+func (loader *Loader) mergeSampleHints(imports map[string]any) {
+	samples, err := loader.LoadSampleMapping()
+	if err != nil || samples == nil {
+		return
+	}
+	sourceSamples, _ := samples["sources"].(map[string]any)
+	if len(sourceSamples) == 0 {
+		return
+	}
+	sources, _ := imports["sources"].(map[string]any)
+	for sourceName, rawHints := range sourceSamples {
+		hints, _ := rawHints.(map[string]any)
+		source, _ := sources[sourceName].(map[string]any)
+		if len(hints) == 0 || source == nil {
+			continue
+		}
+		columns, _ := source["columns"].([]any)
+		for _, rawColumn := range columns {
+			column, _ := rawColumn.(map[string]any)
+			if column == nil {
+				continue
+			}
+			dbField, _ := column["db_field"].(string)
+			hint, present := hints[dbField]
+			if !present {
+				continue
+			}
+			column["sample"] = hint
+		}
+	}
 }
 
 // LoadConsolidationMapping 读 config/consolidation_mapping.yaml。
@@ -428,6 +512,9 @@ func (loader *Loader) ValidateAll() error {
 		return err
 	}
 	if err := loader.ValidateImportMapping(imports); err != nil {
+		return err
+	}
+	if err := loader.ValidateSampleMapping(imports); err != nil {
 		return err
 	}
 	if err := loader.ValidateConsolidationMapping(consolidation, imports, setting); err != nil {

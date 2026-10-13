@@ -11,6 +11,11 @@ target_dataset:
   # The same identity is the index of the change comparison that derives
   # "Change Description" below, so both rules share this one definition.
   #
+  # 这一对身份字段一共被三处共用，改它等于同时改这三件事：
+  #   1. 重复判定（同一身份且内容一致 → Duplicate，不重复导出）；
+  #   2. 变更比较（与同一身份的最新记录逐列比差异 → Change Description）；
+  #   3. 记录动作（有没有同一身份的历史记录 → Choose Action 的 Add / Modify）。
+  #
   # The identity is the product itself: the catalog / reference number (the
   # material code of the base source) together with the Primary DI. The medical
   # insurance code is deliberately NOT part of it. A device keeps its identity
@@ -19,6 +24,7 @@ target_dataset:
   # stored as a second record of the same device. The change comparison lists
   # the insurance code among the compared columns, so a changed code is still
   # reported as a change.
+  # ── 重复判定用的身份字段（与变更比较、记录动作三处共用）──────────────────────
   duplicate_check:
     identity_fields:
       - Catalog or Reference Number
@@ -28,6 +34,7 @@ target_dataset:
   # identifiers below are resolved through excel_import_mapping.yaml, where
   # each source owns its target_table. Application-owned result and log tables
   # are resolved through setting.yaml under tables.
+  # ── 合并规则：基准来源、结果身份、每个来源怎么匹配 ──────────────────────────
   merge_rules:
     base_source:
       source: ra_input
@@ -95,7 +102,14 @@ target_dataset:
         match:
           material_code: material_code
 
+  # ─────────────────────────────────────────────────────────────────────────
+  # 导出列：**顺序即语义** —— 这里的声明顺序 = 导出模板的表头顺序（已与
+  # log_columns.yaml 的 columns 逐项核对一致），也决定 Change Description 里
+  # 差异项的罗列顺序。不要按字母序重排。
+  # 每列的 category 是模板里的分组标题，只用于阅读与校验，不参与匹配。
+  # ─────────────────────────────────────────────────────────────────────────
   fields:
+    # ── DEVICE KEY IDENTIFICATION ──
     Primary DI:
       category: "DEVICE KEY IDENTIFICATION"
       comments: "Required for data import"
@@ -121,7 +135,7 @@ target_dataset:
     Applicable Submission Channel:
       category: "DEVICE KEY IDENTIFICATION"
       comments: "Enter only when Data Scope = Default"
-      mandatory_status: ""
+      mandatory_status: "optional"
       source: {}
 
 
@@ -152,9 +166,9 @@ target_dataset:
         on_new_record: "Add"
         on_stored_record: "Modify"
 
+    # ── UNIFIED SOCIAL CREDIT CODE ──
     Unified Social Credit Code:
       category: "UNIFIED SOCIAL CREDIT CODE"
-      comments: ""
       mandatory_status: "user_defined"
       source:
         key: "social_credit_code"
@@ -184,6 +198,7 @@ target_dataset:
     #     on_other_change:
     #       mode: "source"
     #       missing_action: "error"
+    # ── Health Authority Specific Change Description ──
     Change Description:
       category: "Health Authority Specific Change Description"
       comments: "Default data scope should not be used when the change description is different for health authorities."
@@ -219,6 +234,7 @@ target_dataset:
           template: "{column}变更"
           separator: "；"
 
+    # ── PRODUCT NAME/GENERIC NAME ──
     Product Name/Generic Name:
       category: "PRODUCT NAME/GENERIC NAME"
       mandatory_status: "required"
@@ -229,6 +245,7 @@ target_dataset:
         type: direct
 
 
+    # ── DEVICE DESCRIPTION ──
     Device Description:
       category: "DEVICE DESCRIPTION"
       mandatory_status: "required"
@@ -239,6 +256,7 @@ target_dataset:
         type: direct
 
 
+    # ── QTY OF DEVICE ──
     Quantity of Device:
       category: "QTY OF DEVICE"
       mandatory_status: "required"
@@ -248,6 +266,7 @@ target_dataset:
       transform:
         type: direct
 
+    # ── NMPA DEVICE REGISTRATION AND FILING INFO ──
     Is Primary DI same as the Registered or Filed DI?:
       category: "NMPA DEVICE REGISTRATION AND FILING INFO"
       mandatory_status: "required"
@@ -284,6 +303,7 @@ target_dataset:
       transform:
         type: first_not_null
 
+    # ── UNIT OF USE DI ──
     Unit of Use DI:
       category: "UNIT OF USE DI"
       # 条件必填：来源列 device_identifier_use_unit 声明了 required_when
@@ -296,6 +316,7 @@ target_dataset:
       transform:
         type: direct
 
+    # ── DIRECT MARKING DI ──
     Has Direct Marking DI?:
       category: "DIRECT MARKING DI"
       mandatory_status: "required"
@@ -323,6 +344,7 @@ target_dataset:
       transform:
         type: direct
     
+    # ── CATALOG /REF NO ──
     Catalog or Reference Number:
       category: "CATALOG /REF NO"
       mandatory_status: "required"
@@ -332,6 +354,7 @@ target_dataset:
       transform:
         type: direct
 
+    # ── PRODUCT CATEGORY ──
     Device or IVD Reagents?:
       category: "PRODUCT CATEGORY"
       mandatory_status: "required"
@@ -350,6 +373,7 @@ target_dataset:
       transform:
         type: direct
 
+    # ── SINGLE USE / REUSE ──
     Single Use Device?:
       category: "SINGLE USE / REUSE"
       mandatory_status: "required"
@@ -368,6 +392,7 @@ target_dataset:
       transform:
         type: direct
 
+    # ── STERILIZATION ──
     Packaged or Labeled as Sterile?:
       category: "STERILIZATION"
       mandatory_status: "required"
@@ -386,6 +411,7 @@ target_dataset:
       transform:
         type: direct
 
+    # ── MRI SAFETY INFO ──
     MRI Safety Status:
       category: "MRI SAFETY INFO"
       mandatory_status: "required_if_applicable"
@@ -395,6 +421,7 @@ target_dataset:
       transform:
         type: direct
 
+    # ── NMPA MEDICAL INSURANCE CODE ──
     Medical Insurance Code:
       category: "NMPA MEDICAL INSURANCE CODE"
       comments: >
@@ -413,6 +440,7 @@ target_dataset:
       validation:
         min_length: 27
 
+    # ── ADDITIONAL PACKAGE CONFIGURATIONS ──
     Package DI:
       category: "ADDITIONAL PACKAGE CONFIGURATIONS"
       mandatory_status: "required_if_applicable"

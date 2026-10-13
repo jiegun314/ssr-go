@@ -32,7 +32,7 @@
 | `scripts/` / `Makefile` | 本地发布、界面预览脚本；常用任务的固定入口（`make help`） |
 | `frontend/` | React + antd 前端；`frontend/dist` 与 `frontend/wailsjs` **都提交入库**（前者供 `//go:embed`，后者供 TS 编译） |
 | `frontend/src/__tests__/` | 前端**行为**测试（vitest + jsdom + testing-library），配置在 `frontend/vitest.config.ts`，垫片在 `frontend/src/test/setup.ts` |
-| `config/` | 四份 YAML（同时是发布包 `config/defaults/` 的来源） |
+| `config/` | 四份行为配置 + 可选的 `sample_mapping.yaml`（样本工厂专用）；打包时整目录复制成发布包的 `config/defaults/` |
 | `testdata/` | 测试用样本工作簿与 golden 基线（`.tsv`） |
 | `docs/archive/` | 迁移期（Python + PySide6 原型）对照材料，仅历史存档 |
 
@@ -40,10 +40,20 @@
 
 - **四份 YAML 是行为来源**：`setting.yaml`、`excel_import_mapping.yaml`、`consolidation_mapping.yaml`、`log_columns.yaml`。
   改行为优先改配置，不是改代码。
+- `config/sample_mapping.yaml` 是**可选的第 5 份**，只给样本工厂（`ssr-core gensample`）用：
+  导入 / 整合 / 导出都不读它。它按 `sources.<来源>.<db_field>` 存 `english_name` / `data_type` /
+  `allowed_values`；`LoadImportMapping()` 会把条目**合并回列的 `sample` 子块**，
+  所以 `internal/sample` 无需改动。老配置（把元数据内联在列里、或没有这个文件）照常可用。
 - **升级不覆盖用户配置**：正式名文件缺失时，从 `config/defaults/*.yaml` 生成一份；发布包解压时**从不覆盖**已存在的
   `config/*.yaml`、`config/.backup/`、`data/` 下的数据库。
 - `config/log_columns.yaml` 是**生成物**：头部注释与内容由 `cmd/ssr-core/tools.go` 的 `logColumnsComment` /
   `RenderLogColumns` 产出，两者必须逐字节一致 —— CI 用 `genlogcolumns --check` 把关。
+- **`mandatory_status` 词表**：来源列与导出列都用 `optional` / `required` / `required_if_applicable`
+  （导出列另有 `user_defined`，取自 `setting.yaml` 的用户自定义值）。空串是**旧写法**（等价 optional），
+  校验仍接受以便老配置照跑，但仓库自己的配置不许再写空串（`mandatory_status_test.go` 会把关）。
+- 四份配置的**分节横幅与"顺序即语义"注释**是刻意保留的阅读辅助：导入映射按来源分节，
+  整合映射按模板 `category` 分节；列顺序 = 暂存表列顺序，导出列顺序 = 模板表头顺序
+  （并决定 `Change Description` 里差异项的罗列顺序）。改配置时不要顺手重排。
 - 两列是**运行期派生**的（由变更比较填值，不读来源表）：`Choose Action`（`transform.type: record_action`，
   只能是 Add 或 Modify）与 `Change Description`（`change_description`）。判定键与重复检查共用
   `duplicate_check.identity_fields`，不允许另写一份；比较顺序 = 导出列的**配置声明顺序**。

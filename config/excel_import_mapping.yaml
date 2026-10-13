@@ -20,6 +20,7 @@ version: "1.0"
 #   - 列的先后顺序＝暂存表的列顺序，别随手挪动。
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── 全局设置：必填状态可选值与条件判断的空值 ──────────────────────────────────
 global_settings:
   # mandatory_status 的合法取值
   mandatory_options:
@@ -36,18 +37,36 @@ global_settings:
     - "nan"
 
 # 被多列共用的 value_mapping：列里用 *锚点名 引用，改一处即可全部生效。
+# ── 共享值映射（锚点）：列里的 value_mapping 用 *别名 引用这里的本体 ──────────────
 shared_mappings:
-  udi_yes_no: &udi_yes_no { "N/A": "否", "No": "否", "Not Applicable": "否", "Not launched": "否", "Yes": "是" }
-  yes_no_mixed: &yes_no_mixed { "N": "No", "No": "No", "Y": "Yes", "Yes": "Yes", "否": "No", "是": "Yes" }
-  yes_no_zh: &yes_no_zh { "否": "No", "是": "Yes" }
-  shared_4: &shared_4 { "No": "否", "Yes": "是" }
+  udi_yes_no: &udi_yes_no
+    "N/A": "否"
+    "No": "否"
+    "Not Applicable": "否"
+    "Not launched": "否"
+    "Yes": "是"
+  yes_no_mixed: &yes_no_mixed
+    "N": "No"
+    "No": "No"
+    "Y": "Yes"
+    "Yes": "Yes"
+    "否": "No"
+    "是": "Yes"
+  yes_no_zh: &yes_no_zh
+    "否": "No"
+    "是": "Yes"
+  shared_4: &shared_4
+    "No": "否"
+    "Yes": "是"
 
+# ── 四个来源：每个来源的列定义与导入策略（顺序即界面与暂存表的列顺序）────────────
 sources:
 
   # --------------------------------------------------------------------------
   # ra_input：界面显示「RA信息」（RA Input）
   # 导入写进 ra_input_staging；每次导入重建整张表；启动清理清空这张表
   # --------------------------------------------------------------------------
+  # ── 来源 ra_input ──────────────────────────────────────────────────────────
   ra_input:
     chinese_name: "RA信息"
     display_name: "RA Input"
@@ -63,224 +82,145 @@ sources:
       data_start_row: 2
       # sheet_name / english_header_row / required_row 只给样本工厂（gensample）用：
       # 样本文件里写工作表名、英文表头行、必填标记行；导入读的是第一个工作表，不看英文行
+    # 列顺序即暂存表的列顺序；表头匹配只认 chinese_name 的精确值。
     columns:
 
       - chinese_name: "注册证编号/备案凭证编号"
         db_field: "registration_filing_certificate_number"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registration Filing Certificate Number"
-          data_type: "string"
 
       - chinese_name: "原注册证编号"
         db_field: "original_registration_filing_certificate_number"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Original Registration Filing Certificate Number"
-          data_type: "string"
 
       - chinese_name: "产品名称/通用名称"
         db_field: "product_name"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Product Name / Generic Name"
-          data_type: "string"
 
       - chinese_name: "批准日期"
         db_field: "registration_certificate_approval_date"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registration Certificate Approval Date"
-          data_type: "string"
 
       - chinese_name: "RA生效日期"
         db_field: "ra_effective_date"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "RA Effective Date"
-          data_type: "string"
 
       - chinese_name: "RA失效日期"
         db_field: "ra_expiration_date"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "RA Expiration Date"
-          data_type: "string"
 
       - chinese_name: "规格型号"
         db_field: "material_code"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Material Code"
-          data_type: "string"
 
       - chinese_name: "医疗器械注册人/备案人名称"
         db_field: "registrant_name"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registrant Name"
-          data_type: "string"
 
       - chinese_name: "产品描述"
         db_field: "product_description"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Product Description"
-          data_type: "string"
 
       - chinese_name: "是否标记为一次性使用"
         db_field: "if_one_time_use"
         mandatory_status: "required"
         value_mapping: *yes_no_mixed
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If One Time Use"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "是否为无菌包装"
         db_field: "if_sterilized"
         mandatory_status: "required"
         value_mapping: *yes_no_mixed
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If Sterilized"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "最大重复使用次数"
         db_field: "max_reuse_count"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Maximum Reuse Count"
-          data_type: "string"
 
       - chinese_name: "使用前是否需要进行灭菌"
         db_field: "if_requires_sterilization_before_use"
         mandatory_status: "required"
         value_mapping: *yes_no_mixed
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If Requires Sterilization Before Use"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "灭菌方式"
         db_field: "sterilization_method"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Sterilization Method"
-          data_type: "string"
 
       - chinese_name: "器械目录分类编码"
         db_field: "device_catalog_classification_code"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Device Catalog Classification Code"
-          data_type: "string"
 
       - chinese_name: "磁共振（MR）安全相关信息"
         db_field: "mr_safety_information"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "MR Safety Information"
-          data_type: "string"
 
       - chinese_name: "是否与注册/备案产品标识一致"
         db_field: "is_identifier_consistent_with_registered_product"
         mandatory_status: "required"
         value_mapping: *yes_no_mixed
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Is Identifier Consistent With Registered Product"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "注册/备案产品标识"
         db_field: "registered_product_identifier"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registered Product Identifier"
-          data_type: "string"
 
       - chinese_name: "原器械目录代码"
         db_field: "original_device_catalog_code"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Original Device Catalog Code"
-          data_type: "string"
 
       - chinese_name: "医疗器械管理类别"
         db_field: "medical_device_management_class"
         mandatory_status: "optional"
         value_mapping: { "第一类": "Class I", "第二类": "Class II", "第三类": "Class III" }
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Medical Device Management Class"
-          data_type: "string"
-          allowed_values: ["第一类", "第二类", "第三类", "Class I", "Class II", "Class III"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "器械类别"
         db_field: "device_category"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Device Category"
-          data_type: "string"
 
       - chinese_name: "注册/备案人英文名称"
         db_field: "registrant_filing_entity_name_en"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registrant Filing Entity Name English"
-          data_type: "string"
 
       - chinese_name: "备注"
         db_field: "remarks"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Remarks"
-          data_type: "string"
 
       - chinese_name: "数据维护类型（新增/变更）"
         db_field: "data_maintenance_type"
         mandatory_status: "optional"
         value_mapping: { "新增": "New", "变更": "Change", "New": "New", "Change": "Change" }
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Data Maintenance Type"
-          data_type: "string"
-          allowed_values: ["新增", "变更", "New", "Change"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "更新描述"
         db_field: "change_description"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Change Description"
-          data_type: "string"
 
   # --------------------------------------------------------------------------
   # global_udi_input：界面显示「UDI团队信息」（Global UDI Input）
   # 导入写进 global_udi_input_staging；每次导入重建整张表；启动清理清空这张表
   # --------------------------------------------------------------------------
+  # ── 来源 global_udi_input ──────────────────────────────────────────────────────────
   global_udi_input:
     chinese_name: "UDI团队信息"
     display_name: "Global UDI Input"
@@ -296,82 +236,54 @@ sources:
       data_start_row: 4
       # sheet_name / english_header_row / required_row 只给样本工厂（gensample）用：
       # 样本文件里写工作表名、英文表头行、必填标记行；导入读的是第一个工作表，不看英文行
+    # 列顺序即暂存表的列顺序；表头匹配只认 chinese_name 的精确值。
     columns:
 
       - chinese_name: "事业部"
         db_field: "franchise"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Franchise"
-          data_type: "string"
 
       - chinese_name: "业务单元"
         db_field: "operating_company"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Operating Company"
-          data_type: "string"
 
       - chinese_name: "注册证号"
         db_field: "license_no"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "License No."
-          data_type: "string"
 
       - chinese_name: "产品代码"
         db_field: "material_code"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Product Code"
-          data_type: "string"
 
       - chinese_name: "中国市场是否拆包卖"
         db_field: "if_sold_as_individual_units"
         mandatory_status: "required"
         value_mapping: *shared_4
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Sold as Individual Units"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "最小销售单元产品标识"
         db_field: "device_identifier_min_sales_unit"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Device Identifier on Minimum Sales Unit"
-          data_type: "string"
 
       - chinese_name: "发码机构编码名称"
         db_field: "udi_issuing_agency_name"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "UDI Issuing Agency Name"
-          data_type: "string"
-          allowed_values: ["GS1", "MA", "AHM"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "发布时间"
         db_field: "publish_date"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Publish Date"
-          data_type: "string"
 
       - chinese_name: "最小销售单元中使用单元的数量"
         db_field: "quantity_per_min_sales_unit"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Quantity per Minimum Sales Unit"
-          data_type: "string"
 
       - chinese_name: "使用单元产品标识"
         db_field: "device_identifier_use_unit"
@@ -380,289 +292,181 @@ sources:
         required_when:
           - { "column": "quantity_per_min_sales_unit", "operator": "greater_than", "value": 1, "value_type": "number" }
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Device Identifier on Use Unit"
-          data_type: "string"
 
       - chinese_name: "标识载体"
         db_field: "di_carrier"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "DI Carrier"
-          data_type: "string"
-          allowed_values: ["一维码", "二维码", "一维码, 二维码"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "是否与注册/备案产品标识一致"
         db_field: "if_consistent_with_registration_di"
         mandatory_status: "required"
         value_mapping: *shared_4
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If Consistent with DI on Registration/Filing"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "注册/备案产品标识"
         db_field: "registration_filing_di"
         mandatory_status: "required_if_applicable"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "DI on Registration/Filing"
-          data_type: "string"
 
       - chinese_name: "是否有本体标识(DM)"
         db_field: "if_direct_marking"
         mandatory_status: "required"
         value_mapping: *udi_yes_no
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If there is Direct Marking(DM)"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "是否与最小销售单元产品标识一致"
         db_field: "if_dm_identical_to_min_sales_unit_di"
         mandatory_status: "required_if_applicable"
         value_mapping: *udi_yes_no
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If DM is identical with Device Identifier on minimum sales unit"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "本体产品标"
         db_field: "direct_marking"
         mandatory_status: "required_if_applicable"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Direct Marking"
-          data_type: "string"
 
       - chinese_name: "产品名称/通用名称"
         db_field: "device_generic_name"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Device Name/Generic Name"
-          data_type: "string"
 
       - chinese_name: "商品名称"
         db_field: "product_name"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Product Name"
-          data_type: "string"
 
       - chinese_name: "规格型号"
         db_field: "specification"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Specification"
-          data_type: "string"
 
       - chinese_name: "器械是否为包类产品"
         db_field: "if_kit_product"
         mandatory_status: "required"
         value_mapping: *udi_yes_no
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If it is kit product?"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "产品描述"
         db_field: "product_description"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Product Description"
-          data_type: "string"
 
       - chinese_name: "产品货号或编号"
         db_field: "catalogue_code"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Product Code or Catalogue Code"
-          data_type: "string"
 
       - chinese_name: "器械类别"
         db_field: "device_category"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Device Category"
-          data_type: "string"
 
       - chinese_name: "器械目录分类编码"
         db_field: "classification_code"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Classification Code"
-          data_type: "string"
 
       - chinese_name: "生产标识是否包含批号"
         db_field: "if_pi_contains_lot_number"
         mandatory_status: "required"
         value_mapping: *udi_yes_no
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If Production identifier contains batch/lot no."
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "生产标识是否包含序列号"
         db_field: "if_pi_contains_serial_number"
         mandatory_status: "required"
         value_mapping: *udi_yes_no
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If Production identifier contains serial no."
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "生产标识是否包含生产日期"
         db_field: "if_pi_contains_manufacturing_date"
         mandatory_status: "required"
         value_mapping: *udi_yes_no
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If Production identifier contains manufacturing date"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "生产标识是否包含失效日期"
         db_field: "if_pi_contains_expiry_date"
         mandatory_status: "required"
         value_mapping: *udi_yes_no
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "If Production identifier contains expiry date"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "包装产品标识"
         db_field: "package_identifier"
         mandatory_status: "required_if_applicable"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Package Identifier"
-          data_type: "string"
 
       - chinese_name: "产品包装级别"
         db_field: "package_type"
         mandatory_status: "required_if_applicable"
         value_mapping: { "CASE": "盒", "Case": "盒", "Box": "盒", "Pack": "盒", "Package": "盒", "Carton": "盒", "Bubbles": "气泡袋" }
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Package Type"
-          data_type: "string"
-          allowed_values: ["CASE", "Case", "Box", "Pack", "Package", "Carton", "Bubbles", "气泡袋", "盒"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "包装内含小一级产品标识数量"
         db_field: "lower_level_package_quantity"
         mandatory_status: "required_if_applicable"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Quantity of Lower level package identifier per package"
-          data_type: "string"
 
       - chinese_name: "包装内含小一级包装产品标识"
         db_field: "lower_level_package_identifier"
         mandatory_status: "required_if_applicable"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Lower level package identifier"
-          data_type: "string"
 
       - chinese_name: "储存或操作条件"
         db_field: "storage_handling_condition"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Storage or Handling Condition"
-          data_type: "string"
 
       - chinese_name: "最小值"
         db_field: "low_value"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Low Value"
-          data_type: "string"
 
       - chinese_name: "最大值"
         db_field: "high_value"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "High Value"
-          data_type: "string"
 
       - chinese_name: "存储或操作单位"
         db_field: "unit_of_measure"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Unit of Measure"
-          data_type: "string"
 
       - chinese_name: "特殊储存或操作条件"
         db_field: "special_storage_handling_type"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Special Storage or Handling Type"
-          data_type: "string"
 
       - chinese_name: "尺寸类型"
         db_field: "clinical_size_type_description"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Clinical relevant size type and description"
-          data_type: "string"
 
       - chinese_name: "尺寸值"
         db_field: "size_value"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Size Value"
-          data_type: "string"
 
       - chinese_name: "单位"
         db_field: "size_unit_of_measure"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Size Unit of Measure"
-          data_type: "string"
 
       - chinese_name: "特殊尺寸说明"
         db_field: "special_size_description"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Special size description (including type, unit of measure and value)"
-          data_type: "string"
 
       - chinese_name: "退市日期"
         db_field: "market_exit_date"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Market Exit Date"
-          data_type: "string"
 
   # --------------------------------------------------------------------------
   # medical_insurance_code：界面显示「医保编码信息」（China Medical Insurance Code）
   # 导入写进 medical_insurance_code；每次导入重建整张表；启动清理保留这张表
   # --------------------------------------------------------------------------
+  # ── 来源 medical_insurance_code ──────────────────────────────────────────────────────────
   medical_insurance_code:
     chinese_name: "医保编码信息"
     display_name: "China Medical Insurance Code"
@@ -678,303 +482,194 @@ sources:
       data_start_row: 3
       # sheet_name / english_header_row / required_row 只给样本工厂（gensample）用：
       # 样本文件里写工作表名、英文表头行、必填标记行；导入读的是第一个工作表，不看英文行
+    # 列顺序即暂存表的列顺序；表头匹配只认 chinese_name 的精确值。
     columns:
 
       - chinese_name: "单件产品编号"
         db_field: "single_item_product_number"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Single Item Product Number"
-          data_type: "string"
 
       - chinese_name: "医用耗材代码"
         db_field: "medical_insurance_code"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Medical Insurance Code"
-          data_type: "string"
 
       - chinese_name: "一级（学科、品类）"
         db_field: "primary_category"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Primary Category (Discipline, Type)"
-          data_type: "string"
 
       - chinese_name: "二级（用途、品目）"
         db_field: "secondary_category"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Secondary Category (Usage, Item)"
-          data_type: "string"
 
       - chinese_name: "三级（部位、功能、品种）"
         db_field: "tertiary_category"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Tertiary Category (Part, Function, Variety)"
-          data_type: "string"
 
       - chinese_name: "医保通用名分类"
         db_field: "medical_insurance_generic_name_category"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Medical Insurance Generic Name Category"
-          data_type: "string"
 
       - chinese_name: "规格（特征、参数）"
         db_field: "feature_specification"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Specification (Features, Parameters)"
-          data_type: "string"
 
       - chinese_name: "标准材质"
         db_field: "standard_material"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Standard Material"
-          data_type: "string"
 
       - chinese_name: "医保通用名编号"
         db_field: "medical_insurance_generic_name_code"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Medical Insurance Generic Name Code"
-          data_type: "string"
 
       - chinese_name: "医保通用名"
         db_field: "medical_insurance_generic_name"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Medical Insurance Generic Name"
-          data_type: "string"
 
       - chinese_name: "流水号"
         db_field: "serial_number"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Serial Number"
-          data_type: "string"
 
       - chinese_name: "注册证编号"
         db_field: "registration_certificate_number"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registration Certificate Number"
-          data_type: "string"
 
       - chinese_name: "注册备案证号"
         db_field: "registration_filing_certificate_number"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registration Filing Certificate Number"
-          data_type: "string"
 
       - chinese_name: "注册证有效期截止日期"
         db_field: "registration_certificate_expiration_date"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registration Certificate Expiry Date"
-          data_type: "string"
 
       - chinese_name: "原注册备案号"
         db_field: "original_registration_filing_number"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Original Registration Filing Number"
-          data_type: "string"
 
       - chinese_name: "注册备案产品名称"
         db_field: "registered_product_name"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registered/Filing Product Name"
-          data_type: "string"
 
       - chinese_name: "旧注册备案证号"
         db_field: "previous_registration_filing_certificate_number"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Previous Registration Filing Certificate Number"
-          data_type: "string"
 
       - chinese_name: "旧注册备案产品名称"
         db_field: "previous_registered_product_name"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Previous Registered/Filing Product Name"
-          data_type: "string"
 
       - chinese_name: "注册、备案人"
         db_field: "registrant_filer"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registrant/Filer"
-          data_type: "string"
 
       - chinese_name: "耗材分类"
         db_field: "consumable_category"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Consumable Category"
-          data_type: "string"
 
       - chinese_name: "单件产品名称"
         db_field: "single_product_name"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Single Product Name"
-          data_type: "string"
 
       - chinese_name: "耗材企业"
         db_field: "consumable_manufacturer"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Consumable Manufacturer"
-          data_type: "string"
 
       - chinese_name: "规格"
         db_field: "specification"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Specification"
-          data_type: "string"
 
       - chinese_name: "型号"
         db_field: "material_code"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Model"
-          data_type: "string"
 
       - chinese_name: "规格型号编号"
         db_field: "specification_model_code"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Specification/Model Code"
-          data_type: "string"
 
       - chinese_name: "UDI-DI"
         db_field: "udi_di"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "UDI-DI"
-          data_type: "string"
 
       - chinese_name: "是否重复拿码"
         db_field: "if_duplicate_code_indicator"
         mandatory_status: "optional"
         value_mapping: *yes_no_zh
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Duplicate Code Indicator"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "市场状态(未上市、退市产品不予赋码)"
         db_field: "market_status"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Market Status"
-          data_type: "string"
-          allowed_values: ["上市", "未上市", "退市", "Active", "Not Marketed", "Discontinued"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "材质"
         db_field: "material"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Material"
-          data_type: "string"
 
       - chinese_name: "是否灭菌"
         db_field: "if_sterilized"
         mandatory_status: "optional"
         value_mapping: *yes_no_zh
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Sterilized (Yes/No)"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "是否为植/介入类"
         db_field: "if_implant_or_interventional"
         mandatory_status: "optional"
         value_mapping: *yes_no_zh
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Implant/Interventional (Yes/No)"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "是否为一次性耗材"
         db_field: "if_disposable_consumable"
         mandatory_status: "optional"
         value_mapping: *yes_no_zh
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Disposable Consumable (Yes/No)"
-          data_type: "string"
-          allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "最小计价单位"
         db_field: "minimum_pricing_unit"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Minimum Pricing Unit"
-          data_type: "string"
 
       - chinese_name: "数据维护类型（新增/变更）"
         db_field: "data_maintenance_type"
         mandatory_status: "optional"
         value_mapping: { "新增": "New", "变更": "Change" }
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Data Maintenance Type (New / Change)"
-          data_type: "string"
-          allowed_values: ["新增", "变更", "New", "Change"]   # 样本工厂挑第一个没被映射的写法
 
       - chinese_name: "变更描述"
         db_field: "change_description"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Change Description"
-          data_type: "string"
 
   # --------------------------------------------------------------------------
   # product_category：界面显示「产品类别」（Product Category）
   # 导入写进 product_category_staging；每次导入重建整张表；启动清理清空这张表
   # --------------------------------------------------------------------------
+  # ── 来源 product_category ──────────────────────────────────────────────────────────
   product_category:
     chinese_name: "产品类别"
     display_name: "Product Category"
@@ -990,52 +685,35 @@ sources:
       data_start_row: 2
       # sheet_name / english_header_row / required_row 只给样本工厂（gensample）用：
       # 样本文件里写工作表名、英文表头行、必填标记行；导入读的是第一个工作表，不看英文行
+    # 列顺序即暂存表的列顺序；表头匹配只认 chinese_name 的精确值。
     columns:
 
       - chinese_name: "Franchise"
         db_field: "business_franchise"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Franchise"
-          data_type: "string"
 
       - chinese_name: "BU"
         db_field: "business_unit"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Business Unit"
-          data_type: "string"
 
       - chinese_name: "注册证编号/备案凭证编号"
         db_field: "registration_filing_certificate_number"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Registration Filing Certificate Number"
-          data_type: "string"
 
       - chinese_name: "规格型号"
         db_field: "material_code"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Material Code"
-          data_type: "string"
 
       - chinese_name: "产品类别"
         db_field: "product_type"
         mandatory_status: "required"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Product Type"
-          data_type: "string"
 
       - chinese_name: "注册证产品名称"
         db_field: "material_description_on_license"
         mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
-        sample:
-          english_name: "Material Description On License"
-          data_type: "string"

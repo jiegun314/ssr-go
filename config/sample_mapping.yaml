@@ -1,0 +1,370 @@
+# 样本工厂（ssr-core gensample）专用的列元数据。
+#
+# 这里的数据**导入、整合、导出都不读**，只在生成样本工作簿时用来填示例值：
+#   english_name    英文表头（样本工作簿的英文表头行）
+#   data_type       示例值类型（string 等，决定默认示例值）
+#   allowed_values  候选写法（取第一个没被 value_mapping 映射走的当示例值）
+#
+# 结构：sources.<来源>.<db_field>（db_field 在同一来源内唯一）。
+# 这些键原先是平铺在 excel_import_mapping.yaml 每一列的 sample: 子块里 ——
+# 拆出来之后，导入映射只剩下运行期真正读的键。loader 会把这里的条目合并回
+# 列的 sample 子块，所以 internal/sample 一行都不用改；老配置（带内联
+# sample: 子块）也照样能用 —— 见 AGENTS.md §3。
+version: "1.0"
+
+sources:
+  ra_input:
+    registration_filing_certificate_number:
+      english_name: "Registration Filing Certificate Number"
+      data_type: "string"
+    original_registration_filing_certificate_number:
+      english_name: "Original Registration Filing Certificate Number"
+      data_type: "string"
+    product_name:
+      english_name: "Product Name / Generic Name"
+      data_type: "string"
+    registration_certificate_approval_date:
+      english_name: "Registration Certificate Approval Date"
+      data_type: "string"
+    ra_effective_date:
+      english_name: "RA Effective Date"
+      data_type: "string"
+    ra_expiration_date:
+      english_name: "RA Expiration Date"
+      data_type: "string"
+    material_code:
+      english_name: "Material Code"
+      data_type: "string"
+    registrant_name:
+      english_name: "Registrant Name"
+      data_type: "string"
+    product_description:
+      english_name: "Product Description"
+      data_type: "string"
+    if_one_time_use:
+      english_name: "If One Time Use"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
+    if_sterilized:
+      english_name: "If Sterilized"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
+    max_reuse_count:
+      english_name: "Maximum Reuse Count"
+      data_type: "string"
+    if_requires_sterilization_before_use:
+      english_name: "If Requires Sterilization Before Use"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
+    sterilization_method:
+      english_name: "Sterilization Method"
+      data_type: "string"
+    device_catalog_classification_code:
+      english_name: "Device Catalog Classification Code"
+      data_type: "string"
+    mr_safety_information:
+      english_name: "MR Safety Information"
+      data_type: "string"
+    is_identifier_consistent_with_registered_product:
+      english_name: "Is Identifier Consistent With Registered Product"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
+    registered_product_identifier:
+      english_name: "Registered Product Identifier"
+      data_type: "string"
+    original_device_catalog_code:
+      english_name: "Original Device Catalog Code"
+      data_type: "string"
+    medical_device_management_class:
+      english_name: "Medical Device Management Class"
+      data_type: "string"
+      allowed_values: ["第一类", "第二类", "第三类", "Class I", "Class II", "Class III"]   # 样本工厂挑第一个没被映射的写法
+    device_category:
+      english_name: "Device Category"
+      data_type: "string"
+    registrant_filing_entity_name_en:
+      english_name: "Registrant Filing Entity Name English"
+      data_type: "string"
+    remarks:
+      english_name: "Remarks"
+      data_type: "string"
+    data_maintenance_type:
+      english_name: "Data Maintenance Type"
+      data_type: "string"
+      allowed_values: ["新增", "变更", "New", "Change"]   # 样本工厂挑第一个没被映射的写法
+    change_description:
+      english_name: "Change Description"
+      data_type: "string"
+
+  global_udi_input:
+    franchise:
+      english_name: "Franchise"
+      data_type: "string"
+    operating_company:
+      english_name: "Operating Company"
+      data_type: "string"
+    license_no:
+      english_name: "License No."
+      data_type: "string"
+    material_code:
+      english_name: "Product Code"
+      data_type: "string"
+    if_sold_as_individual_units:
+      english_name: "Sold as Individual Units"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
+    device_identifier_min_sales_unit:
+      english_name: "Device Identifier on Minimum Sales Unit"
+      data_type: "string"
+    udi_issuing_agency_name:
+      english_name: "UDI Issuing Agency Name"
+      data_type: "string"
+      allowed_values: ["GS1", "MA", "AHM"]   # 样本工厂挑第一个没被映射的写法
+    publish_date:
+      english_name: "Publish Date"
+      data_type: "string"
+    quantity_per_min_sales_unit:
+      english_name: "Quantity per Minimum Sales Unit"
+      data_type: "string"
+    device_identifier_use_unit:
+      english_name: "Device Identifier on Use Unit"
+      data_type: "string"
+    di_carrier:
+      english_name: "DI Carrier"
+      data_type: "string"
+      allowed_values: ["一维码", "二维码", "一维码, 二维码"]   # 样本工厂挑第一个没被映射的写法
+    if_consistent_with_registration_di:
+      english_name: "If Consistent with DI on Registration/Filing"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
+    registration_filing_di:
+      english_name: "DI on Registration/Filing"
+      data_type: "string"
+    if_direct_marking:
+      english_name: "If there is Direct Marking(DM)"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
+    if_dm_identical_to_min_sales_unit_di:
+      english_name: "If DM is identical with Device Identifier on minimum sales unit"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
+    direct_marking:
+      english_name: "Direct Marking"
+      data_type: "string"
+    device_generic_name:
+      english_name: "Device Name/Generic Name"
+      data_type: "string"
+    product_name:
+      english_name: "Product Name"
+      data_type: "string"
+    specification:
+      english_name: "Specification"
+      data_type: "string"
+    if_kit_product:
+      english_name: "If it is kit product?"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
+    product_description:
+      english_name: "Product Description"
+      data_type: "string"
+    catalogue_code:
+      english_name: "Product Code or Catalogue Code"
+      data_type: "string"
+    device_category:
+      english_name: "Device Category"
+      data_type: "string"
+    classification_code:
+      english_name: "Classification Code"
+      data_type: "string"
+    if_pi_contains_lot_number:
+      english_name: "If Production identifier contains batch/lot no."
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
+    if_pi_contains_serial_number:
+      english_name: "If Production identifier contains serial no."
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
+    if_pi_contains_manufacturing_date:
+      english_name: "If Production identifier contains manufacturing date"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
+    if_pi_contains_expiry_date:
+      english_name: "If Production identifier contains expiry date"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No", "Not Applicable", "N/A", "Not launched"]   # 样本工厂挑第一个没被映射的写法
+    package_identifier:
+      english_name: "Package Identifier"
+      data_type: "string"
+    package_type:
+      english_name: "Package Type"
+      data_type: "string"
+      allowed_values: ["CASE", "Case", "Box", "Pack", "Package", "Carton", "Bubbles", "气泡袋", "盒"]   # 样本工厂挑第一个没被映射的写法
+    lower_level_package_quantity:
+      english_name: "Quantity of Lower level package identifier per package"
+      data_type: "string"
+    lower_level_package_identifier:
+      english_name: "Lower level package identifier"
+      data_type: "string"
+    storage_handling_condition:
+      english_name: "Storage or Handling Condition"
+      data_type: "string"
+    low_value:
+      english_name: "Low Value"
+      data_type: "string"
+    high_value:
+      english_name: "High Value"
+      data_type: "string"
+    unit_of_measure:
+      english_name: "Unit of Measure"
+      data_type: "string"
+    special_storage_handling_type:
+      english_name: "Special Storage or Handling Type"
+      data_type: "string"
+    clinical_size_type_description:
+      english_name: "Clinical relevant size type and description"
+      data_type: "string"
+    size_value:
+      english_name: "Size Value"
+      data_type: "string"
+    size_unit_of_measure:
+      english_name: "Size Unit of Measure"
+      data_type: "string"
+    special_size_description:
+      english_name: "Special size description (including type, unit of measure and value)"
+      data_type: "string"
+    market_exit_date:
+      english_name: "Market Exit Date"
+      data_type: "string"
+
+  medical_insurance_code:
+    single_item_product_number:
+      english_name: "Single Item Product Number"
+      data_type: "string"
+    medical_insurance_code:
+      english_name: "Medical Insurance Code"
+      data_type: "string"
+    primary_category:
+      english_name: "Primary Category (Discipline, Type)"
+      data_type: "string"
+    secondary_category:
+      english_name: "Secondary Category (Usage, Item)"
+      data_type: "string"
+    tertiary_category:
+      english_name: "Tertiary Category (Part, Function, Variety)"
+      data_type: "string"
+    medical_insurance_generic_name_category:
+      english_name: "Medical Insurance Generic Name Category"
+      data_type: "string"
+    feature_specification:
+      english_name: "Specification (Features, Parameters)"
+      data_type: "string"
+    standard_material:
+      english_name: "Standard Material"
+      data_type: "string"
+    medical_insurance_generic_name_code:
+      english_name: "Medical Insurance Generic Name Code"
+      data_type: "string"
+    medical_insurance_generic_name:
+      english_name: "Medical Insurance Generic Name"
+      data_type: "string"
+    serial_number:
+      english_name: "Serial Number"
+      data_type: "string"
+    registration_certificate_number:
+      english_name: "Registration Certificate Number"
+      data_type: "string"
+    registration_filing_certificate_number:
+      english_name: "Registration Filing Certificate Number"
+      data_type: "string"
+    registration_certificate_expiration_date:
+      english_name: "Registration Certificate Expiry Date"
+      data_type: "string"
+    original_registration_filing_number:
+      english_name: "Original Registration Filing Number"
+      data_type: "string"
+    registered_product_name:
+      english_name: "Registered/Filing Product Name"
+      data_type: "string"
+    previous_registration_filing_certificate_number:
+      english_name: "Previous Registration Filing Certificate Number"
+      data_type: "string"
+    previous_registered_product_name:
+      english_name: "Previous Registered/Filing Product Name"
+      data_type: "string"
+    registrant_filer:
+      english_name: "Registrant/Filer"
+      data_type: "string"
+    consumable_category:
+      english_name: "Consumable Category"
+      data_type: "string"
+    single_product_name:
+      english_name: "Single Product Name"
+      data_type: "string"
+    consumable_manufacturer:
+      english_name: "Consumable Manufacturer"
+      data_type: "string"
+    specification:
+      english_name: "Specification"
+      data_type: "string"
+    material_code:
+      english_name: "Model"
+      data_type: "string"
+    specification_model_code:
+      english_name: "Specification/Model Code"
+      data_type: "string"
+    udi_di:
+      english_name: "UDI-DI"
+      data_type: "string"
+    if_duplicate_code_indicator:
+      english_name: "Duplicate Code Indicator"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
+    market_status:
+      english_name: "Market Status"
+      data_type: "string"
+      allowed_values: ["上市", "未上市", "退市", "Active", "Not Marketed", "Discontinued"]   # 样本工厂挑第一个没被映射的写法
+    material:
+      english_name: "Material"
+      data_type: "string"
+    if_sterilized:
+      english_name: "Sterilized (Yes/No)"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
+    if_implant_or_interventional:
+      english_name: "Implant/Interventional (Yes/No)"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
+    if_disposable_consumable:
+      english_name: "Disposable Consumable (Yes/No)"
+      data_type: "string"
+      allowed_values: ["是", "否", "Yes", "No"]   # 样本工厂挑第一个没被映射的写法
+    minimum_pricing_unit:
+      english_name: "Minimum Pricing Unit"
+      data_type: "string"
+    data_maintenance_type:
+      english_name: "Data Maintenance Type (New / Change)"
+      data_type: "string"
+      allowed_values: ["新增", "变更", "New", "Change"]   # 样本工厂挑第一个没被映射的写法
+    change_description:
+      english_name: "Change Description"
+      data_type: "string"
+
+  product_category:
+    business_franchise:
+      english_name: "Franchise"
+      data_type: "string"
+    business_unit:
+      english_name: "Business Unit"
+      data_type: "string"
+    registration_filing_certificate_number:
+      english_name: "Registration Filing Certificate Number"
+      data_type: "string"
+    material_code:
+      english_name: "Material Code"
+      data_type: "string"
+    product_type:
+      english_name: "Product Type"
+      data_type: "string"
+    material_description_on_license:
+      english_name: "Material Description On License"
+      data_type: "string"
