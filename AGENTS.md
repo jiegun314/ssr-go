@@ -92,9 +92,14 @@ wails dev                                             # 开发模式
 
 ./scripts/release-local.sh                           # 刷新本地运行包 release/SingleSourceReady/（make local）
 go run ./cmd/ssr-core release --allow-dirty --no-zip   # 本地自测发布包组装
-go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 必须打过 v<版本> tag 且工作区干净）
+go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打过 v<版本> tag 且工作区干净）；只对空白目录用，会重建目录
 ```
 
+- **本地刷新运行包只用 `./scripts/release-local.sh`**（= `make local`）：它按设计**保留**
+  `config/*.yaml`、`config/.backup/`、`data/udi_data.sqlite3*`、`output/` 以及其中的用户数据。
+- ⚠️ **不要对"正在使用"的目录执行 `release --out <目录>`**：该命令会**重建整个目标目录**，
+  连同其中的工作配置与数据库一起清掉（本仓库已经因此清空过一次 52MB 的运行库）。
+  它只适合输出到**空白目录**；给本地在用目录打包一律走 `release-local.sh`。
 - 只想看界面、不启 Go 后端：`./scripts/preview.sh --build`（注入模拟的 Wails 桥接；`make preview` 等价）。
 - 常用任务也可以走 `make help`：`make test` / `make check` / `make frontend` / `make frontend-test` /
   `make local` / `make preview` / `make package`。`make check` = Go 测试 + 前端测试 + 生成物一致 + gofmt + vet。
