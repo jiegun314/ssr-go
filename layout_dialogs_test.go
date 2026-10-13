@@ -17,9 +17,8 @@ func TestTheDisplayDialogsKeepTheirFixedSize(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
 	for _, wanted := range []string{
-		`className="about-window"`,  // 关于窗口
-		`className="hidden-window"`, // 附加窗口
-		"maskClosable",              // 点遮罩也能关
+		`className="about-window"`, // 关于窗口
+		"maskClosable",             // 点遮罩也能关
 		"width={323}",
 	} {
 		if !strings.Contains(modals, wanted) {
@@ -32,12 +31,10 @@ func TestTheDisplayDialogsKeepTheirFixedSize(t *testing.T) {
 	}
 	for _, wanted := range []string{
 		".about-window {",
-		".hidden-window {",
 		"width: 323px !important;",
 		"height: 323px;",
 		"object-fit: cover", // 附加窗口的图片要铺满
 		".about-window .ant-modal-close,",
-		".hidden-window .ant-modal-close",
 	} {
 		if !strings.Contains(styles, wanted) {
 			t.Errorf("样式里缺少展示型窗口的规则：%s", wanted)
@@ -274,22 +271,3 @@ func TestTheHiddenWindowIsNotAdvertisedInTheFrontend(t *testing.T) {
 // TestTheHiddenWindowSoundShipsInsideTheApp 固定附加窗口声音的落地方式：
 // 音频放在 frontend/public（构建时复制进 dist，再由 //go:embed 编进二进制），
 // 不能放在会被整目录拷进发布包的 resource/；窗口打开时循环播放、关闭时立刻停。
-func TestTheHiddenWindowSoundShipsInsideTheApp(t *testing.T) {
-	app := readFrontendSource(t, "src/App.tsx")
-
-	if stray, _ := filepath.Glob(filepath.Join("resource", "*.mp3")); len(stray) > 0 {
-		t.Errorf("音频不要放在会被整目录拷进发布包的 resource/：%v", stray)
-	}
-	if !strings.Contains(app, `src="puppy-voice.mp3"`) || !strings.Contains(app, "loop") {
-		t.Error("App.tsx 里缺少循环播放的音频元素")
-	}
-	for _, wanted := range []string{
-		"voice.play()",  // 打开时播放（在点击回调里，属用户手势）
-		"voice.pause()", // 关闭时立刻停
-		"voice.currentTime = 0",
-	} {
-		if !strings.Contains(app, wanted) {
-			t.Errorf("App.tsx 里缺少声音控制：%s", wanted)
-		}
-	}
-}

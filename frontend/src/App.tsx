@@ -23,7 +23,7 @@ import {
   RecordExportPanel,
   type MessageState,
 } from "./components/Panels";
-import { AboutModal, HiddenModal, ReviewModal, SettingsModal } from "./components/Modals";
+import { AboutModal, ReviewModal, SettingsModal } from "./components/Modals";
 import type {
   AboutInfo,
   ClearResult,
@@ -40,8 +40,6 @@ import type {
 } from "./types";
 
 /** 关于窗口图标上的点击计数：阈值与时间窗沿用原版，属行为契约，不要改这两个数值。 */
-const ICON_CLICK_COUNT = 8;
-const ICON_CLICK_WINDOW_MS = 5000;
 
 type ReviewSession = {
   kind: "source" | "log";
@@ -82,12 +80,9 @@ export default function App() {
 
   const [aboutOpen, setAboutOpen] = useState(false);
   const [about, setAbout] = useState<AboutInfo | null>(null);
-  const [hiddenOpen, setHiddenOpen] = useState(false);
   // 左侧两个模块（数据导入 + 操作日志）可以整体收起，把整个窗口宽度让给右边的结果表
   const [leftCollapsed, setLeftCollapsed] = useState(false);
 
-  const iconClicks = useRef<number[]>([]);
-  const voiceRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => onBusy(setBusy), []);
 
@@ -305,33 +300,8 @@ export default function App() {
     setAboutOpen(true);
   }, []);
 
-  const stopVoice = useCallback(() => {
-    const voice = voiceRef.current;
-    if (!voice) return;
-    voice.pause();
-    voice.currentTime = 0;
-  }, []);
 
-  const handleIconClick = useCallback(() => {
-    const now = Date.now();
-    iconClicks.current = iconClicks.current.filter((time) => now - time < ICON_CLICK_WINDOW_MS);
-    iconClicks.current.push(now);
-    if (iconClicks.current.length < ICON_CLICK_COUNT) return;
-    iconClicks.current = [];
-    setAboutOpen(false);
-    setHiddenOpen(true);
-    // 声音在同一个点击回调里播放：属于用户手势，不会被自动播放策略拦下
-    const voice = voiceRef.current;
-    if (voice) {
-      voice.currentTime = 0;
-      void voice.play().catch(() => undefined);
-    }
-  }, []);
 
-  const closeHidden = useCallback(() => {
-    stopVoice(); // 不能只靠关闭事件：个别引擎下它会延迟派发
-    setHiddenOpen(false);
-  }, [stopVoice]);
 
   /* ---------- Go 侧事件 ---------- */
 
@@ -445,7 +415,6 @@ export default function App() {
       </div>
 
       {/* 附加窗口的声音：loop 表示窗口开着就一直响；播放/停止见上面的点击与关闭逻辑 */}
-      <audio id="puppy-voice" ref={voiceRef} src="puppy-voice.mp3" loop preload="auto" />
 
       <LoadingOverlay text={busy} />
       <MessageModal state={message} onClose={() => setMessage(null)} />
@@ -483,10 +452,9 @@ export default function App() {
       <AboutModal
         open={aboutOpen}
         info={about}
-        onIconClick={handleIconClick}
+        
         onClose={() => setAboutOpen(false)}
       />
-      <HiddenModal open={hiddenOpen} onClose={closeHidden} />
     </>
   );
 }

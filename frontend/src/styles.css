@@ -1061,18 +1061,11 @@ body {
 
 /* 两个展示型窗口都固定 323×323（与原版一致），内容铺满，关闭按钮用 antd 自带的。 */
 .about-window .ant-modal-content,
-.hidden-window .ant-modal-content {
-  padding: 0;
-  overflow: hidden;
-}
 
 .about-window {
   width: 323px !important;
 }
 
-.hidden-window {
-  width: 323px !important;
-}
 
 .about-body {
   display: flex;
@@ -1113,48 +1106,11 @@ body {
   font-size: 12px;
 }
 
-.hidden-body {
-  position: relative;
-  width: 323px;
-  height: 323px;
-  overflow: hidden;
-}
 
-.hidden-body img {
-  display: block;
-  width: 323px;
-  height: 323px;
-  object-fit: cover;
-}
 
-.hidden-body .hidden-title {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  margin: 0;
-  padding: 10px 56px 10px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #fff;
-  background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
-}
 
 /* 两个窗口都是"整块内容"，关闭 X 贴到角落（antd 默认按标题行居中，这里没有标题行）。 */
 .about-window .ant-modal-close,
-.hidden-window .ant-modal-close {
-  top: 8px;
-  inset-inline-end: 8px;
-}
 
 /* 照片上的关闭按钮：antd 自带的白 X + 半透明底，不然深灰 X 在图上看不见。 */
-.hidden-window .ant-modal-close {
-  color: #fff;
-  background: rgba(0, 0, 0, 0.32);
-}
 
-.hidden-window .ant-modal-close:hover {
-  color: #fff;
-  background: rgba(0, 0, 0, 0.5);
-}
