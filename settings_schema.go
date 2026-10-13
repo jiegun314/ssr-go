@@ -116,6 +116,8 @@ func settingsPolicyFor(fileKey string) settingsPolicy {
 					reason: "只给样本工厂（ssr-core gensample）使用，导入 / 整合 / 导出都不读"},
 				{match: "sources.*.columns.*.sample.*", readOnly: true,
 					reason: "只给样本工厂（ssr-core gensample）使用，导入 / 整合 / 导出都不读"},
+				// 取值白名单：这一列只接受这些原始写法（可增删条目）
+				{match: "sources.*.columns.*.accepted_values", label: "只接受这些写法"},
 				// 条件表达式：v1 只读展示
 				{match: "sources.*.columns.*.required_when", readOnly: true,
 					reason: "条件必填表达式：v1 只读展示（改动请用『编辑原文』）"},
@@ -143,8 +145,9 @@ func settingsPolicyFor(fileKey string) settingsPolicy {
 				{match: "global_settings.empty_values", label: "条件判断的空值"},
 			},
 			listEdit: map[string]bool{
-				"global_settings.mandatory_options": true,
-				"global_settings.empty_values":      true,
+				"sources.*.columns.*.accepted_values": true,
+				"global_settings.mandatory_options":   true,
+				"global_settings.empty_values":        true,
 			},
 		}
 		return policy

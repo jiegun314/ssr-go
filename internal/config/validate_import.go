@@ -84,6 +84,20 @@ func (loader *Loader) ValidateImportMapping(imports map[string]any) error {
 			if value, present := column["required_when"]; present && value != nil {
 				conditional = append(conditional, conditionalColumn{index: index, definition: column})
 			}
+			// accepted_values：这一列只接受这些**原始写法**（空单元格不归它管）。
+			// 必须是至少一项的非空字符串列表 —— 写成空列表等于没配，容易误以为已生效。
+			if value, present := column["accepted_values"]; present && value != nil {
+				accepted, ok := stringListStrict(value)
+				if !ok || len(accepted) == 0 {
+					return errorf(
+						"%s.accepted_values must be a non-empty list of strings", path)
+				}
+				for _, item := range accepted {
+					if strings.TrimSpace(item) == "" {
+						return errorf("%s.accepted_values 里不能有空字符串", path)
+					}
+				}
+			}
 		}
 
 		available := make([]string, 0, len(dbFields))

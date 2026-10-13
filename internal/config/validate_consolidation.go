@@ -236,8 +236,10 @@ func (loader *Loader) ValidateConsolidationMapping(
 		case mandatoryStatus == "required":
 			_, hasLiteral := transform["value"]
 			transformType, _ := asString(transform["type"])
+			// 派生列（变更描述 / 记录动作 / 运行日日期）都不给字面量，值在整合时算出来
 			if !hasLiteral && transformType != ChangeDescriptionTransform &&
-				transformType != RecordActionTransform {
+				transformType != RecordActionTransform &&
+				transformType != DateOffsetTransform {
 				return errorf(
 					"Literal transform value is required for source-less required field: %s",
 					outputName)
@@ -248,6 +250,9 @@ func (loader *Loader) ValidateConsolidationMapping(
 		return err
 	}
 	if err := validateChangeDescriptionTransform(dataset, outputFields); err != nil {
+		return err
+	}
+	if err := validateDateOffsetTransform(dataset, outputFields); err != nil {
 		return err
 	}
 	return validateRecordActionTransform(dataset, outputFields)
@@ -600,6 +605,85 @@ func validateSourceFields(
 	}
 	if len(missing) > 0 {
 		return errorf("Unknown field in %s: %s", description, strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+// DateOffsetFormat 是日期列目前唯一允许的格式（人话写法，落盘时译成 Go 布局）。
+const DateOffsetFormat = "YYYY-MM-DD"
+
+// DateOffsetBases 是日期列允许的基准（目前只有"运行日"）。
+var DateOffsetBases = []string{"today"}
+
+// validateDateOffsetTransform 校验"按运行日算出来的日期列"（transform.type: date_offset）。
+//
+// 口径：
+//   - source 必须为空（不读来源表）；
+//   - base 只能是 today（运行日）；offset_days 必须是整数；
+//   - format 必须是 DateOffsetFormat（YYYY-MM-DD）；
+//   - 该列不能进 duplicate_check.identity_fields（身份每天变会把历史记录切成碎片）；
+//   - 该列必须写进变更比较的 ignore_fields —— 它每天都变，不忽略的话每次整合
+//     所有行都会被判成"有差异"，这是配置层面最容易踩的坑，所以在校验阶段就拦住。
+func validateDateOffsetTransform(dataset map[string]any, exportFields map[string]any) error {
+	derived := sortedKeys(exportFields)
+	identity := stringListOfMapping(dataset)
+	ignore := changeDescriptionIgnoreFields(exportFields)
+	for _, fieldName := range derived {
+		definition, _ := exportFields[fieldName].(map[string]any)
+		transform, _ := definition["transform"].(map[string]any)
+		transformType, _ := asString(transform["type"])
+		if transformType != DateOffsetTransform {
+			continue
+		}
+		label := "consolidation.target_dataset.fields." + fieldName
+		transformLabel := label + ".transform"
+		if source, _ := definition["source"].(map[string]any); len(source) > 0 {
+			return errorf("%s is computed from the run date, so its source has to stay empty", label)
+		}
+		base, _ := asString(transform["base"])
+		if !contains(DateOffsetBases, base) {
+			return errorf("%s.base must be one of %v (run date), got %q",
+				transformLabel, DateOffsetBases, base)
+		}
+		if value, present := transform["offset_days"]; present && value != nil {
+			if _, ok := value.(int); !ok {
+				return errorf("%s.offset_days must be an integer, got %#v", transformLabel, value)
+			}
+		}
+		dateFormat, _ := asString(transform["format"])
+		if dateFormat != DateOffsetFormat {
+			return errorf("%s.format must be %q, got %q",
+				transformLabel, DateOffsetFormat, dateFormat)
+		}
+		if contains(identity, fieldName) {
+			return errorf(
+				"%s changes with the run date, so it can not be part of consolidation.target_dataset.duplicate_check.identity_fields",
+				label)
+		}
+		if ignore != nil && !contains(ignore, fieldName) {
+			return errorf(
+				"%s changes with the run date, so it must be listed in the change description ignore_fields (otherwise every run reports a change)",
+				label)
+		}
+	}
+	return nil
+}
+
+// stringListOfMapping 取 duplicate_check.identity_fields（"duplicate_check" 这种引用不算）。
+func stringListOfMapping(dataset map[string]any) []string {
+	duplicateCheck, _ := dataset["duplicate_check"].(map[string]any)
+	return stringList(duplicateCheck["identity_fields"])
+}
+
+// changeDescriptionIgnoreFields 取变更比较的忽略列；没有声明变更描述列时返回 nil（不做这项校验）。
+func changeDescriptionIgnoreFields(exportFields map[string]any) []string {
+	for _, name := range sortedKeys(exportFields) {
+		definition, _ := exportFields[name].(map[string]any)
+		transform, _ := definition["transform"].(map[string]any)
+		transformType, _ := asString(transform["type"])
+		if transformType == ChangeDescriptionTransform {
+			return stringList(transform["ignore_fields"])
+		}
 	}
 	return nil
 }

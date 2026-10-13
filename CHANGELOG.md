@@ -11,6 +11,47 @@
 
 （暂无）
 
+## [2.3.4] - 2026-10-13
+
+配置能力补强与配置治理：把"条件必填、取值白名单、运行日日期列"都做成**配置可写**的能力，
+补齐两个模板里一直空着的导出列，并顺手修掉身份列会出现 `MISSING` 的缺陷。
+
+### 新增
+
+- **取值白名单 `accepted_values`**（写在来源列上）：该列单元格**只接受**列出的原始写法，
+  否则整份文件被拒（校验的是 Excel 里的写法，不是 `value_mapping` 归一化之后的值）。
+  空单元格仍归必填 / 条件必填管。参数设定里可以增删条目。
+- **条件必填的期望值自动归一化**：`required_when` 里可以按"人怎么填"写（`value: "是"`），
+  程序按被引用列自己的 `value_mapping` 换算成归一化后的值再比较。
+- **运行日日期列 `transform.type: date_offset`**：值 = 运行日（本地当天）+ `offset_days`，
+  格式固定 `YYYY-MM-DD`。它必须写进变更比较的 `ignore_fields`（校验会强制检查），
+  测试可用 `Service.Now` 冻结运行日。
+- **导出列 `Sterilization Method Description`**：模板里本来就有这一列，配置里一直没有映射，
+  导出时始终为空。现在取自 `ra_input.灭菌方式`，缺失判定跟随来源列的条件必填。
+- **导出列 `DI Record Publish Date`**：同样是模板里有、配置里没有的列。现在按运行日 +1 天生成。
+
+### 变更
+
+- **⚠️ 升级注意：`ra_input` 的「使用前是否需要进行灭菌」只接受 `是` / `否`**。
+  以前填 `Yes / No / Y / N` 的文件会被拒绝导入（把它加进 `accepted_values` 即可放宽）。
+  样本工厂已按白名单生成样本。
+- **⚠️ 升级注意：`global_udi_input` 的四列改为选填**（`device_category`、`device_generic_name`、
+  `if_consistent_with_registration_di`、`product_description`）—— 最终文件用的是 `ra_input` 的同名列，
+  这四个不再需要填写。
+- `Catalog or Reference Number` 改取 `ra_input.material_code`（基准来源）。原来源在来源表没有
+  匹配记录时会写成字面量 `MISSING`，**导出文件的身份列因此可能损坏**；现在不再出现。
+- 另有三列改为选填：`global_udi_input.franchise`、`global_udi_input.if_sold_as_individual_units`、
+  `ra_input.original_registration_filing_certificate_number`（它们在后续计算中并没有用到）。
+- **配置治理**：两份映射加分节横幅与"顺序即语义"说明；`mandatory_status` 词表统一为
+  `optional`（空串作为旧写法继续兼容）；`shared_mappings` 由流式改块状（diff 更细）；
+  样本工厂专用元数据拆到 `config/sample_mapping.yaml`（可选文件，`excel_import_mapping.yaml`
+  因此少 31% 篇幅，非样本内容逐字节不变）。
+
+### 修复
+
+- 导出文件的身份列在来源表没有匹配记录时不再写成 `MISSING`（见上）。
+- 样本工厂生成的样本一定能通过当前配置的导入校验（白名单优先）。
+
 ## [2.3.3] - 2026-10-09
 
 ### 修复

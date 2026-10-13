@@ -48,7 +48,7 @@ var columnValues = map[string]any{
 	"product_type":                         "Consumable",
 	"if_one_time_use":                      "Yes",
 	"if_sterilized":                        "Yes",
-	"if_requires_sterilization_before_use": "Yes",
+	"if_requires_sterilization_before_use": "是", // 该列有 accepted_values，实际以白名单为准
 	"is_identifier_consistent_with_registered_product": "Yes",
 	"if_consistent_with_registration_di":               "Yes",
 	"if_direct_marking":                                "No",
@@ -250,6 +250,14 @@ func buildRow(
 // defaultValue 是 Python 版 default_value 的等价物。
 func defaultValue(column map[string]any, sourceName string, rowIndex int) any {
 	dbField := textValue(column["db_field"])
+	// 列声明了取值白名单（accepted_values）时**优先**用它：导入侧校验的是原始写法，
+	// 样本里填别的写法会被直接拒绝 —— "样本一定能导入"是硬要求，所以白名单压过下面的
+	// 固定值表（columnValues 里给这类列准备的值以白名单为准）。
+	if accepted, ok := column["accepted_values"].([]any); ok && len(accepted) > 0 {
+		if text, ok := accepted[0].(string); ok {
+			return text
+		}
+	}
 	if value, present := baseRecord[dbField]; present {
 		return value
 	}

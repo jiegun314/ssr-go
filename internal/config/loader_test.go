@@ -592,7 +592,8 @@ func TestR18TheDerivedColumnRuleIsReadFromTheConfiguration(t *testing.T) {
 	if rule.CompareFields != "all" {
 		t.Errorf("CompareFields = %v", rule.CompareFields)
 	}
-	if strings.Join(rule.IgnoreFields, "|") != "Choose Action" {
+	// 运行日算出来的日期列每天都变，必须被变更比较忽略（否则每次整合都报"有差异"）
+	if strings.Join(rule.IgnoreFields, "|") != "Choose Action|DI Record Publish Date" {
 		t.Errorf("IgnoreFields = %v", rule.IgnoreFields)
 	}
 	if rule.Labels["Change Description"] != "Change Description" {

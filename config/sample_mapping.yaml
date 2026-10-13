@@ -55,7 +55,7 @@ sources:
     if_requires_sterilization_before_use:
       english_name: "If Requires Sterilization Before Use"
       data_type: "string"
-      allowed_values: ["是", "否", "Yes", "No", "Y", "N"]   # 样本工厂挑第一个没被映射的写法
+      allowed_values: ["是", "否"]   # 与导入侧的 accepted_values 一致（样本工厂优先取白名单）
     sterilization_method:
       english_name: "Sterilization Method"
       data_type: "string"

@@ -7,6 +7,7 @@ package importer
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jiegun314/ssr-go/internal/config"
@@ -22,6 +23,13 @@ type Column struct {
 	MandatoryStatus string
 	ValueMapping    map[string]string
 	RequiredWhen    any
+	// AcceptedValues 是这一列允许的**原始写法**（Excel 里怎么填）。非空时，
+	// 单元格的值必须命中其中之一，否则整份文件被拒绝。
+	//
+	// 校验原始写法而不是 value_mapping 归一化之后的值：两者职责不同 ——
+	// accepted_values 管"输入只允许哪些写法"，value_mapping 管"入库/导出用什么写法"。
+	// 空单元格不在这里判（由必填 / 条件必填负责）。
+	AcceptedValues []string
 }
 
 // Rule 是一份来源的导入规则（get_file_import_rule 的 Go 版）。
@@ -115,6 +123,7 @@ func LoadRules(loader *config.Loader) (map[string]*Rule, []string, error) {
 				MandatoryStatus: textOf(column["mandatory_status"]),
 				ValueMapping:    stringMapOf(column["value_mapping"]),
 				RequiredWhen:    column["required_when"],
+				AcceptedValues:  stringListOf(column["accepted_values"]),
 			}
 			rule.Columns = append(rule.Columns, definition)
 			if _, taken := rule.ColumnMapping[definition.ChineseName]; !taken {
@@ -123,6 +132,21 @@ func LoadRules(loader *config.Loader) (map[string]*Rule, []string, error) {
 			if definition.MandatoryStatus != "" {
 				rule.RequiredFields = append(rule.RequiredFields, definition.DBField)
 			}
+		}
+		// required_when 里的期望值按被引用列自己的 value_mapping 归一化：
+		// 配置里可以按「人怎么填」来写（是 / 否 / Y …），程序换算成归一化后的值再比。
+		mappingByField := make(map[string]map[string]string, len(rule.Columns))
+		for _, column := range rule.Columns {
+			mappingByField[column.DBField] = column.ValueMapping
+		}
+		for index := range rule.Columns {
+			if rule.Columns[index].RequiredWhen == nil {
+				continue
+			}
+			rule.Columns[index].RequiredWhen = rules.NormalizeConditionValues(
+				rule.Columns[index].RequiredWhen,
+				func(field string) map[string]string { return mappingByField[field] },
+			)
 		}
 		ruleMap[sourceName] = rule
 	}
@@ -169,20 +193,26 @@ func (importer *Importer) importWithRule(rule *Rule, filePath string) (Result, e
 	// 数据行 + value_mapping 归一（R3/R4）
 	dataRows := sheet.DataRows(rule.DataStartRow)
 	records := make([]store.Row, 0, len(dataRows))
+	// rawCells 保留单元格的**原始写法**：accepted_values 校验的是输入写法，
+	// 而归一化之后的值已经看不出用户到底填了什么。
+	rawCells := make([]map[string]string, 0, len(dataRows))
 	for _, values := range dataRows {
 		record := store.Row{}
+		raw := make(map[string]string, len(rule.Columns))
 		for _, column := range rule.Columns {
 			index, present := columnIndexes[column.DBField]
 			cell := ""
 			if present && index-1 < len(values) {
 				cell = values[index-1]
 			}
+			raw[column.DBField] = cell
 			record[column.DBField] = mappedValue(cell, column.ValueMapping)
 		}
 		records = append(records, record)
+		rawCells = append(rawCells, raw)
 	}
-	// 校验（表头 → 必填 → 条件必填）
-	if err := importer.validate(rule, columnIndexes, records); err != nil {
+	// 校验（表头 → 必填 → 条件必填 → 取值白名单）
+	if err := importer.validate(rule, columnIndexes, records, rawCells); err != nil {
 		return Result{}, err
 	}
 	// 写暂存表
@@ -203,10 +233,13 @@ func (importer *Importer) importWithRule(rule *Rule, filePath string) (Result, e
 }
 
 // validate 复刻 validate_excel_data：先表头，再单元格。
+//
+// rawCells 与 records 一一对应：前者是 Excel 里的原始写法，后者是归一化之后的值。
 func (importer *Importer) validate(
 	rule *Rule,
 	columnIndexes map[string]int,
 	records []store.Row,
+	rawCells []map[string]string,
 ) error {
 	missingRequired := []Column{}
 	for _, column := range rule.Columns {
@@ -239,7 +272,58 @@ func (importer *Importer) validate(
 	if violations := conditionalViolations(rule, records); len(violations) > 0 {
 		return NewMissingConditionalValuesError(rule.ChineseName, violations)
 	}
+	if violations := acceptedValueViolations(rule, rawCells); len(violations) > 0 {
+		return NewInvalidValuesError(rule.ChineseName, violations)
+	}
 	return nil
+}
+
+// acceptedValueViolations 找「列声明了 accepted_values、单元格却填了别的写法」的格子。
+//
+// 与必填校验的分工：空单元格一律归必填 / 条件必填管，这里只看非空的写法对不对，
+// 所以它排在最后一道 —— 用户先补空值，补完再看写法是否合法。
+// 比较时忽略首尾空白与英文大小写（"YES" 与 "Yes" 等价，"是" 与 " 是 " 等价）。
+func acceptedValueViolations(rule *Rule, rawCells []map[string]string) []ValueViolation {
+	restricted := []Column{}
+	for _, column := range rule.Columns {
+		if len(column.AcceptedValues) > 0 {
+			restricted = append(restricted, column)
+		}
+	}
+	if len(restricted) == 0 {
+		return nil
+	}
+	violations := []ValueViolation{}
+	for position, raw := range rawCells {
+		rowNumber := rule.DataStartRow + position
+		for _, column := range restricted {
+			cell := strings.TrimSpace(raw[column.DBField])
+			if cell == "" {
+				continue
+			}
+			if matchesAcceptedValue(cell, column.AcceptedValues) {
+				continue
+			}
+			violations = append(violations, ValueViolation{
+				RowNumber:      rowNumber,
+				ChineseName:    column.ChineseName,
+				DBField:        column.DBField,
+				Value:          cell,
+				AcceptedValues: column.AcceptedValues,
+			})
+		}
+	}
+	return violations
+}
+
+// matchesAcceptedValue 判断一个原始写法是否在白名单里（忽略首尾空白与大小写）。
+func matchesAcceptedValue(cell string, accepted []string) bool {
+	for _, candidate := range accepted {
+		if strings.EqualFold(strings.TrimSpace(candidate), cell) {
+			return true
+		}
+	}
+	return false
 }
 
 // requiredViolations 找 mandatory_status: required 列上的空单元格（R2/R5/R16 的空值口径）。
@@ -422,6 +506,24 @@ func intOf(value any, fallback int) int {
 		return fallback
 	}
 	return number
+}
+
+// stringListOf 取配置里的字符串列表（非字符串项忽略），空值返回 nil。
+func stringListOf(value any) []string {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	values := make([]string, 0, len(items))
+	for _, item := range items {
+		if text, ok := item.(string); ok {
+			values = append(values, text)
+		}
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	return values
 }
 
 func stringMapOf(value any) map[string]string {

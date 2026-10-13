@@ -599,3 +599,76 @@ func anyTrue(values []bool) bool {
 	}
 	return false
 }
+
+// NormalizeConditionValues 把条件里的**期望值**按被引用列自己的 value_mapping 归一化。
+//
+// 为什么需要：程序比较的是归一化之后的值（导入时 value_mapping 已经把 是/否/Y/N 变成
+// Yes/No），所以配置里写 "value": "是" 永远匹配不上。这个函数让条件可以按
+// 「人怎么填」来写（是 / 否 / Y …），由程序换算成归一化后的值再比。
+//
+// mappingOf 返回某个 db_field 的 value_mapping（没有就返回空 map）。
+// 条件里的值支持三种形态：字符串、字符串列表（in / not_in），其他类型原样返回。
+// 忽略首尾空白与大小写：配置里写 YES 也能命中映射里的 Yes 键。
+func NormalizeConditionValues(
+	condition any,
+	mappingOf func(column string) map[string]string,
+) any {
+	if mappingOf == nil {
+		return condition
+	}
+	switch typed := condition.(type) {
+	case []any:
+		members := make([]any, 0, len(typed))
+		for _, member := range typed {
+			members = append(members, NormalizeConditionValues(member, mappingOf))
+		}
+		return members
+	case map[string]any:
+		normalized := make(map[string]any, len(typed))
+		for key, value := range typed {
+			normalized[key] = value
+		}
+		for _, groupKey := range GroupKeys {
+			if members, present := typed[groupKey]; present {
+				normalized[groupKey] = NormalizeConditionValues(members, mappingOf)
+				return normalized
+			}
+		}
+		columnName, _ := typed["column"].(string)
+		mapping := mappingOf(columnName)
+		if len(mapping) == 0 {
+			return condition
+		}
+		if value, present := typed["value"]; present {
+			normalized["value"] = normalizeExpectedValue(value, mapping)
+		}
+		return normalized
+	default:
+		return condition
+	}
+}
+
+// normalizeExpectedValue 把单个期望值（或列表）换成它归一化之后的写法。
+func normalizeExpectedValue(value any, mapping map[string]string) any {
+	switch typed := value.(type) {
+	case string:
+		if target, present := mapping[typed]; present {
+			return target
+		}
+		trimmed := strings.TrimSpace(typed)
+		for key, target := range mapping {
+			if strings.EqualFold(strings.TrimSpace(key), trimmed) {
+				return target
+			}
+		}
+		return typed
+	case []any:
+		values := make([]any, 0, len(typed))
+		for _, item := range typed {
+			values = append(values, normalizeExpectedValue(item, mapping))
+		}
+		return values
+	default:
+		return value
+	}
+}

@@ -199,6 +199,17 @@ type Service struct {
 	Repository *store.Repository
 	// Log 用于变更比较；为 nil 时按「没有任何历史记录」处理。
 	Log *store.OperationLog
+	// Now 返回本次整合的"当前时间"（运行日）。为 nil 时用 time.Now()；
+	// 测试注入固定时间，日期列（transform.type: date_offset）与 golden 基线才可预期。
+	Now func() time.Time
+}
+
+// now 取运行日：没注入就用真实时间。
+func (service *Service) now() time.Time {
+	if service.Now != nil {
+		return service.Now()
+	}
+	return time.Now()
 }
 
 // Consolidate 跑完整流程并写 consolidation_staging（每次整体重写）。
@@ -544,6 +555,11 @@ func (service *Service) mapResultRow(
 			row[columnName] = ""
 			continue
 		}
+		if transformType == config.DateOffsetTransform && len(sourceDefinition) == 0 {
+			// 按运行日算的日期列（例如 DI Record Publish Date = 今天 + 1 天）
+			row[columnName] = service.dateOffsetValue(transform)
+			continue
+		}
 		mandatoryStatus := textOf(definition["mandatory_status"])
 		switch {
 		case mandatoryStatus == "user_defined":
@@ -597,6 +613,15 @@ func (service *Service) mapResultRow(
 }
 
 // noMatchValue 是"值拿不到"时写进单元格的占位文本（no_match.value，默认 MISSING）。
+// dateOffsetValue 按运行日算出一个日期列的取值。
+//
+// 目前只支持 base: today 与 format: YYYY-MM-DD（配置校验会拦住别的写法），
+// 所以这里只做一件事：运行日 + offset_days 天，按 2006-01-02 落盘。
+func (service *Service) dateOffsetValue(transform map[string]any) string {
+	offsetDays := intOf(transform["offset_days"])
+	return service.now().AddDate(0, 0, offsetDays).Format("2006-01-02")
+}
+
 func (service *Service) noMatchValue() string {
 	for _, sourceName := range service.Config.SourceOrder {
 		noMatch, _ := service.Config.SourceRules[sourceName]["no_match"].(map[string]any)
@@ -611,7 +636,9 @@ func (service *Service) noMatchValue() string {
 func isDerivedTransform(definition map[string]any) bool {
 	transform, _ := definition["transform"].(map[string]any)
 	transformType := textOf(transform["type"])
-	return transformType == config.ChangeDescriptionTransform || transformType == config.RecordActionTransform
+	return transformType == config.ChangeDescriptionTransform ||
+		transformType == config.RecordActionTransform ||
+		transformType == config.DateOffsetTransform
 }
 
 // flagMissingDerivedValues 在变更比较填好派生列之后收尾：

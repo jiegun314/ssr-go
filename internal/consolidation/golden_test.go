@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jiegun314/ssr-go/internal/config"
 	"github.com/jiegun314/ssr-go/internal/importer"
@@ -87,6 +88,19 @@ func fieldNamesWithLogColumns(t *testing.T, loader *config.Loader) []string {
 
 // TestConsolidationMatchesThePythonBaseline 是整合阶段的 golden diff（数据口径①）。
 //
+// 注意（第四处差异）：`DI Record Publish Date` 也是这次新加的导出列 —— 模板里本来就有
+// （紧跟 `Unified Social Credit Code`），配置里一直没映射。它按**运行日**算（今天 + 1 天，
+// YYYY-MM-DD），所以测试把运行日冻结在 2026-10-13，基线里就是 2026-10-14。
+//
+// 注意（第三处差异）：`Sterilization Method Description` 是这次新加的导出列 ——
+// 模板里本来就有这一列（紧跟 `Needs Sterilization Before Use?`），但配置里一直没有映射，
+// 导出时它始终是空的。现在它取自 ra_input.sterilization_method，并按来源列的条件必填
+// （使用前需要灭菌 = 是）判定是否算缺失。
+//
+// 注意（第二处有意偏离）：`Catalog or Reference Number` 一列现在取自**基准来源**
+// ra_input.material_code（原来是 global_udi_input.material_code）。基准来源必定有值，
+// 所以某一行在来源表没有匹配记录时不再退化成 "MISSING" —— 基线里那一格仍是 "MISSING"。
+//
 // 注意：`Choose Action` 一列**有意偏离** Python 基线 —— 修正后的数据要求是
 // 「只能是 Add 或 Modify，不可能为空」，由 (Catalog or Reference Number, Primary DI)
 // 是否已在操作日志里判定（见 consolidation_mapping.yaml 的 record_action）。
@@ -104,6 +118,9 @@ func TestConsolidationMatchesThePythonBaseline(t *testing.T) {
 		}
 	}
 	service := newService(t, loader, repository)
+	// 冻结"运行日"：DI Record Publish Date 是按运行日算的（今天 + 1 天），
+	// 不冻结的话基线每天都不一样。
+	service.Now = func() time.Time { return time.Date(2026, 10, 13, 9, 0, 0, 0, time.Local) }
 
 	outcome, err := service.Consolidate()
 	if err != nil {

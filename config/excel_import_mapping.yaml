@@ -92,7 +92,7 @@ sources:
 
       - chinese_name: "原注册证编号"
         db_field: "original_registration_filing_certificate_number"
-        mandatory_status: "required"
+        mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
 
       - chinese_name: "产品名称/通用名称"
@@ -151,11 +151,18 @@ sources:
         db_field: "if_requires_sterilization_before_use"
         mandatory_status: "required"
         value_mapping: *yes_no_mixed
+        accepted_values: ["是", "否"]
         # 只给样本工厂（gensample）用，导入/整合都不读
 
       - chinese_name: "灭菌方式"
         db_field: "sterilization_method"
-        mandatory_status: "optional"
+        # 条件必填列的强制口径：状态必须是 required_if_applicable（条件由 required_when 给出）
+        mandatory_status: "required_if_applicable"
+        # 条件必填：使用前需要进行灭菌（是）时，这一格必须有内容。
+        # 这里的 "是" 会按 if_requires_sterilization_before_use 的 value_mapping
+        # 归一化成 Yes 之后再比较 —— 所以可以按"人怎么填"来写。
+        required_when:
+          - { "column": "if_requires_sterilization_before_use", "operator": "equals", "value": "是", "value_type": "text" }
         # 只给样本工厂（gensample）用，导入/整合都不读
 
       - chinese_name: "器械目录分类编码"
@@ -241,7 +248,7 @@ sources:
 
       - chinese_name: "事业部"
         db_field: "franchise"
-        mandatory_status: "required"
+        mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
 
       - chinese_name: "业务单元"
@@ -261,7 +268,7 @@ sources:
 
       - chinese_name: "中国市场是否拆包卖"
         db_field: "if_sold_as_individual_units"
-        mandatory_status: "required"
+        mandatory_status: "optional"
         value_mapping: *shared_4
         # 只给样本工厂（gensample）用，导入/整合都不读
 
@@ -300,7 +307,7 @@ sources:
 
       - chinese_name: "是否与注册/备案产品标识一致"
         db_field: "if_consistent_with_registration_di"
-        mandatory_status: "required"
+        mandatory_status: "optional"
         value_mapping: *shared_4
         # 只给样本工厂（gensample）用，导入/整合都不读
 
@@ -328,7 +335,7 @@ sources:
 
       - chinese_name: "产品名称/通用名称"
         db_field: "device_generic_name"
-        mandatory_status: "required"
+        mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
 
       - chinese_name: "商品名称"
@@ -349,7 +356,7 @@ sources:
 
       - chinese_name: "产品描述"
         db_field: "product_description"
-        mandatory_status: "required"
+        mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
 
       - chinese_name: "产品货号或编号"
@@ -359,7 +366,7 @@ sources:
 
       - chinese_name: "器械类别"
         db_field: "device_category"
-        mandatory_status: "required"
+        mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
 
       - chinese_name: "器械目录分类编码"

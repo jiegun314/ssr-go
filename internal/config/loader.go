@@ -44,7 +44,11 @@ const (
 var LogOperationColumns = []string{"operation", "details"}
 
 // TransformTypes 是字段循环认识的 transform 类型。
-var TransformTypes = []string{"direct", "first_not_null", "concatenate"}
+var TransformTypes = []string{"direct", "first_not_null", "concatenate", DateOffsetTransform}
+
+// DateOffsetTransform 是按**运行日**算出来的日期列（例如 DI Record Publish Date = 今天 + 1 天）。
+// 它不读来源表，值只取决于整合/导出运行的那一天。
+const DateOffsetTransform = "date_offset"
 
 // ChangeDescriptionTransform 是由变更比较派生出来的列（不是从来源表读的）。
 const ChangeDescriptionTransform = "change_description"

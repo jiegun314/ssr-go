@@ -46,6 +46,9 @@
   所以 `internal/sample` 无需改动。老配置（把元数据内联在列里、或没有这个文件）照常可用。
 - **升级不覆盖用户配置**：正式名文件缺失时，从 `config/defaults/*.yaml` 生成一份；发布包解压时**从不覆盖**已存在的
   `config/*.yaml`、`config/.backup/`、`data/` 下的数据库。
+- **改配置参数要同时改两处**：仓库里的默认文件 `config/*.yaml`，以及本地运行包 `release/SingleSourceReady/config/`
+  里**正在使用**的那份同名文件（发布脚本按设计不会覆盖它）。两边不一致时程序读的是正在使用的那份 ——
+  只改默认文件等于没生效。同步走「参数设定」的安全通道或 `SaveConfigurationFile`（自动留 `.bak` 并整体校验）。
 - `config/log_columns.yaml` 是**生成物**：头部注释与内容由 `cmd/ssr-core/tools.go` 的 `logColumnsComment` /
   `RenderLogColumns` 产出，两者必须逐字节一致 —— CI 用 `genlogcolumns --check` 把关。
 - **`mandatory_status` 词表**：来源列与导出列都用 `optional` / `required` / `required_if_applicable`
@@ -54,6 +57,19 @@
 - 四份配置的**分节横幅与"顺序即语义"注释**是刻意保留的阅读辅助：导入映射按来源分节，
   整合映射按模板 `category` 分节；列顺序 = 暂存表列顺序，导出列顺序 = 模板表头顺序
   （并决定 `Change Description` 里差异项的罗列顺序）。改配置时不要顺手重排。
+- **取值白名单 `accepted_values`**（写在来源列上）：这一列的单元格**只接受**列出的原始写法，
+  否则整份文件被拒（校验的是 Excel 里的写法，不是 `value_mapping` 归一化之后的值 ——
+  两者分工不同：白名单管"输入允许哪些写法"，映射管"入库/导出用什么写法"）。
+  空单元格归必填 / 条件必填管。样本工厂会**优先**用白名单第一项生成样本（样本必须能导入）。
+- **条件必填 `required_when`**：列的状态必须写 `required_if_applicable`（否则配置校验不过），
+  条件写在 `required_when` 里（列表 = AND；也支持 `all` / `any` 分组）。
+  条件里的期望值会按**被引用列自己的 `value_mapping` 自动归一化**，所以可以按"人怎么填"写
+  （`value: "是"` 等价于归一化后的 `Yes`）。导入侧先拦（`conditionalViolations`），
+  导出侧的 `required_if_applicable` 再按同一条件判定缺失（`isRequiredForRow`）。
+- **运行日日期列 `transform.type: date_offset`**：不读来源表，值 = 运行日（本地当天）+ `offset_days`，
+  格式固定 `YYYY-MM-DD`（`base` 只允许 `today`）。它**必须**写进变更比较的 `ignore_fields` ——
+  日期每天都变，漏写会让每次整合都把全部行判成"有差异"；配置校验会直接拦住这种情况
+  （`internal/config/date_offset_test.go`）。测试要冻结运行日：`Service.Now = func() time.Time {…}`。
 - 两列是**运行期派生**的（由变更比较填值，不读来源表）：`Choose Action`（`transform.type: record_action`，
   只能是 Add 或 Modify）与 `Change Description`（`change_description`）。判定键与重复检查共用
   `duplicate_check.identity_fields`，不允许另写一份；比较顺序 = 导出列的**配置声明顺序**。

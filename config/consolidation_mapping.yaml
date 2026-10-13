@@ -198,6 +198,18 @@ target_dataset:
     #     on_other_change:
     #       mode: "source"
     #       missing_action: "error"
+    # ── Health Authority Specific DI Record Publish Date ──
+    DI Record Publish Date:
+      category: "Health Authority Specific DI Record Publish Date"
+      mandatory_status: "required"
+      # 不读来源表：按**运行日**算（今天 + 1 天），格式固定 YYYY-MM-DD。
+      source: {}
+      transform:
+        type: "date_offset"
+        base: "today"
+        offset_days: 1
+        format: "YYYY-MM-DD"
+
     # ── Health Authority Specific Change Description ──
     Change Description:
       category: "Health Authority Specific Change Description"
@@ -217,6 +229,8 @@ target_dataset:
         # Columns that never describe a change of the product data.
         ignore_fields:
           - "Choose Action"
+          # 运行日算出来的日期列每天都变：不忽略的话每次整合都会报"有差异"
+          - "DI Record Publish Date"
         # Text of a row without a stored record, of a row that matches a stored
         # record without any difference, and of a row with differences.
         on_new_record: ""
@@ -349,7 +363,7 @@ target_dataset:
       category: "CATALOG /REF NO"
       mandatory_status: "required"
       source:
-        file: global_udi_input
+        file: ra_input
         field: material_code
       transform:
         type: direct
@@ -408,6 +422,16 @@ target_dataset:
       source:
         file: ra_input
         field: if_requires_sterilization_before_use
+      transform:
+        type: direct
+
+    Sterilization Method Description:
+      category: "STERILIZATION"
+      # 与来源列的条件必填一致：来源填"是"却空着灭菌方式时，这一列算缺失。
+      mandatory_status: "required_if_applicable"
+      source:
+        file: ra_input
+        field: sterilization_method
       transform:
         type: direct
 

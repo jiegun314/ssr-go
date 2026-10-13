@@ -218,7 +218,7 @@ func TestRequiredValueViolationsAreReportedPerCell(t *testing.T) {
 		func(file *excelize.File, sheet string, _ int, indexes map[string]int) {
 			setCell(t, file, sheet, indexes, rule.DataStartRow, "产品代码", "")
 			setCell(t, file, sheet, indexes, rule.DataStartRow+1, "产品代码", "")
-			setCell(t, file, sheet, indexes, rule.DataStartRow+1, "事业部", "")
+			setCell(t, file, sheet, indexes, rule.DataStartRow+1, "发码机构编码名称", "")
 		})
 
 	_, err := importer.Import("global_udi_input", path)
@@ -238,11 +238,11 @@ func TestRequiredValueViolationsAreReportedPerCell(t *testing.T) {
 	if strings.Join(intsToText(missing.FailedRows()), ",") != "4,5" {
 		t.Fatalf("失败行号 = %v", missing.FailedRows())
 	}
-	// 只给「错误类型 + 该类型的行数」：产品代码在第 4、5 行都空 → 2 行；事业部只在第 5 行空 → 1 行
+	// 只给「错误类型 + 该类型的行数」：产品代码在第 4、5 行都空 → 2 行；发码机构编码名称只在第 5 行空 → 1 行
 	message := err.Error()
 	for _, wanted := range []string{
 		"- 产品代码（material_code）为空：2 行",
-		"- 事业部（franchise）为空：1 行",
+		"- 发码机构编码名称（udi_issuing_agency_name）为空：1 行",
 	} {
 		if !strings.Contains(message, wanted) {
 			t.Fatalf("类型汇总缺少 %q：%s", wanted, message)

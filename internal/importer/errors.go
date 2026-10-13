@@ -172,3 +172,103 @@ func (errorValue *MissingRowValuesError) countLine() string {
 	return fmt.Sprintf("有 %s 行数据导入失败（%s 个单元格为空）。",
 		numfmt.Format(len(errorValue.FailedRows())), numfmt.Format(len(errorValue.Violations)))
 }
+
+// ValueViolation 是一个「取值不在白名单里」的违规：哪一行、哪一列、填了什么、允许什么。
+type ValueViolation struct {
+	RowNumber      int
+	ChineseName    string
+	DBField        string
+	Value          string
+	AcceptedValues []string
+}
+
+// InvalidCellValuesError 是「单元格取值不合法」的拒绝：弹窗只给汇总，明细进日志。
+//
+// 与 MissingRowValuesError 同构（同一套「错误类型 + 行数」口径），区别只在违规的
+// 性质是"填了不允许的写法"而不是"没填"。
+type InvalidCellValuesError struct {
+	SourceChineseName string
+	Violations        []ValueViolation
+	Heading           string
+	Hint              string
+}
+
+// NewInvalidValuesError：列声明了 accepted_values，单元格却填了别的写法。
+func NewInvalidValuesError(sourceChineseName string, violations []ValueViolation) *InvalidCellValuesError {
+	return &InvalidCellValuesError{
+		SourceChineseName: sourceChineseName,
+		Violations:        violations,
+		Heading:           "导入文件存在取值不合法的单元格",
+		Hint:              "请按下方列出的允许写法修改这些单元格后重新导入，本次文件未被读取。",
+	}
+}
+
+func (errorValue *InvalidCellValuesError) Error() string {
+	lines := []string{errorValue.countLine()}
+	for _, count := range errorValue.TypeCounts() {
+		lines = append(lines, fmt.Sprintf("- %s：%s 行", count.Description, numfmt.Format(count.Rows)))
+	}
+	lines = append(lines, errorValue.Hint)
+	return fmt.Sprintf("%s：%s：\n%s",
+		errorValue.SourceChineseName,
+		errorValue.Heading,
+		strings.Join(lines, "\n"),
+	)
+}
+
+// TypeCounts 按「列」归类：同一列的行数合在一起，行数多的排前面。
+// 类型说明里带上该列允许的写法（配置固定，不会随行数膨胀）。
+func (errorValue *InvalidCellValuesError) TypeCounts() []TypeCount {
+	type bucket struct {
+		description string
+		rows        map[int]bool
+	}
+	order := make([]string, 0, len(errorValue.Violations))
+	buckets := make(map[string]*bucket, len(errorValue.Violations))
+	for _, violation := range errorValue.Violations {
+		current, ok := buckets[violation.DBField]
+		if !ok {
+			current = &bucket{
+				description: fmt.Sprintf("%s（%s）取值不合法，只接受：%s",
+					violation.ChineseName, violation.DBField,
+					strings.Join(violation.AcceptedValues, " / ")),
+				rows: map[int]bool{},
+			}
+			buckets[violation.DBField] = current
+			order = append(order, violation.DBField)
+		}
+		current.rows[violation.RowNumber] = true
+	}
+	counts := make([]TypeCount, 0, len(order))
+	for _, key := range order {
+		current := buckets[key]
+		counts = append(counts, TypeCount{Description: current.description, Rows: len(current.rows)})
+	}
+	sort.SliceStable(counts, func(i, j int) bool { return counts[i].Rows > counts[j].Rows })
+	return counts
+}
+
+// FailedRows 是至少有一个非法取值的数据行号，按文件顺序去重。
+func (errorValue *InvalidCellValuesError) FailedRows() []int {
+	seen := map[int]bool{}
+	rows := []int{}
+	for _, violation := range errorValue.Violations {
+		if seen[violation.RowNumber] {
+			continue
+		}
+		seen[violation.RowNumber] = true
+		rows = append(rows, violation.RowNumber)
+	}
+	sort.Ints(rows)
+	return rows
+}
+
+// Summary 是弹窗里的那一行：只说有几行失败、几个单元格取值不合法。
+func (errorValue *InvalidCellValuesError) Summary() string {
+	return errorValue.SourceChineseName + "：" + errorValue.countLine()
+}
+
+func (errorValue *InvalidCellValuesError) countLine() string {
+	return fmt.Sprintf("有 %s 行数据导入失败（%s 个单元格取值不合法）。",
+		numfmt.Format(len(errorValue.FailedRows())), numfmt.Format(len(errorValue.Violations)))
+}
