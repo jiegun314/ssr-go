@@ -173,6 +173,22 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
 - 设计口径已收敛成 **design token 单一来源**（`frontend/src/design-tokens.ts` ↔ `styles.css` 的
   `:root` 变量，一致性由 `frontend/src/__tests__/designTokens.test.ts` 校验）；
   Go 契约只断言"规则里用了哪个变量"，不再断言颜色字面量。
+- **冲突的单元格级标识（待实现，五步，每步都要验证）**：现在只有行级 `Conflict` 与
+  `Outcome.ConflictData`（来源 + 键 + 文字说明），需要补"哪些**导出列**冲突、各是什么候选值"并落到单元格上。
+  1. `groupOneToMany` / `groupManyToOne` 额外产出 `source → key → map[导出列名]候选值集合`
+     （来源的 `db_field` 经 `Config.Fields[col].source.{file,field}` 反查导出列名）；
+     验证：`go test -count=1 ./internal/consolidation/`。
+  2. `mapResultRow` 调一个新的 `conflictNotes(...)`，得到本行 `map[导出列名]提示文本`
+     （简版口径：`来源 + 键 + 候选值前 3 条`）；验证：新增 Go 测试断言提示落在预期列上。
+  3. `Outcome` 增加 `ConflictNotes [][]string`（与 `Rows` 同形同序，列顺序 = `Config.FieldNames`，
+     空串 = 该格不冲突；`Rows`/`Statuses`/`Counts` 语义不变）；
+     验证：`go test -count=1 ./...` 且 golden 基线不变（现有场景 Conflict = 0）。
+  4. `app_methods.go` 的整合返回值带上该矩阵，并**重新生成** Wails 模型（`frontend/wailsjs/go/models.ts`）；
+     验证：`npm run build --prefix frontend`（= `tsc --noEmit` + vite）。
+  5. 前端 `ConsolidationPanel` 增加 `conflicts?: string[][]`，冲突单元格渲染
+     `<span className="cell-conflict" title="…">`（与现有 `cell-MISSING` 同构）；`styles.css` 加 `.cell-conflict`；
+     `layout_result_table_test.go` 加样式契约；
+     验证：前端行为测试（标记 + `title` 文案）+ `make check` 退出码 0。
 - 前端类型的来源：`frontend/src/types.ts` 从生成的 `frontend/wailsjs/go/models.ts` **派生**
   （`Data<>` 剥掉生成类上的 `convertValues`，需要收窄的用 `Omit` + 交叉类型补联合类型），
   只有 Go 侧没有的 `AboutInfo` 与纯前端的 `SourceDefinition` 手写。
