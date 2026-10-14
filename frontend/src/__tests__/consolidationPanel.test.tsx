@@ -109,6 +109,61 @@ describe("数据整合结果表", () => {
   });
 });
 
+// 冲突单元格的标记（AGENTS.md §11 第 5 步）：只有带提示的格套 .cell-conflict，
+// 提示文案原样进 title；没有提示的格保持原样（MISSING 仍然只套 .cell-MISSING）。
+const CONFLICT_NOTE = "UDI团队信息：000MAT-001+DI-001 有多个候选值：10, 999";
+
+describe("数据整合结果表的冲突单元格", () => {
+  const renderWithConflicts = () =>
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={["status", ...COLUMNS]}
+          rows={[
+            ["Conflict", "DI-001", "超声探头", "12345"],
+            ["Incomplete", "DI-002", "MISSING", ""],
+          ]}
+          statuses={["Conflict", "Incomplete"]}
+          counts={{ Ready: 0, Incomplete: 1, Duplicate: 0, Conflict: 1 }}
+          conflicts={[
+            ["", "", CONFLICT_NOTE, ""],
+            ["", "", "", ""],
+          ]}
+        />
+      </AntApp>,
+    );
+
+  it("只标记有提示的格", () => {
+    renderWithConflicts();
+
+    const marked = document.querySelectorAll(".cell-conflict");
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveTextContent("超声探头");
+  });
+
+  it("鼠标停上去立刻出提示（不用停在文字上等系统延迟）", async () => {
+    const user = userEvent.setup();
+    renderWithConflicts();
+
+    await user.hover(document.querySelector(".cell-conflict") as HTMLElement);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(CONFLICT_NOTE);
+  });
+
+  it("没有提示的格保持原样：MISSING 只套 cell-MISSING", () => {
+    renderWithConflicts();
+
+    const missing = document.querySelectorAll(".cell-MISSING");
+    expect(missing).toHaveLength(1);
+    expect(missing[0]).toHaveTextContent("MISSING");
+    expect(missing[0]).not.toHaveClass("cell-conflict");
+  });
+
+  it("不传 conflicts（老调用方）时照常渲染，一个冲突标记都没有", () => {
+    renderPanel();
+    expect(document.querySelectorAll(".cell-conflict")).toHaveLength(0);
+  });
+});
+
 // 大批量行的分页行为：数据量大时表格卡顿的根因是"一次渲染全部行"，
 // 所以这里固定：默认 100 行/页、可切 50/100/200/500、翻页只换当前页的行。
 const BIG_ROWS = Array.from({ length: 250 }, (_, index) => [

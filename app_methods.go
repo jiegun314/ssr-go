@@ -209,6 +209,9 @@ type ConsolidateResult struct {
 	Columns  []string   `json:"columns"`
 	Rows     [][]string `json:"rows"`
 	Statuses []string   `json:"statuses"`
+	// Conflicts 是单元格级的冲突提示（AGENTS.md §11）：与 Rows 同形同序
+	// （同一行、同一列下标 = Columns），空串 = 该格不冲突。
+	Conflicts [][]string `json:"conflicts"`
 }
 
 // Consolidate 跑整合并回传结果表（§5.4）。
@@ -260,15 +263,21 @@ func (app *App) Consolidate() ConsolidateResult {
 	columns := append([]string{"status"}, app.service.Config.FieldNames...)
 	rows := make([][]string, 0, len(outcome.Rows))
 	statuses := make([]string, 0, len(outcome.Rows))
-	for _, row := range outcome.Rows {
+	conflicts := make([][]string, 0, len(outcome.Rows))
+	for index, row := range outcome.Rows {
 		values := make([]string, 0, len(columns))
 		for _, column := range columns {
 			values = append(values, row.Values[column])
 		}
 		rows = append(rows, values)
 		statuses = append(statuses, row.Values["status"])
+		// 提示矩阵与 Rows 同形同序（同一行、同一列下标）：首列 status 没有提示，补一个空串
+		conflicts = append(conflicts, append([]string{""}, outcome.ConflictNotes[index]...))
 	}
-	return ConsolidateResult{Log: app.logText(), Columns: columns, Rows: rows, Statuses: statuses}
+	return ConsolidateResult{
+		Log: app.logText(), Columns: columns, Rows: rows,
+		Statuses: statuses, Conflicts: conflicts,
+	}
 }
 
 // ExportResult 是一次导出回给界面的结果。

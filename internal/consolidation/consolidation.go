@@ -190,6 +190,9 @@ type Outcome struct {
 	ChangeDescriptionWarnings []string
 	ChangedData               []string
 	ConflictData              []string
+	// ConflictNotes 是冲突的**单元格级**提示：与 Rows 同形同序（同一行、同一列索引），
+	// 列顺序 = Config.FieldNames，空串 = 该格不冲突。行级冲突仍看 ConflictData。
+	ConflictNotes [][]string
 }
 
 // Service 执行一次整合。
@@ -290,17 +293,58 @@ func (group *orderedGroup) set(key string, row store.Row) {
 	group.Rows[key] = row
 }
 
+// conflictCandidates 是「来源键 → 导出列名 → 候选值集合」（AGENTS.md §11 第 1 步）：
+// 键与 sourceConflicts.Details 的键一致（one_to_many 是 match+expand_by，many_to_one 是 match），
+// 值是这一格在各条冲突记录里出现过的原始字段值 —— 去掉首尾空白、去重、按字典序，
+// 下一步取「候选值前 3 条」时顺序才稳定。
+//
+// 只有**真正冲突的单元格**才在集合里：值只有一个的字段不是冲突，不进候选值，
+// 反查不到导出列的字段（例如只做匹配键、没有导出列的来源字段）也没有可标记的格。
+type conflictCandidates map[string]map[string][]string
+
+// sourceConflicts 是一个来源在收口（R14）时发现的两层冲突信息：
+//
+//	Details    —— 键 → 行级冲突文案（Outcome.ConflictData 用它，文案与判定口径都没变）；
+//	Candidates —— 键 → 导出列名 → 候选值集合（单元格级标识，供 mapResultRow 标记具体列）。
+type sourceConflicts struct {
+	Details    map[string]string
+	Candidates conflictCandidates
+}
+
+// conflictScope 定位"当前结果行"在冲突结构里的位置：基准键（例如 material_code）
+// 加上拆行来源与它的拆行键 —— one_to_many 的冲突键比基准键多一段，其余来源只按基准键。
+// 行级文案与单元格级候选值都从这里取键，避免两处各写一份键的拼法。
+type conflictScope struct {
+	Conflicts       map[string]sourceConflicts
+	BaseKey         string
+	ExpansionSource string
+	ExpansionKey    string
+	ExpansionRow    store.Row
+}
+
+// keyFor 返回某个来源在这次结果行上的冲突键。拆行来源这一行没有对应记录
+// （no_match 的占位行）时返回 false：它没有冲突，也没有可标记的格。
+func (scope conflictScope) keyFor(sourceName string) (string, bool) {
+	if sourceName == scope.ExpansionSource {
+		if scope.ExpansionRow == nil {
+			return "", false
+		}
+		return scope.BaseKey + "\x00" + scope.ExpansionKey, true
+	}
+	return scope.BaseKey, true
+}
+
 type sourceData struct {
 	keyed   map[string]*store.KeyedTable
 	grouped map[string]map[string]*orderedGroup
 }
 
-func (service *Service) readSourceData() (*sourceData, map[string]map[string]string, error) {
+func (service *Service) readSourceData() (*sourceData, map[string]sourceConflicts, error) {
 	data := &sourceData{
 		keyed:   map[string]*store.KeyedTable{},
 		grouped: map[string]map[string]*orderedGroup{},
 	}
-	conflicts := map[string]map[string]string{}
+	conflicts := map[string]sourceConflicts{}
 	for _, sourceName := range service.Config.SourceOrder {
 		rule := service.Config.SourceRules[sourceName]
 		tableName := service.Config.SourceTables[sourceName]
@@ -310,17 +354,17 @@ func (service *Service) readSourceData() (*sourceData, map[string]map[string]str
 			if err != nil {
 				return nil, nil, err
 			}
-			grouped, conflictDetails := service.groupOneToMany(sourceName, rows, rule)
+			grouped, details, candidates := service.groupOneToMany(sourceName, rows, rule)
 			data.grouped[sourceName] = grouped
-			conflicts[sourceName] = conflictDetails
+			conflicts[sourceName] = sourceConflicts{Details: details, Candidates: candidates}
 		case "many_to_one":
 			rows, err := service.Repository.Rows(tableName)
 			if err != nil {
 				return nil, nil, err
 			}
-			keyed, conflictDetails := service.groupManyToOne(sourceName, rows, rule)
+			keyed, details, candidates := service.groupManyToOne(sourceName, rows, rule)
 			data.keyed[sourceName] = keyed
-			conflicts[sourceName] = conflictDetails
+			conflicts[sourceName] = sourceConflicts{Details: details, Candidates: candidates}
 		default:
 			match, _ := rule["match"].(map[string]any)
 			indexField := ""
@@ -338,13 +382,18 @@ func (service *Service) readSourceData() (*sourceData, map[string]map[string]str
 }
 
 // groupOneToMany 按匹配值 + 拆行键收口：同键内容不同的行记为冲突（R14）。
+//
+// 除行级冲突文案外，还产出「键 → 导出列名 → 候选值集合」：内容不同的两行里，
+// 哪些**导出列**的值不一样就是冲突的格，候选值就是这些列出现过的值。
 func (service *Service) groupOneToMany(
 	sourceName string,
 	rows []store.Row,
 	rule map[string]any,
-) (map[string]*orderedGroup, map[string]string) {
+) (map[string]*orderedGroup, map[string]string, conflictCandidates) {
 	grouped := map[string]*orderedGroup{}
 	conflicts := map[string]string{}
+	// 键 → 字段 → 该键上出现过的值：收口结束后从这里挑出「值多于一个」的冲突格
+	valuesByKey := map[string]map[string]map[string]bool{}
 	matchField := firstOf(mapValues(rule["match"]))
 	expansionFields := stringsOf(rule["expand_by"])
 	duplicateRule, _ := rule["duplicates"].(map[string]any)
@@ -358,11 +407,13 @@ func (service *Service) groupOneToMany(
 			continue
 		}
 		expansionKey := strings.Join(expansionValues, "\x00")
+		key := matchValue + "\x00" + expansionKey
 		group, present := grouped[matchValue]
 		if !present {
 			group = newOrderedGroup()
 			grouped[matchValue] = group
 		}
+		collectRowValues(valuesByKey, key, row)
 		existing, seen := group.get(expansionKey)
 		if !seen {
 			group.set(expansionKey, row)
@@ -373,19 +424,23 @@ func (service *Service) groupOneToMany(
 			for _, field := range stringsOf(duplicateRule["compare_by"]) {
 				identity = append(identity, field+"="+normalizeKey(row[field]))
 			}
-			conflicts[matchValue+"\x00"+expansionKey] = service.sourceLabel(sourceName) +
+			conflicts[key] = service.sourceLabel(sourceName) +
 				"：" + strings.Join(identity, ", ") + " 存在内容不同的重复记录"
 		}
 	}
-	return grouped, conflicts
+	return grouped, conflicts, cellCandidates(
+		service.fieldsToExportColumns(sourceName), valuesByKey, conflicts)
 }
 
 // groupManyToOne 按匹配值收口：同一键出现多个不同值记为冲突（R14）。
+//
+// 除行级冲突文案外，还产出「键 → 导出列名 → 候选值集合」：冲突来自
+// duplicates.compare_by 的值组合，候选值就取自这些组合里各字段出现过的值。
 func (service *Service) groupManyToOne(
 	sourceName string,
 	rows []store.Row,
 	rule map[string]any,
-) (*store.KeyedTable, map[string]string) {
+) (*store.KeyedTable, map[string]string, conflictCandidates) {
 	keyed := &store.KeyedTable{Keys: []string{}, Rows: map[string]store.Row{}}
 	comparisonValues := map[string]map[string]bool{}
 	matchField := firstOf(mapValues(rule["match"]))
@@ -436,7 +491,130 @@ func (service *Service) groupManyToOne(
 		conflicts[matchValue] = service.sourceLabel(sourceName) + "：" + matchField +
 			"=" + matchValue + " 存在多个不同值：" + strings.Join(joined, ", ")
 	}
-	return keyed, conflicts
+	return keyed, conflicts, cellCandidates(
+		service.fieldsToExportColumns(sourceName),
+		tupleValues(comparisonValues, compareBy), conflicts)
+}
+
+// --- 冲突的单元格级标识（AGENTS.md §11 第 1 步）---
+
+// fieldsToExportColumns 反查一个来源的字段喂给了哪些导出列：遍历 Config.Fields 里的
+// source.{file,field}（列顺序按 Config.FieldNames，即导出列的声明顺序，结果稳定）。
+// 一个字段可能喂多列（例如同一字段出现在多个导出列里），concatenate 列的
+// source.field 是列表，列表里每个字段都指向这一列。
+func (service *Service) fieldsToExportColumns(sourceName string) map[string][]string {
+	index := map[string][]string{}
+	for _, columnName := range service.Config.FieldNames {
+		source, _ := service.Config.Fields[columnName]["source"].(map[string]any)
+		if textOf(source["file"]) != sourceName {
+			continue
+		}
+		for _, field := range stringsOf(source["field"]) {
+			if field == "" || contains(index[field], columnName) {
+				continue
+			}
+			index[field] = append(index[field], columnName)
+		}
+	}
+	return index
+}
+
+// collectRowValues 记下这一行在一个结果键上的全部字段值（按字段去重）。
+func collectRowValues(valuesByKey map[string]map[string]map[string]bool, key string, row store.Row) {
+	for field, value := range row {
+		addValue(valuesByKey, key, field, normalizeKey(value))
+	}
+}
+
+// tupleValues 把「键 → 比较用的值组合」摊回「键 → 字段 → 出现过的值」：
+// many_to_one 的冲突就是「同一键出现多个不同组合」，所以候选值只能来自这些组合本身
+// （全部字段为空的行不参与比较，自然也就不进候选值）。
+func tupleValues(
+	comparisonValues map[string]map[string]bool,
+	fields []string,
+) map[string]map[string]map[string]bool {
+	valuesByKey := map[string]map[string]map[string]bool{}
+	for matchValue, tuples := range comparisonValues {
+		for tuple := range tuples {
+			parts := strings.Split(tuple, "\x00")
+			for position, field := range fields {
+				if position >= len(parts) {
+					break
+				}
+				addValue(valuesByKey, matchValue, field, parts[position])
+			}
+		}
+	}
+	return valuesByKey
+}
+
+// addValue 往「键 → 字段 → 值集合」里记一个值（自动建层，集合天然去重）。
+func addValue(
+	valuesByKey map[string]map[string]map[string]bool,
+	key string,
+	field string,
+	value string,
+) {
+	fields := valuesByKey[key]
+	if fields == nil {
+		fields = map[string]map[string]bool{}
+		valuesByKey[key] = fields
+	}
+	values := fields[field]
+	if values == nil {
+		values = map[string]bool{}
+		fields[field] = values
+	}
+	values[value] = true
+}
+
+// cellCandidates 把「键 → 字段 → 出现过的值」收成「键 → 导出列名 → 候选值集合」：
+//   - 只有冲突键（conflicts 的键）才产出候选值，键与行级冲突文案一一对应；
+//   - 只有值多于一个的字段才算冲突的格，单值格不是冲突；
+//   - 字段经 index（来源字段 → 导出列名）换回导出列名，换不到的字段没有可标记的单元格；
+//   - 同一导出列由多个字段喂（concatenate）时，候选值是这些字段值的并集。
+func cellCandidates(
+	index map[string][]string,
+	valuesByKey map[string]map[string]map[string]bool,
+	conflicts map[string]string,
+) conflictCandidates {
+	candidates := conflictCandidates{}
+	for key := range conflicts {
+		columns := map[string][]string{}
+		for field, values := range valuesByKey[key] {
+			if len(values) < 2 {
+				continue
+			}
+			for _, columnName := range index[field] {
+				columns[columnName] = mergeValues(columns[columnName], sortedValues(values))
+			}
+		}
+		if len(columns) > 0 {
+			candidates[key] = columns
+		}
+	}
+	return candidates
+}
+
+// sortedValues 把值集合定序（去重由集合本身完成）。
+func sortedValues(values map[string]bool) []string {
+	sorted := make([]string, 0, len(values))
+	for value := range values {
+		sorted = append(sorted, value)
+	}
+	sort.Strings(sorted)
+	return sorted
+}
+
+// mergeValues 把两批候选值并成一个去重、升序的集合。
+func mergeValues(existing []string, added []string) []string {
+	merged := map[string]bool{}
+	for _, list := range [][]string{existing, added} {
+		for _, value := range list {
+			merged[value] = true
+		}
+	}
+	return sortedValues(merged)
 }
 
 // --- 整合与映射（R11/R13/R15/R16） ---
@@ -444,7 +622,7 @@ func (service *Service) groupManyToOne(
 // consolidateRows 以 RA 为基准逐条产出结果（R11：顺序由 RA 的记录顺序决定）。
 func (service *Service) consolidateRows(
 	data *sourceData,
-	conflicts map[string]map[string]string,
+	conflicts map[string]sourceConflicts,
 ) (Outcome, error) {
 	outcome := Outcome{
 		Rows:          []changedetect.Row{},
@@ -452,6 +630,7 @@ func (service *Service) consolidateRows(
 		DuplicateData: []string{},
 		ChangedData:   []string{},
 		ConflictData:  []string{},
+		ConflictNotes: [][]string{},
 	}
 	base := data.keyed[service.Config.BaseSource]
 	if base == nil {
@@ -501,8 +680,14 @@ func (service *Service) consolidateRows(
 			}
 			resultKey := strings.Join(identityParts, service.Config.IdentitySeparator)
 
-			conflictDetails := service.conflictDetails(
-				conflicts, baseKey, expansionSource, expansionKey, expansionRow)
+			scope := conflictScope{
+				Conflicts:       conflicts,
+				BaseKey:         baseKey,
+				ExpansionSource: expansionSource,
+				ExpansionKey:    expansionKey,
+				ExpansionRow:    expansionRow,
+			}
+			conflictDetails := service.conflictDetails(scope)
 			row := store.Row{"status": StatusReady, baseKeyField: baseKey}
 			if len(conflictDetails) > 0 {
 				row["status"] = StatusConflict
@@ -522,29 +707,36 @@ func (service *Service) consolidateRows(
 					selected[sourceName] = keyed.Rows[baseKey]
 				}
 			}
-			if err := service.mapResultRow(
+			notes, err := service.mapResultRow(
 				row, selected, &outcome, incomplete, resultKey,
-				expansionSource, expansionFields, noMatchValue,
-			); err != nil {
+				scope, expansionFields, noMatchValue,
+			)
+			if err != nil {
 				return outcome, err
 			}
+			// ConflictNotes 与 Rows 同形同序：两处一起追加，索引才对得上
 			outcome.Rows = append(outcome.Rows, changedetect.Row{Key: resultKey, Values: row})
+			outcome.ConflictNotes = append(outcome.ConflictNotes, service.conflictNotesRow(notes))
 		}
 	}
 	return outcome, nil
 }
 
 // mapResultRow 按配置把来源字段写进输出列（R15），随后跑导出前的最后一道校验（R16）。
+//
+// 返回值是本行的单元格级冲突提示（导出列名 → 提示文本，见 conflictNotes）；
+// 它与行的取值无关，只取决于收口时记下的冲突。
 func (service *Service) mapResultRow(
 	row store.Row,
 	selected map[string]store.Row,
 	outcome *Outcome,
 	incomplete map[string]bool,
 	resultKey string,
-	expansionSource string,
+	scope conflictScope,
 	expansionFields []string,
 	noMatchValue string,
-) error {
+) (map[string]string, error) {
+	notes := service.conflictNotes(scope)
 	for _, columnName := range service.Config.FieldNames {
 		definition := service.Config.Fields[columnName]
 		sourceDefinition, _ := definition["source"].(map[string]any)
@@ -566,7 +758,7 @@ func (service *Service) mapResultRow(
 			key := textOf(sourceDefinition["key"])
 			value, present := service.Config.UserDefinedData[key]
 			if !present {
-				return fmt.Errorf(
+				return nil, fmt.Errorf(
 					"setting.yaml 的 user_defined_data 中未找到键 %q（输出字段：%s）",
 					key, columnName)
 			}
@@ -581,12 +773,12 @@ func (service *Service) mapResultRow(
 			dataSource := textOf(sourceDefinition["file"])
 			sourceRow := selected[dataSource]
 			if sourceRow == nil {
-				if service.noMatchAction(dataSource, expansionSource) == "empty" {
+				if service.noMatchAction(dataSource, scope.ExpansionSource) == "empty" {
 					row[columnName] = ""
 					continue
 				}
 				markIncomplete(outcome, incomplete, resultKey, row)
-				if dataSource == expansionSource &&
+				if dataSource == scope.ExpansionSource &&
 					contains(expansionFields, firstOf(sourceDefinition["field"])) {
 					row[columnName] = noMatchValue
 				} else {
@@ -609,7 +801,7 @@ func (service *Service) mapResultRow(
 		}
 	}
 	service.flagMissingRequiredValues(row, selected, outcome, incomplete, resultKey, noMatchValue)
-	return nil
+	return notes, nil
 }
 
 // noMatchValue 是"值拿不到"时写进单元格的占位文本（no_match.value，默认 MISSING）。
@@ -769,29 +961,69 @@ func (service *Service) noMatchAction(dataSource string, expansionSource string)
 	return "emit_incomplete"
 }
 
-// conflictDetails 收集当前结果行涉及的冲突文案，顺序稳定（便于逐字节比较）。
-func (service *Service) conflictDetails(
-	conflicts map[string]map[string]string,
-	baseKey string,
-	expansionSource string,
-	expansionKey string,
-	expansionRow store.Row,
-) []string {
+// conflictDetails 收集当前结果行涉及的行级冲突文案，顺序稳定（便于逐字节比较）。
+// 单元格级的候选值走 conflictNotes 一侧。
+func (service *Service) conflictDetails(scope conflictScope) []string {
 	details := []string{}
-	for sourceName, conflictMap := range conflicts {
-		key := baseKey
-		if sourceName == expansionSource {
-			if expansionRow == nil {
-				continue
-			}
-			key = baseKey + "\x00" + expansionKey
+	for sourceName, found := range scope.Conflicts {
+		key, present := scope.keyFor(sourceName)
+		if !present {
+			continue
 		}
-		if detail, present := conflictMap[key]; present {
+		if detail, present := found.Details[key]; present {
 			details = append(details, detail)
 		}
 	}
 	sort.Strings(details)
 	return details
+}
+
+// conflictNoteLimit 是提示文案里最多列出的候选值条数（简版口径：只列前 3 条）。
+const conflictNoteLimit = 3
+
+// conflictNotes 是当前结果行的单元格级冲突提示（AGENTS.md §11 第 2 步）：
+// 导出列名 → 提示文本；没有冲突的格不出现在 map 里（= 第 3 步"空串 = 不冲突"）。
+//
+// 一个导出列只由一个来源喂（source.file 唯一），所以同一列不会有两个来源争着写；
+// 来源按 Config.SourceOrder 遍历，顺序稳定。
+func (service *Service) conflictNotes(scope conflictScope) map[string]string {
+	notes := map[string]string{}
+	for _, sourceName := range service.Config.SourceOrder {
+		key, present := scope.keyFor(sourceName)
+		if !present {
+			continue
+		}
+		for columnName, candidates := range scope.Conflicts[sourceName].Candidates[key] {
+			notes[columnName] = service.conflictNote(sourceName, key, candidates)
+		}
+	}
+	return notes
+}
+
+// conflictNote 是简版提示文案：来源 + 键 + 候选值前 3 条。键里的分隔符（\x00）
+// 换成 "+"，与行级冲突文案的写法一致，免得 NUL 进到界面的 title 里。
+func (service *Service) conflictNote(sourceName string, key string, candidates []string) string {
+	return service.sourceLabel(sourceName) + "：" +
+		strings.ReplaceAll(key, "\x00", "+") + " 有多个候选值：" +
+		strings.Join(firstCandidates(candidates, conflictNoteLimit), ", ")
+}
+
+// conflictNotesRow 把一行提示摊平成导出列顺序的切片（空串 = 该格不冲突）：
+// Outcome.ConflictNotes 与 Rows 同形同序，列顺序就是 Config.FieldNames。
+func (service *Service) conflictNotesRow(notes map[string]string) []string {
+	row := make([]string, len(service.Config.FieldNames))
+	for position, columnName := range service.Config.FieldNames {
+		row[position] = notes[columnName]
+	}
+	return row
+}
+
+// firstCandidates 取候选值前 limit 条（候选值已按字典序定序，截取结果稳定）。
+func firstCandidates(candidates []string, limit int) []string {
+	if len(candidates) <= limit {
+		return candidates
+	}
+	return candidates[:limit]
 }
 
 // sourceLabel 是冲突文案里的来源名（中文名优先，其次 display_name，最后来源键）。

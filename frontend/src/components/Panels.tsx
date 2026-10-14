@@ -169,21 +169,39 @@ export function RecordExportPanel({
 
 /* ---------- 数据整合 ---------- */
 
+/**
+ * 冲突提示的悬停延迟（秒）。用 antd Tooltip 而不是原生 title：原生 tooltip 的延迟由系统
+ * 控制（几秒），而且要精确停在文字上；这里 0.1s（antd 默认值）就出来，整格都能触发。
+ */
+const CONFLICT_TOOLTIP_DELAY = 0.1;
+
 type ConsolidationPanelProps = {
   columns: string[];
   rows: string[][];
   statuses: string[];
   counts: Record<string, number>;
+  /**
+   * 单元格级的冲突提示：与 rows 同形同序（同一行、同一列下标），
+   * 空串 = 该格不冲突（见 AGENTS.md §11）。
+   */
+  conflicts?: string[][];
 };
 
 /** 结果表的一行：原始单元格 + 状态（状态筛选与行底色都要用，所以连下标一起包起来）。 */
-type ConsolidationRow = { key: string; status: string; cells: string[] };
+type ConsolidationRow = {
+  key: string;
+  status: string;
+  cells: string[];
+  /** 与 cells 同下标的冲突提示（空串 = 不冲突）。 */
+  notes: string[];
+};
 
 export function ConsolidationPanel({
   columns,
   rows,
   statuses,
   counts,
+  conflicts,
 }: ConsolidationPanelProps) {
   // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（导出始终只看合格行，与筛选无关）
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -201,6 +219,17 @@ export function ConsolidationPanel({
         ellipsis: false,
         render: (_: unknown, entry: ConsolidationRow) => {
           const value = entry.cells[index];
+          const note = entry.notes[index];
+          // 冲突的格：提示用 antd Tooltip 而不是原生 title —— 原生 title 的延迟由系统定
+          // （要停在文字上等好几秒），这里 0.1s 就出来；span 撑满整格（见 .cell-conflict），
+          // 不用把鼠标精确停在文字上。
+          if (note) {
+            return (
+              <Tooltip title={note} mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
+                <span className="cell-conflict">{value}</span>
+              </Tooltip>
+            );
+          }
           return value === "MISSING" ? <span className="cell-MISSING">{value}</span> : value;
         },
       })),
@@ -213,8 +242,10 @@ export function ConsolidationPanel({
         key: String(index),
         status: statuses[index] ?? "Ready",
         cells,
+        // 提示与 cells 同下标（缺行/缺格一律按不冲突处理）
+        notes: conflicts?.[index] ?? [],
       })),
-    [rows, statuses],
+    [rows, statuses, conflicts],
   );
   const needle = query.trim().toLowerCase();
   const visible = useMemo(

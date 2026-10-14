@@ -60,6 +60,8 @@ export default function App() {
   const [columns, setColumns] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
+  // 单元格级冲突提示：与 rows 同形同序（空串 = 该格不冲突）
+  const [conflicts, setConflicts] = useState<string[][]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   // 生成文件的门禁：只有合格（Ready）行会被导出，所以按全部行里的 Ready 数量算
   const readyCount = statuses.filter((status) => status === "Ready").length;
@@ -213,6 +215,7 @@ export default function App() {
     setColumns(result.columns ?? []);
     setRows(result.rows ?? []);
     setStatuses(result.statuses ?? []);
+    setConflicts(result.conflicts ?? []);
     const summary: Record<string, number> = {};
     for (const status of result.statuses ?? []) {
       summary[status] = (summary[status] ?? 0) + 1;
@@ -438,6 +441,7 @@ export default function App() {
                 rows={rows}
                 statuses={statuses}
                 counts={counts}
+                conflicts={conflicts}
               />
             </Card>
           </div>

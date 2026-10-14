@@ -200,6 +200,46 @@ func TestTheStatusColorsStayInSyncWithTheTheme(t *testing.T) {
 	}
 }
 
+// TestConflictCellsAreMarkedInPlace 固定冲突单元格的标识口径（AGENTS.md §11 第 5 步）：
+// 有提示的格渲染成 antd Tooltip 包着的 <span className="cell-conflict">，样式与状态色
+// Conflict 同色、加粗，并且 span 撑满整格 —— 原生 title 的延迟由系统定（几秒），
+// 而且要精确停在文字上，所以提示一律走 Tooltip。
+func TestConflictCellsAreMarkedInPlace(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+	theme := readFrontendSource(t, "src/theme.ts")
+
+	for _, wanted := range []string{
+		// 提示矩阵与表格同形同序，冲突格按格取值（不写死列下标）
+		`conflicts?: string[][];`,
+		`const note = entry.notes[index];`,
+		`<Tooltip title={note} mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>`,
+		`<span className="cell-conflict">{value}</span>`,
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("冲突格的渲染缺少：%s", wanted)
+		}
+	}
+	if !strings.Contains(panels, "const CONFLICT_TOOLTIP_DELAY = 0.1;") {
+		t.Error("冲突提示要用 antd Tooltip 的短延迟（0.1s），别退回原生 title 的几秒等待")
+	}
+	if strings.Contains(panels, `className="cell-conflict" title=`) {
+		t.Error("冲突格不该再用原生 title（延迟由系统控制，且要停在文字上）")
+	}
+
+	block := cssBlock(t, styles, ".cell-conflict {")
+	if !strings.Contains(block, "display: block;") {
+		t.Errorf("冲突格要撑满整格，鼠标不必精确停在文字上，实际块：\n%s", block)
+	}
+	if !strings.Contains(block, "font-weight: 600;") {
+		t.Errorf("冲突格要与 cell-MISSING 一样加粗，实际块：\n%s", block)
+	}
+	colors := themeColors(t, theme, "export const STATUS_COLORS")
+	if !strings.Contains(strings.ToLower(block), colors["Conflict"]) {
+		t.Errorf("冲突格要用状态色 Conflict（%s），实际块：\n%s", colors["Conflict"], block)
+	}
+}
+
 // TestTheConsolidationHeadButtonsSitOnTheRedBar 固定数据整合标题栏里两个按钮的规格：
 // 「整合」白底红字、整条栏的正中、28px 高（38px 栏里上下各留 5px，不许出栏）；
 // 「生成文件」是去掉边框的白色图标按钮、与「整合」同高（28px），图标在 App 侧放大到 18px。

@@ -46,6 +46,7 @@ export namespace main {
 	    columns: string[];
 	    rows: string[][];
 	    statuses: string[];
+	    conflicts: string[][];
 	
 	    static createFrom(source: any = {}) {
 	        return new ConsolidateResult(source);
@@ -60,6 +61,7 @@ export namespace main {
 	        this.columns = source["columns"];
 	        this.rows = source["rows"];
 	        this.statuses = source["statuses"];
+	        this.conflicts = source["conflicts"];
 	    }
 	}
 	export class ExportResult {

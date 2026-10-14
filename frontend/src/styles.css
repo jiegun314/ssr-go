@@ -489,6 +489,15 @@ body {
   color: #cf1322;
 }
 
+/* 冲突的单元格：与状态色 Conflict 同色（theme.ts 的 STATUS_COLORS，antd magenta-6）。
+   提示走 antd Tooltip（见 Panels.tsx），span 撑满整格，鼠标不必精确停在文字上。 */
+.cell-conflict {
+  display: block;
+  font-weight: 600;
+  color: #c41d7f;
+  cursor: help;
+}
+
 /* ---------- 操作日志 ---------- */
 
 /**
