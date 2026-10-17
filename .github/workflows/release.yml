@@ -80,7 +80,9 @@ jobs:
           if-no-files-found: error
 
   publish:
-    # 只有推 tag 时才发布：创建或更新 Release，并把两个平台的压缩包挂成资产
+    # 只有推 tag 时才发布：创建或更新 Release，并把两个平台的压缩包挂成资产。
+    # 发布说明取 CHANGELOG.md 里本版本的**完整正文**（可读的变更描述），
+    # 而不是 `--generate-notes` 那种"改动列表 + Full Changelog 链接"。
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
@@ -88,9 +90,28 @@ jobs:
     permissions:
       contents: write
     steps:
+      # 取 CHANGELOG.md（tag 触发时 check_out 的就是该 tag 的内容）
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: CHANGELOG.md
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: 从 CHANGELOG 取出本版本的正文
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { inside = 1; next }
+            inside && /^## \[/ { exit }
+            inside { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ -s release-notes.md ]; then
+            echo "发布说明取自 CHANGELOG.md 的 [$version] 段（$(wc -l < release-notes.md) 行）"
+          else
+            echo "::warning::CHANGELOG.md 里没有 [$version] 段，退回自动生成的发布说明"
+            rm -f release-notes.md
+          fi
       - name: 发布到 Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,10 +121,23 @@ jobs:
           printf '资产：\n%s\n' "${files[@]}"
           tag="${GITHUB_REF_NAME}"
           title="SingleSourceReady ${tag#v}"
+          exists=no
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $tag 已存在，更新资产"
+            exists=yes
+          fi
+          if [ -s release-notes.md ]; then
+            if [ "$exists" = yes ]; then
+              echo "Release $tag 已存在，更新发布说明与资产"
+              gh release edit "$tag" --repo "$GITHUB_REPOSITORY" \
+                --notes-file release-notes.md
+            else
+              gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$title" \
+                --notes-file release-notes.md --verify-tag
+            fi
           else
-            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$title" \
-              --generate-notes --verify-tag
+            if [ "$exists" = no ]; then
+              gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$title" \
+                --generate-notes --verify-tag
+            fi
           fi
           gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"

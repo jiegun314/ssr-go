@@ -164,6 +164,52 @@ describe("数据整合结果表的冲突单元格", () => {
   });
 });
 
+// 状态筛选片：出现冲突时是 4 个（最小窗口也要放得下，见 Go 契约里的宽度核算），
+// 每个片悬停要说清「这个状态意味着什么」。
+describe("数据整合结果表的状态筛选片", () => {
+  const renderWithFourChips = () =>
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={["status", ...COLUMNS]}
+          rows={[["Conflict", "DI-001", "超声探头", "12345"]]}
+          statuses={["Conflict"]}
+          counts={{ Ready: 0, Incomplete: 1, Duplicate: 0, Conflict: 12 }}
+        />
+      </AntApp>,
+    );
+
+  it("四个状态片都在（冲突片不因宽度被丢掉）", () => {
+    renderWithFourChips();
+    const chips = Array.from(document.querySelectorAll(".status-chip"));
+    expect(chips).toHaveLength(4);
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "合格 0",
+      "缺失 1",
+      "重复 0",
+      "冲突 12",
+    ]);
+    // Tooltip 直接挂在片上（不加包裹元素），否则 grid 轨道会被多套一层、等宽口径就守不住了
+    for (const chip of chips) {
+      expect(chip.parentElement?.classList.contains("status-chips")).toBe(true);
+    }
+  });
+
+  it("悬停每个片给出该状态的含义（不是只说「只看…」）", async () => {
+    const user = userEvent.setup();
+    renderWithFourChips();
+
+    await user.hover(screen.getByRole("button", { name: /冲突/ }));
+    expect(await screen.findByText(/同一键的多条来源记录内容不一致/)).toBeInTheDocument();
+
+    await user.hover(screen.getByRole("button", { name: /缺失/ }));
+    expect(await screen.findByText(/有必填（或按条件必填）的单元格为空/)).toBeInTheDocument();
+
+    await user.hover(screen.getByRole("button", { name: /合格/ }));
+    expect(await screen.findByText(/只有合格行会写进导出文件/)).toBeInTheDocument();
+  });
+});
+
 // 大批量行的分页行为：数据量大时表格卡顿的根因是"一次渲染全部行"，
 // 所以这里固定：默认 100 行/页、可切 50/100/200/500、翻页只换当前页的行。
 const BIG_ROWS = Array.from({ length: 250 }, (_, index) => [

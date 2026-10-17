@@ -175,6 +175,18 @@ export function RecordExportPanel({
  */
 const CONFLICT_TOOLTIP_DELAY = 0.1;
 
+/**
+ * 状态片的**含义**（悬停提示的前半句）：先解释"这个状态意味着什么"，再说"点它能筛选"。
+ * 口径与后端一致：只有 Ready 会写进导出文件（ReadyRows），Incomplete / Conflict 不导出，
+ * Duplicate 是与操作日志里同一身份的记录完全一致、不重复导出。
+ */
+const STATUS_HINTS: Record<string, string> = {
+  Ready: "必填与条件必填都齐了，只有合格行会写进导出文件。",
+  Incomplete: "有必填（或按条件必填）的单元格为空，不会导出；补齐来源数据后重新整合。",
+  Duplicate: "与操作日志里同一身份的记录完全一致，不会重复导出。",
+  Conflict: "同一键的多条来源记录内容不一致（冲突的格标品红），不会导出；按提示核对来源数据。",
+};
+
 type ConsolidationPanelProps = {
   columns: string[];
   rows: string[][];
@@ -285,7 +297,7 @@ export function ConsolidationPanel({
 
   return (
     <>
-      {/* 工具条：查找框与状态筛选片在**同一行** —— 查找框居左、三个筛选片居右
+      {/* 工具条：查找框与状态筛选片在**同一行** —— 查找框居左、状态片（3 个，出现冲突时 4 个）居右
           （控件都用 antd 默认样式）；查找是"输入即筛表格内容"，与状态筛选叠加生效 */}
       <div className="table-toolbar">
         <Input
@@ -307,23 +319,34 @@ export function ConsolidationPanel({
         >
           <div className="status-chips">
             {chips.map(({ status, color }) => (
-              <Tag
+              // 悬停给出「这个状态意味着什么」+ 怎么用（不用原生 title：延迟由系统定）
+              <Tooltip
                 key={status}
-                className="status-chip"
-                color={color}
-                role="button"
-                tabIndex={0}
-                aria-pressed={statusFilter === status}
-                title={`只看「${statusLabel(status)}」的行（再点一次显示全部）`}
-                onClick={() => toggleStatus(status)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter" && event.key !== " ") return;
-                  event.preventDefault();
-                  toggleStatus(status);
-                }}
+                title={
+                  <>
+                    {STATUS_HINTS[status]}
+                    <br />
+                    点一下只看「{statusLabel(status)}」的行，再点一次显示全部。
+                  </>
+                }
+                mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}
               >
-                {statusLabel(status)} <span className="status-count">{counts[status] ?? 0}</span>
-              </Tag>
+                <Tag
+                  className="status-chip"
+                  color={color}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={statusFilter === status}
+                  onClick={() => toggleStatus(status)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    toggleStatus(status);
+                  }}
+                >
+                  {statusLabel(status)} <span className="status-count">{counts[status] ?? 0}</span>
+                </Tag>
+              </Tooltip>
             ))}
           </div>
         </div>

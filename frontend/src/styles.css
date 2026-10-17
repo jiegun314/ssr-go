@@ -216,12 +216,33 @@ body {
   border-color: #fff;
 }
 
-/* 数据整合标题栏右侧的图标按钮：无边框、白色图标（沿用清空按钮那套），
-   尺寸与「整合」按钮同高（28px），图标本体在 App 侧放大到 18px */
-.consolidation-card > .ant-card-head .head-icon-action.ant-btn {
-  width: 28px;
+/* 数据整合标题栏右侧的「生成文件」：与「整合」**同一形式** —— 白底、品牌红字、
+   图标 + 文字、28px 高（38px 的标题栏里上下各留 5px）。区别只在位置：它留在右侧，
+   「整合」占整条栏的正中，一个区域仍然只有一个主按钮。 */
+.consolidation-card .consolidation-export.ant-btn {
   height: 28px;
-  padding: 0;
+  padding-inline: 10px;
+  background: #fff;
+  color: #da291c; /* theme.ts 的 BRAND_RED */
+  border-color: #fff;
+}
+
+/* 悬浮 / 按下 / 键盘焦点：白底不变，字体颜色也不换（用户口径：一律默认强生红）。 */
+.consolidation-card .consolidation-export.ant-btn:hover,
+.consolidation-card .consolidation-export.ant-btn:focus-visible,
+.consolidation-card .consolidation-export.ant-btn:active {
+  background: #fff;
+  color: #da291c;
+  border-color: #fff;
+}
+
+/* 没有合格行时禁用：底色换成浅灰做区分（比白明显能看出"不可用"），**字体仍然是强生红**。
+   灰底上红字约 4:1；禁用控件不受对比度下限约束。 */
+.consolidation-card .consolidation-export.ant-btn:disabled,
+.consolidation-card .consolidation-export.ant-btn.ant-btn-disabled {
+  background: #e8e8e8;
+  color: #da291c;
+  border-color: #e8e8e8;
 }
 
 /* 禁用时退回半透明白（antd 默认在红底上会变成深灰，看不清） */
@@ -334,10 +355,14 @@ body {
 
 /* ---------- 数据整合 ---------- */
 
-/* 工具条：一行放完 —— 左边「数据整合」、中间状态筛选片、右边「生成文件」，
-   窗口压到最小也不换行（状态片按需收窄，见 .status-chips）。 */
-/* 工具条：查找框与状态筛选片同一行 —— 查找框居左、三个筛选片居右
-   （两端对齐；控件本身仍用 antd 默认样式） */
+/* 工具条：查找框与状态筛选片同一行 —— 查找框居左、状态片（3 个，出现冲突时 4 个）居右
+   （两端对齐；控件本身仍用 antd 默认样式），窗口压到最小也不换行。
+
+   最小窗口（969 宽）下工具条的可用宽度：969 − 24（外壳内边距）− 340（左列）− 16（折叠按钮）
+   − 2（卡片描边）− 24（卡片正文内边距）= 563px。四个片 4×86 + 3×8 = 368，加查找框最小 150
+   与间距 8 只有 526 ≤ 563 —— "冲突"片在最小窗口也放得下，不会被挤出边界。
+   宽度不够时**先收查找框**（它可压缩到 150px）；状态片不参与收缩，否则 grid 内容会溢出
+   自己的盒子，第四片被卡片边缘裁掉（这正是 4 片时曾经出现的问题）。 */
 .table-toolbar {
   flex: 0 0 auto;
   display: flex;
@@ -348,26 +373,25 @@ body {
   margin-bottom: 12px;
 }
 
-/* 查找框：输入即筛表格内容，窄窗口下可压缩但不会挤掉状态片 */
+/* 查找框：输入即筛表格内容，窄窗口下可压缩（到 150px 为止），把宽度让给状态片 */
 .table-search {
   flex: 0 1 240px;
   min-width: 150px;
 }
 
-/* 状态筛选片占满中间那一段，内容居中。 */
+/* 状态片靠右排布；不参与收缩 —— 收缩会让 grid 内容溢出盒子，最后一片被裁掉。 */
 .status-strip {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   display: flex;
-  justify-content: flex-end; /* 三个状态片靠右 */
+  justify-content: flex-end; /* 状态片靠右（3 个，出现冲突时 4 个） */
   min-width: 0;
 }
 
-/* 三个（有冲突时四个）筛选片等宽：宽度取最宽那个（grid 的 1fr 轨道在内在宽度下会取齐），
-   高度与左右两个按钮一致；窗口不够宽时整体收窄而不是换行。 */
+/* 三个（有冲突时四个）筛选片等宽：轨道宽度固定（原 86px ≈ 原来的 57px × 1.5），
+   数字位数变化时按钮宽度不动；高度与左右按钮一致。 */
 .status-chips {
   display: inline-grid;
   grid-auto-flow: column;
-  /* 固定轨道宽度（原 86px ≈ 原来的 57px × 1.5）：数字位数变化时按钮宽度不动 */
   grid-auto-columns: var(--status-chip-width);
   align-items: stretch;
   gap: 8px;

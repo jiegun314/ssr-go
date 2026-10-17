@@ -4,6 +4,7 @@ package main
 //
 // 公共前言与助手（源码读取、CSS 抽取、对比度）见 layout_helpers_test.go。
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -68,7 +69,11 @@ func TestTheEmptyResultTableHasNoFrame(t *testing.T) {
 
 // TestTheToolbarFitsTheNarrowestWindow 固定数据整合工具条在最小窗口（969 宽）下的行为：
 // 工具条（查找框 + 状态筛选片）同一行 —— 查找框居左、筛选片居右，**不换行**；
-// 三个状态片等宽（取最宽那个）、与左右按钮同高（32px），文字不换行（放不下就收窄）。
+// 状态片等宽（86px）、与左右按钮同高（32px），文字不换行；
+// **出现冲突片（4 个）时最小窗口也放得下**：969 − 24（外壳内边距）− 340（左列）
+// − 16（折叠按钮）− 2（卡片描边）− 24（卡片正文）= 563 可用；4×86 + 3×8 = 368，
+// 加查找框最小 150 与间距 8 只有 526 ≤ 563。所以状态片不参与收缩（宽度先由查找框让出），
+// 否则最后一片会被卡片边缘裁掉 —— 这正是 4 片时曾经出现的问题。
 func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
@@ -80,7 +85,7 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 		t.Error("不该再有把状态片挤到第二行的媒体查询")
 	}
 
-	// 工具条这一行：查找框居左、三个筛选片居右（两端对齐）
+	// 工具条这一行：查找框居左、筛选片居右（两端对齐）
 	if !strings.Contains(toolbar, "justify-content: space-between;") {
 		t.Errorf("查找框要居左、筛选片要居右（space-between），实际块：\n%s", toolbar)
 	}
@@ -94,6 +99,10 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	strip := cssBlock(t, styles, ".status-strip {")
 	if !strings.Contains(strip, "justify-content: flex-end;") {
 		t.Errorf("状态片自身靠右排布，实际块：\n%s", strip)
+	}
+	// 状态片不参与收缩：否则 grid 内容会溢出自己的盒子，第四个（冲突）片被卡片边缘裁掉
+	if !strings.Contains(strip, "flex: 0 0 auto;") {
+		t.Errorf("状态片不该被压缩（flex: 0 0 auto，宽度先由查找框让出），实际块：\n%s", strip)
 	}
 
 	chips := cssBlock(t, styles, ".status-chips {")
@@ -123,9 +132,10 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	}
 }
 
-// TestTheExportActionIsSecondaryAndWaitsForReadyRows 固定数据整合工具条的层级与门禁：
-// 一个区域只留一个主按钮（数据整合 = primary，生成文件 = 次按钮），
-// 且没有 Ready 行时「生成文件」禁用（只有 Ready 会导出，点了也是白点）。
+// TestTheExportActionIsSecondaryAndWaitsForReadyRows 固定数据整合标题栏的层级与门禁：
+// 一个区域只留一个**主按钮**（数据整合 = primary，「生成文件」是白底红字的次按钮，
+// 与「整合」同一形式：图标 + 文字、28px 高），且没有 Ready 行时「生成文件」禁用
+// （只有 Ready 会导出，点了也是白点）。
 func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
@@ -135,15 +145,19 @@ func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 		t.Error("标题栏应当按 Ready 行数决定「生成文件」能不能点")
 	}
 	exportButton := app[strings.Index(app, `aria-label="生成文件"`):]
-	exportButton = exportButton[:strings.Index(exportButton, "/>")]
+	exportButton = exportButton[:strings.Index(exportButton, "</Button>")+len("</Button>")]
 	if strings.Contains(exportButton, `type="primary"`) {
-		t.Error("「生成文件」应当是次/图标按钮：一个区域只留「整合」一个主按钮")
+		t.Error("「生成文件」应当是次按钮：一个区域只留「整合」一个主按钮")
 	}
 	if !strings.Contains(app, "disabled={readyCount === 0}") {
 		t.Error("没有 Ready 行时「生成文件」要禁用")
 	}
-	if strings.Contains(exportButton, ">生成文件<") {
-		t.Error("「生成文件」在标题栏里只留图标，不该带文字")
+	// 图标 + 文字（与「整合」同一形式）：文字是按钮的子节点，不是 aria-label
+	if !regexp.MustCompile(`>\s*生成文件\s*</Button>`).MatchString(exportButton) {
+		t.Error("「生成文件」按钮要图标 + 文字（文字作为按钮子节点渲染）")
+	}
+	if !strings.Contains(exportButton, "icon={<FileDown size={16} />}") {
+		t.Error("「生成文件」的图标要与「整合」同尺寸（16px）")
 	}
 	if !strings.Contains(app, "还没有可导出的行（只有合格的行会导出）") {
 		t.Error("禁用时要给出原因（Tooltip）")
@@ -174,10 +188,18 @@ func TestTheStatusSummaryUsesClickableChips(t *testing.T) {
 		`event.key !== "Enter" && event.key !== " "`,
 		"toggleStatus(status)",
 		`id="consolidation-summary"`,
+		// 每个状态片悬停给出「这个状态是什么意思」
+		`const STATUS_HINTS: Record<string, string> = {`,
+		`{STATUS_HINTS[status]}`,
+		`mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}`,
 	} {
 		if !strings.Contains(panels, wanted) {
 			t.Errorf("状态汇总缺少：%s", wanted)
 		}
+	}
+	// 含义提示走 antd Tooltip，不用原生 title（延迟由系统定、要停在文字上）
+	if strings.Contains(panels, "title={`只看「") {
+		t.Error("状态片不该再用原生 title 给提示（改用 Tooltip + STATUS_HINTS）")
 	}
 }
 
@@ -241,8 +263,8 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 }
 
 // TestTheConsolidationHeadButtonsSitOnTheRedBar 固定数据整合标题栏里两个按钮的规格：
-// 「整合」白底红字、整条栏的正中、28px 高（38px 栏里上下各留 5px，不许出栏）；
-// 「生成文件」是去掉边框的白色图标按钮、与「整合」同高（28px），图标在 App 侧放大到 18px。
+// 两个按钮**同一形式**（白底、品牌红字、图标 + 文字、28px 高，38px 栏里上下各留 5px）：
+// 「整合」占整条栏的正中（绝对定位居中），「生成文件」留在右侧、不参与居中。
 func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -261,22 +283,47 @@ func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 			t.Errorf("「整合」按钮缺少 %s，实际块：\n%s", wanted, runButton)
 		}
 	}
-	// 图标按钮：无边框、白图标（沿用清空按钮那套），尺寸与「整合」同高
-	icon := cssRule(t, styles, ".consolidation-card > .ant-card-head .head-icon-action.ant-btn {")
-	for _, wanted := range []string{"width: 28px;", "height: 28px;", "padding: 0;"} {
-		if !strings.Contains(icon, wanted) {
-			t.Errorf("生成文件图标按钮缺少 %s，实际块：\n%s", wanted, icon)
+	// 「生成文件」与「整合」同一形式：白底、红字、同高；但不许也绝对定位居中（会和「整合」叠在一起）
+	exportButton := cssRule(t, styles, ".consolidation-card .consolidation-export.ant-btn {")
+	for _, wanted := range []string{
+		"height: 28px;",
+		"background: #fff;",
+		"color: #da291c;",
+		"border-color: #fff;",
+		"padding-inline: 10px;",
+	} {
+		if !strings.Contains(exportButton, wanted) {
+			t.Errorf("「生成文件」按钮缺少 %s（要与「整合」同一形式），实际块：\n%s", wanted, exportButton)
 		}
 	}
-	for _, forbidden := range []string{"border:", "background:", "color:"} {
-		if strings.Contains(icon, forbidden) {
-			t.Errorf("生成文件图标按钮不该自己写 %s（无边框白图标由基础规则给），实际块：\n%s", forbidden, icon)
+	for _, forbidden := range []string{"position: absolute;", "transform:"} {
+		if strings.Contains(exportButton, forbidden) {
+			t.Errorf("「生成文件」留在右侧，不该用 %s 居中（会和「整合」重叠），实际块：\n%s", forbidden, exportButton)
 		}
 	}
-	if !strings.Contains(app, "icon={<FileDown size={18} />}") {
-		t.Error("生成文件图标要放大到 18px")
+	// 字体颜色一律用默认的强生红：悬浮 / 按下 / 禁用都不换色（用户口径，
+	// 之前悬浮用深红、禁用用淡红，都被否掉了）
+	states := cssBlock(t, styles, ".consolidation-card .consolidation-export.ant-btn:hover,")
+	if !strings.Contains(states, "color: #da291c;") {
+		t.Errorf("「生成文件」的悬浮/按下状态也要保持品牌红，实际块：\n%s", states)
 	}
-	// 两个标题栏按钮共用无边框白图标的基础规则；禁用时退回半透明白
+	for _, darker := range []string{"#a81f14", "#8f1a11", "rgba(218, 41, 28"} {
+		if strings.Contains(states, darker) {
+			t.Errorf("「生成文件」不该换成 %s（字体颜色统一用 #da291c），实际块：\n%s", darker, states)
+		}
+	}
+	// 禁用态：底色换成浅灰做区分，字体仍然是强生红
+	disabled := cssBlock(t, styles, ".consolidation-card .consolidation-export.ant-btn:disabled,")
+	for _, wanted := range []string{"background: #e8e8e8;", "color: #da291c;", "border-color: #e8e8e8;"} {
+		if !strings.Contains(disabled, wanted) {
+			t.Errorf("禁用态缺少 %s（浅灰底 + 强生红字），实际块：\n%s", wanted, disabled)
+		}
+	}
+	// 图标与「整合」同尺寸
+	if !strings.Contains(app, "icon={<FileDown size={16} />}") {
+		t.Error("生成文件的图标要与「整合」同尺寸（16px）")
+	}
+	// 清空按钮仍走无边框白图标那套基础规则；禁用时退回半透明白
 	clear := cssRule(t, styles, ".card > .ant-card-head .head-icon-action.ant-btn {")
 	for _, wanted := range []string{"color: #fff;", "border: none;", "background: transparent;"} {
 		if !strings.Contains(clear, wanted) {

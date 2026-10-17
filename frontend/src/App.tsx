@@ -423,16 +423,18 @@ export default function App() {
                 </>
               }
               extra={
-                // 生成文件：只有图标（靠右），没有合格行时禁用并给出原因
+                // 生成文件：与「整合」同一形式（白底、红字、图标 + 文字、28px 高），留在标题栏右侧；
+                // 没有合格行时禁用并给出原因
                 <Tooltip title={readyCount === 0 ? "还没有可导出的行（只有合格的行会导出）" : "生成文件"}>
                   <Button
-                    className="head-icon-action"
-                    type="text"
+                    className="consolidation-export"
                     aria-label="生成文件"
-                    icon={<FileDown size={18} />}
+                    icon={<FileDown size={16} />}
                     disabled={readyCount === 0}
                     onClick={handleExport}
-                  />
+                  >
+                    生成文件
+                  </Button>
                 </Tooltip>
               }
             >
