@@ -56,10 +56,23 @@ func TestGenerateLogColumnsIsIdempotent(t *testing.T) {
 			t.Fatalf("写 %s 失败：%v", name, err)
 		}
 	}
-	// 模板要被 genlogcolumns 读到，所以把真实模板放到工作区的配置根下
-	templateSource := filepath.Join("..", "..", "data", "template", "SingleSource-DCF-Row-China-UDI.xlsx")
-	templateTarget := filepath.Join(
-		target, "..", "data", "template", "SingleSource-DCF-Row-China-UDI.xlsx")
+	// 模板要被 genlogcolumns 读到，所以按配置里的 export_template.path 把真实模板放到工作区
+	// （路径以配置为准，换模板时这里不用改）
+	workspaceLoader, err := config.NewLoader(target)
+	if err != nil {
+		t.Fatalf("读临时配置失败：%v", err)
+	}
+	setting, err := workspaceLoader.LoadSetting()
+	if err != nil {
+		t.Fatalf("读 setting.yaml 失败：%v", err)
+	}
+	exportTemplate, _ := setting["export_template"].(map[string]any)
+	templatePath, _ := exportTemplate["path"].(string)
+	if templatePath == "" {
+		t.Fatal("setting.yaml 里没有 export_template.path")
+	}
+	templateSource := filepath.Join("..", "..", templatePath)
+	templateTarget := filepath.Join(target, "..", templatePath)
 	if err := os.MkdirAll(filepath.Dir(templateTarget), 0o755); err != nil {
 		t.Fatalf("建目录失败：%v", err)
 	}

@@ -11,6 +11,28 @@
 
 （暂无）
 
+## [2.3.8] - 2026-10-17
+
+导出模板换成新版 **SingleSource-DCF_Column-China-UDI**（DCF 的列式版本）。
+
+### 变更
+
+- `export_template.path` 改指新模板，仓库与发布包都只带这一份（旧的 `SingleSource-DCF-Row-China-UDI.xlsx`
+  如需回退可从 git 历史取出）。`sheet_name` / `header_row` / `data_start_row` 未变：新模板 DEVICE 页的
+  **第 4 行表头 75 列与旧模板逐格一致**，所以导出列映射与 `log_columns.yaml` 都不用改
+  （`genlogcolumns --check` 仍然通过，生成物不漂移）。
+- 新模板 DEVICE 页相对旧模板的差异（按对使用者的影响排序）：
+  - **录入体验变好**：冻结窗格 `F6`（表头 1-5 行 + A-E 列常驻）、下拉列表覆盖**整列**
+    （旧模板只到第 5001 行）、第 3 行分组标题与第 5 行填写说明按新版更新。
+  - **少了两列下拉**：`Applicable Submission Channel`、`DI Data Carrier Type` 不再挂下拉
+    （候选值列表本身没变，改在第 5 行文字里列出）。
+  - **`Choose Action` 不再提供 `Continued`**（只剩 `Add or Modify`）。
+  - **没有 Excel 表格对象与数据行条件格式**：旧模板的「Choose Action = Add or Modify 整行高亮」
+    与「必填但为空高亮」在新模板里不存在，数据区改为靠列级文本格式（导出数据格的样式本来就由程序
+    逐个覆盖为文本格式，所以格子外观不变，变的是这些提示）。
+- 两个测试不再写死模板名，改为从 `setting.yaml` 的 `export_template.path` 取
+  （`internal/consolidation/export_test.go`、`cmd/ssr-core/tools_test.go`），以后换模板不用改测试。
+
 ## [2.3.7] - 2026-10-14
 
 冲突的**单元格级标识**：以前只标出"哪一行冲突"（行级 `Conflict` + 来源/键/文字说明），

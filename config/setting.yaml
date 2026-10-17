@@ -18,7 +18,7 @@ folder:
   export: output/export
 
 export_template:
-  path: 'data/template/SingleSource-DCF-Row-China-UDI.xlsx'
+  path: 'data/template/SingleSource-DCF_Column-China-UDI.xlsx'
   sheet_name: 'DEVICE'
   header_row: 4
   data_start_row: 6

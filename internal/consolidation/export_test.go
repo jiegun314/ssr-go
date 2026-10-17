@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,9 +13,12 @@ import (
 )
 
 // prepareTemplate 把真实导出模板放到临时工作区里（配置的模板路径指向那里）。
+//
+// 模板文件名以配置为准（config/setting.yaml 的 export_template.path），换模板时这里不用改。
 func prepareTemplate(t *testing.T, service *Service) {
 	t.Helper()
-	source := filepath.Join("..", "..", "data", "template", "SingleSource-DCF-Row-China-UDI.xlsx")
+	source := filepath.Join(
+		"..", "..", "data", "template", filepath.Base(service.Config.TemplatePath))
 	if err := os.MkdirAll(filepath.Dir(service.Config.TemplatePath), 0o755); err != nil {
 		t.Fatalf("建目录失败：%v", err)
 	}
@@ -51,10 +55,12 @@ func TestR20R21ExportWritesTextAndKeepsTheTemplate(t *testing.T) {
 		t.Fatalf("导出失败：%v", err)
 	}
 
-	// 文件命名：模板名 + 时间戳，落在导出目录里（R20）
-	if !regexp.MustCompile(`^SingleSource-DCF-Row-China-UDI-20260919_080000\.xlsx$`).
+	// 文件命名：模板名 + 时间戳，落在导出目录里（R20）。模板名取自配置，不写死
+	stem := strings.TrimSuffix(
+		filepath.Base(service.Config.TemplatePath), filepath.Ext(service.Config.TemplatePath))
+	if !regexp.MustCompile("^" + regexp.QuoteMeta(stem) + `-20260919_080000\.xlsx$`).
 		MatchString(result.FileName) {
-		t.Errorf("文件名 = %q", result.FileName)
+		t.Errorf("文件名 = %q; want 以 %q 开头", result.FileName, stem+"-20260919_080000")
 	}
 	if filepath.Dir(result.FilePath) != service.Config.ExportFolder {
 		t.Errorf("导出目录 = %q; want %q", filepath.Dir(result.FilePath), service.Config.ExportFolder)
