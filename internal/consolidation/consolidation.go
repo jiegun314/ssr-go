@@ -748,7 +748,7 @@ func (service *Service) mapResultRow(
 			continue
 		}
 		if transformType == config.DateOffsetTransform && len(sourceDefinition) == 0 {
-			// 按运行日算的日期列（例如 DI Record Publish Date = 今天 + 1 天）
+			// 按运行日算的日期列（例如 DI Record Publish Date = 今天 + 配置的天数）
 			row[columnName] = service.dateOffsetValue(transform)
 			continue
 		}
@@ -808,10 +808,23 @@ func (service *Service) mapResultRow(
 // dateOffsetValue 按运行日算出一个日期列的取值。
 //
 // 目前只支持 base: today 与 format: YYYY-MM-DD（配置校验会拦住别的写法），
-// 所以这里只做一件事：运行日 + offset_days 天，按 2006-01-02 落盘。
+// 所以这里只做一件事：运行日 + 天数，按 2006-01-02 落盘。
 func (service *Service) dateOffsetValue(transform map[string]any) string {
-	offsetDays := intOf(transform["offset_days"])
-	return service.now().AddDate(0, 0, offsetDays).Format("2006-01-02")
+	return service.now().AddDate(0, 0, service.dateOffsetDays(transform)).Format("2006-01-02")
+}
+
+// dateOffsetDays 取日期列往后挪的天数。
+//
+// 优先取 offset_days_from 指向的 setting.yaml `user_defined_data` 参数（与统一社会信用代码
+// 一样是「参数设定」里的固定参数，改天数不用动整合映射）；没声明才回退到字面量 offset_days。
+// 配置校验保证这个参数存在且是整数，这里的回退只是防御。
+func (service *Service) dateOffsetDays(transform map[string]any) int {
+	if key := textOf(transform["offset_days_from"]); key != "" {
+		if days, ok := numberAsInt(service.Config.UserDefinedData[key]); ok {
+			return days
+		}
+	}
+	return intOf(transform["offset_days"])
 }
 
 func (service *Service) noMatchValue() string {
@@ -1180,6 +1193,23 @@ func intOf(value any) int {
 		return 0
 	}
 	return number
+}
+
+// numberAsInt 把 YAML / JSON 里的数字读成 int（YAML 给 int，过一遍 JSON 可能是 float64）。
+func numberAsInt(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case int64:
+		return int(typed), true
+	case float64:
+		number := int(typed)
+		if float64(number) != typed {
+			return 0, false
+		}
+		return number, true
+	}
+	return 0, false
 }
 
 // stringsOf 把「字符串或字符串列表」统一成切片（配置里两种写法都有）。

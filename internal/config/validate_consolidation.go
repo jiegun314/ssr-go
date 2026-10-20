@@ -252,7 +252,7 @@ func (loader *Loader) ValidateConsolidationMapping(
 	if err := validateChangeDescriptionTransform(dataset, outputFields); err != nil {
 		return err
 	}
-	if err := validateDateOffsetTransform(dataset, outputFields); err != nil {
+	if err := validateDateOffsetTransform(dataset, outputFields, userDefinedDataOf(setting)); err != nil {
 		return err
 	}
 	return validateRecordActionTransform(dataset, outputFields)
@@ -615,16 +615,46 @@ const DateOffsetFormat = "YYYY-MM-DD"
 // DateOffsetBases 是日期列允许的基准（目前只有"运行日"）。
 var DateOffsetBases = []string{"today"}
 
+// userDefinedDataOf 取 setting.yaml 的 user_defined_data（缺失时返回 nil，后续按"未知键"报错）。
+func userDefinedDataOf(setting map[string]any) map[string]any {
+	data, _ := setting["user_defined_data"].(map[string]any)
+	return data
+}
+
+// integerOf 把 YAML / JSON 里的数字读成 int（YAML 给 int，过一遍 JSON 可能是 float64）。
+func integerOf(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case int64:
+		return int(typed), true
+	case float64:
+		number := int(typed)
+		if float64(number) != typed {
+			return 0, false
+		}
+		return number, true
+	}
+	return 0, false
+}
+
 // validateDateOffsetTransform 校验"按运行日算出来的日期列"（transform.type: date_offset）。
 //
 // 口径：
 //   - source 必须为空（不读来源表）；
-//   - base 只能是 today（运行日）；offset_days 必须是整数；
+//   - base 只能是 today（运行日）；
+//   - 天数二选一：offset_days 直接写整数，或 offset_days_from 指向
+//     setting.yaml 的 user_defined_data 键（与"统一社会信用代码"一样在参数设定里改，
+//     改天数不用动这里）；两者同时写是配置错误；
 //   - format 必须是 DateOffsetFormat（YYYY-MM-DD）；
 //   - 该列不能进 duplicate_check.identity_fields（身份每天变会把历史记录切成碎片）；
 //   - 该列必须写进变更比较的 ignore_fields —— 它每天都变，不忽略的话每次整合
 //     所有行都会被判成"有差异"，这是配置层面最容易踩的坑，所以在校验阶段就拦住。
-func validateDateOffsetTransform(dataset map[string]any, exportFields map[string]any) error {
+func validateDateOffsetTransform(
+	dataset map[string]any,
+	exportFields map[string]any,
+	userDefined map[string]any,
+) error {
 	derived := sortedKeys(exportFields)
 	identity := stringListOfMapping(dataset)
 	ignore := changeDescriptionIgnoreFields(exportFields)
@@ -648,6 +678,30 @@ func validateDateOffsetTransform(dataset map[string]any, exportFields map[string
 		if value, present := transform["offset_days"]; present && value != nil {
 			if _, ok := value.(int); !ok {
 				return errorf("%s.offset_days must be an integer, got %#v", transformLabel, value)
+			}
+		}
+		// offset_days_from 指向 setting.yaml 的 user_defined_data 键：
+		// 天数是"参数设定"里的固定参数，与统一社会信用代码同等对待。
+		if raw, present := transform["offset_days_from"]; present && raw != nil {
+			key, _ := asString(raw)
+			if key == "" {
+				return errorf("%s.offset_days_from must be a non-empty key of setting.user_defined_data",
+					transformLabel)
+			}
+			if _, both := transform["offset_days"]; both {
+				return errorf("%s can not declare both offset_days and offset_days_from",
+					transformLabel)
+			}
+			value, known := userDefined[key]
+			if !known {
+				return errorf(
+					"%s.offset_days_from points at an unknown setting.user_defined_data key: %s",
+					transformLabel, key)
+			}
+			if _, ok := integerOf(value); !ok {
+				return errorf(
+					"%s.offset_days_from must point at an integer in setting.user_defined_data: %s = %#v",
+					transformLabel, key, value)
 			}
 		}
 		dateFormat, _ := asString(transform["format"])

@@ -66,8 +66,12 @@
   条件里的期望值会按**被引用列自己的 `value_mapping` 自动归一化**，所以可以按"人怎么填"写
   （`value: "是"` 等价于归一化后的 `Yes`）。导入侧先拦（`conditionalViolations`），
   导出侧的 `required_if_applicable` 再按同一条件判定缺失（`isRequiredForRow`）。
-- **运行日日期列 `transform.type: date_offset`**：不读来源表，值 = 运行日（本地当天）+ `offset_days`，
-  格式固定 `YYYY-MM-DD`（`base` 只允许 `today`）。它**必须**写进变更比较的 `ignore_fields` ——
+- **运行日日期列 `transform.type: date_offset`**：不读来源表，值 = 运行日（本地当天）+ 天数，
+  格式固定 `YYYY-MM-DD`（`base` 只允许 `today`）。天数二选一：`offset_days` 直接写整数，或
+  `offset_days_from` 指向 `setting.yaml` 的 `user_defined_data` 键 —— 后者是**固定参数**
+  （与 `social_credit_code` 同处，在「参数设定」里可改），当前用
+  `di_record_publish_date_offset_days: 5`（DI Record Publish Date = 运行日 + 5 天）；
+  两者同时写会被配置校验拦住。它**必须**写进变更比较的 `ignore_fields` ——
   日期每天都变，漏写会让每次整合都把全部行判成"有差异"；配置校验会直接拦住这种情况
   （`internal/config/date_offset_test.go`）。测试要冻结运行日：`Service.Now = func() time.Time {…}`。
 - 两列是**运行期派生**的（由变更比较填值，不读来源表）：`Choose Action`（`transform.type: record_action`，

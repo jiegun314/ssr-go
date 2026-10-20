@@ -11,6 +11,27 @@
 
 （暂无）
 
+## [2.3.10] - 2026-10-20
+
+`DI Record Publish Date` 改为 **运行日 + 5 天**，并且这个天数做成了「参数设定」里的固定参数
+（与统一社会信用代码同一处），以后调天数不用动整合映射。
+
+### 新增
+
+- **参数 `user_defined_data.di_record_publish_date_offset_days`**（当前 `5`）：导出时
+  `DI Record Publish Date = 运行日 + 这个天数`。「基础设置」页里的名字是
+  「DI 记录发布日期偏移天数」，数字控件、范围 0–3650；改它只改 `setting.yaml` 的那一行
+  （自动留 `.bak` 备份、保存后整体校验）。
+- 整合映射的日期列支持 `offset_days_from`：指向上面这个参数名；老配置只写 `offset_days` 照常可用。
+  配置校验会拦住三种写法：参数不存在、参数不是整数、`offset_days` 与 `offset_days_from` 同时写。
+
+### 变更
+
+- `DI Record Publish Date` 的取值从「今天 + 1 天」改成「今天 + 5 天」，golden 基线随之更新；
+  这一列仍然不参与变更比较（`ignore_fields`），漏写会被配置校验拦住。
+- 再次确认导出模板是 `SingleSource-DCF_Column-China-UDI.xlsx`：仓库与发布包的 `data/template/`
+  都只带这一份，`export_template.path` 也指向它。
+
 ## [2.3.9] - 2026-10-17
 
 界面细节修正：「生成文件」按钮改成与「整合」同一形式，状态筛选片在最小窗口不再越界、

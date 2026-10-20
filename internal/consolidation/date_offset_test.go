@@ -1,13 +1,18 @@
 package consolidation
 
 import (
+	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
+
+	"github.com/jiegun314/ssr-go/internal/config"
 )
 
 // TestDateOffsetColumnUsesTheRunDate 固定"运行日日期列"的口径：
-// 值 = 运行日 + offset_days，格式 YYYY-MM-DD，每行同值，且**不**受来源表影响。
+// 值 = 运行日 + setting.yaml 里 user_defined_data.di_record_publish_date_offset_days 的天数
+// （当前 5 天），格式 YYYY-MM-DD，每行同值，且**不**受来源表影响。
 func TestDateOffsetColumnUsesTheRunDate(t *testing.T) {
 	const column = "DI Record Publish Date"
 	cases := []struct {
@@ -15,10 +20,10 @@ func TestDateOffsetColumnUsesTheRunDate(t *testing.T) {
 		now  time.Time
 		want string
 	}{
-		{name: "普通日期", now: time.Date(2026, 10, 13, 9, 0, 0, 0, time.Local), want: "2026-10-14"},
-		{name: "跨月", now: time.Date(2026, 10, 31, 23, 59, 0, 0, time.Local), want: "2026-11-01"},
-		{name: "跨年", now: time.Date(2026, 12, 31, 0, 1, 0, 0, time.Local), want: "2027-01-01"},
-		{name: "闰年二月", now: time.Date(2028, 2, 28, 12, 0, 0, 0, time.Local), want: "2028-02-29"},
+		{name: "普通日期", now: time.Date(2026, 10, 13, 9, 0, 0, 0, time.Local), want: "2026-10-18"},
+		{name: "跨月", now: time.Date(2026, 10, 31, 23, 59, 0, 0, time.Local), want: "2026-11-05"},
+		{name: "跨年", now: time.Date(2026, 12, 31, 0, 1, 0, 0, time.Local), want: "2027-01-05"},
+		{name: "闰年二月", now: time.Date(2028, 2, 28, 12, 0, 0, 0, time.Local), want: "2028-03-04"},
 	}
 	for _, item := range cases {
 		t.Run(item.name, func(t *testing.T) {
@@ -72,8 +77,8 @@ func TestDateOffsetColumnIsIgnoredByTheChangeComparison(t *testing.T) {
 	if err := first.RecordConsolidationResult(time.Date(2026, 10, 13, 9, 0, 0, 0, time.Local)); err != nil {
 		t.Fatalf("写历史记录失败：%v", err)
 	}
-	if got := firstOutcome.Rows[0].Values[column]; got != "2026-10-14" {
-		t.Fatalf("第一次整合的日期列 = %q；want 2026-10-14", got)
+	if got := firstOutcome.Rows[0].Values[column]; got != "2026-10-18" {
+		t.Fatalf("第一次整合的日期列 = %q；want 2026-10-18", got)
 	}
 
 	second := newService(t, loader, repository)
@@ -83,8 +88,8 @@ func TestDateOffsetColumnIsIgnoredByTheChangeComparison(t *testing.T) {
 		t.Fatal(err)
 	}
 	for position, row := range secondOutcome.Rows {
-		if got := row.Values[column]; got != "2026-10-15" {
-			t.Fatalf("第二次整合的日期列 = %q；want 2026-10-15", got)
+		if got := row.Values[column]; got != "2026-10-19" {
+			t.Fatalf("第二次整合的日期列 = %q；want 2026-10-19", got)
 		}
 		description := row.Values["Change Description"]
 		if description != "" && description != "MISSING" {
@@ -112,4 +117,53 @@ func TestDateOffsetColumnIsIgnoredByTheChangeComparison(t *testing.T) {
 		t.Errorf("除 Duplicate 外应当只有那 1 行 Incomplete；实际 %v", other)
 	}
 	t.Logf("隔天再整合：%d 行全部 Duplicate（日期列不算差异）、变更描述为空 ✓", duplicate)
+}
+
+// TestDateOffsetDaysComeFromTheUserDefinedParameter 固定"天数写在参数里"的口径：
+// setting.yaml 的 user_defined_data.di_record_publish_date_offset_days 改一下，导出日期
+// 就跟着走（与统一社会信用代码同一类固定参数，在「参数设定」里可改），不用动整合映射。
+func TestDateOffsetDaysComeFromTheUserDefinedParameter(t *testing.T) {
+	const column = "DI Record Publish Date"
+	loader, repository, importService := newWorkspace(t)
+
+	path := loader.Resolver.ConfigFile(config.SettingFile)
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("读 setting.yaml 失败：%v", err)
+	}
+	mutated := regexp.MustCompile(`(?m)^(\s*di_record_publish_date_offset_days:\s*)\d+`).
+		ReplaceAllString(string(content), "${1}12")
+	if mutated == string(content) {
+		t.Fatalf("setting.yaml 里没找到 di_record_publish_date_offset_days")
+	}
+	if err := os.WriteFile(path, []byte(mutated), 0o644); err != nil {
+		t.Fatalf("写 setting.yaml 失败：%v", err)
+	}
+
+	// 重新读配置（参数在 setting.yaml 里，改完要重新加载）
+	fresh, err := config.NewLoader(loader.ConfigDir())
+	if err != nil {
+		t.Fatalf("重读配置失败：%v", err)
+	}
+	for _, sourceName := range importService.Order {
+		filePath := filepath.Join("..", "..", "testdata", "sample-valid", sourceName+".xlsx")
+		if _, err := importService.Import(sourceName, filePath); err != nil {
+			t.Fatalf("导入 %s 失败：%v", sourceName, err)
+		}
+	}
+	service := newService(t, fresh, repository)
+	service.Now = func() time.Time { return time.Date(2026, 10, 13, 9, 0, 0, 0, time.Local) }
+
+	outcome, err := service.Consolidate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(outcome.Rows) == 0 {
+		t.Fatal("没有整合出任何行")
+	}
+	for _, row := range outcome.Rows {
+		if got := row.Values[column]; got != "2026-10-25" {
+			t.Fatalf("%s = %q；参数改成 12 天后应当是 2026-10-25", column, got)
+		}
+	}
 }

@@ -13,6 +13,9 @@ database:
 user_defined_data:
   social_credit_code: '91310115703465170L'
   data_scope: 'China-udi'
+  # 导出时 DI Record Publish Date = 运行日 + 这个天数。与统一社会信用代码一样，
+  # 这是「参数设定」里的固定参数：改这里就行，不用动 consolidation_mapping.yaml。
+  di_record_publish_date_offset_days: 5
 
 folder:
   export: output/export

@@ -89,8 +89,8 @@ func fieldNamesWithLogColumns(t *testing.T, loader *config.Loader) []string {
 // TestConsolidationMatchesThePythonBaseline 是整合阶段的 golden diff（数据口径①）。
 //
 // 注意（第四处差异）：`DI Record Publish Date` 也是这次新加的导出列 —— 模板里本来就有
-// （紧跟 `Unified Social Credit Code`），配置里一直没映射。它按**运行日**算（今天 + 1 天，
-// YYYY-MM-DD），所以测试把运行日冻结在 2026-10-13，基线里就是 2026-10-14。
+// （紧跟 `Unified Social Credit Code`），配置里一直没映射。它按**运行日**算（今天 + 配置的天数，
+// 当前 5 天，YYYY-MM-DD），所以测试把运行日冻结在 2026-10-13，基线里就是 2026-10-18。
 //
 // 注意（第三处差异）：`Sterilization Method Description` 是这次新加的导出列 ——
 // 模板里本来就有这一列（紧跟 `Needs Sterilization Before Use?`），但配置里一直没有映射，
@@ -118,7 +118,7 @@ func TestConsolidationMatchesThePythonBaseline(t *testing.T) {
 		}
 	}
 	service := newService(t, loader, repository)
-	// 冻结"运行日"：DI Record Publish Date 是按运行日算的（今天 + 1 天），
+	// 冻结"运行日"：DI Record Publish Date 是按运行日算的（今天 + 配置的天数），
 	// 不冻结的话基线每天都不一样。
 	service.Now = func() time.Time { return time.Date(2026, 10, 13, 9, 0, 0, 0, time.Local) }
 

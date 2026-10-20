@@ -34,6 +34,21 @@ func TestDateOffsetColumnMustBeIgnoredByTheComparison(t *testing.T) {
 	if transform["type"] != DateOffsetTransform {
 		t.Fatalf("%s 的 transform.type = %v", column, transform["type"])
 	}
+	// 天数写在 setting.yaml 的固定参数里（与统一社会信用代码同一类），不是映射里的字面量
+	if transform["offset_days_from"] != "di_record_publish_date_offset_days" {
+		t.Fatalf("%s.offset_days_from = %v", column, transform["offset_days_from"])
+	}
+	if _, literal := transform["offset_days"]; literal {
+		t.Errorf("%s 不该再写字面量 offset_days：天数走 user_defined_data 参数", column)
+	}
+	setting, err := loader.LoadSetting()
+	if err != nil {
+		t.Fatalf("读 setting.yaml 失败：%v", err)
+	}
+	userDefined, _ := setting["user_defined_data"].(map[string]any)
+	if got := userDefined["di_record_publish_date_offset_days"]; got != 5 {
+		t.Fatalf("参数 di_record_publish_date_offset_days = %#v；want 5", got)
+	}
 
 	// 2) 漏写 ignore_fields → 拒绝
 	cases := []struct {
@@ -65,9 +80,29 @@ func TestDateOffsetColumnMustBeIgnoredByTheComparison(t *testing.T) {
 		{
 			name: "offset_days 不是整数",
 			mutate: func(content string) string {
-				return strings.Replace(content, "        offset_days: 1", "        offset_days: \"1\"", 1)
+				return strings.Replace(content,
+					"        offset_days_from: \"di_record_publish_date_offset_days\"",
+					"        offset_days: \"1\"", 1)
 			},
 			keyword: "offset_days must be an integer",
+		},
+		{
+			name: "offset_days_from 指向不存在的参数",
+			mutate: func(content string) string {
+				return strings.Replace(content,
+					"offset_days_from: \"di_record_publish_date_offset_days\"",
+					"offset_days_from: \"offset_days_typo\"", 1)
+			},
+			keyword: "unknown setting.user_defined_data key",
+		},
+		{
+			name: "offset_days 与 offset_days_from 同时写",
+			mutate: func(content string) string {
+				return strings.Replace(content,
+					"        offset_days_from: \"di_record_publish_date_offset_days\"",
+					"        offset_days: 1\n        offset_days_from: \"di_record_publish_date_offset_days\"", 1)
+			},
+			keyword: "can not declare both offset_days and offset_days_from",
 		},
 	}
 	for _, item := range cases {

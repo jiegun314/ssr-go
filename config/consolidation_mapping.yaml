@@ -202,12 +202,15 @@ target_dataset:
     DI Record Publish Date:
       category: "Health Authority Specific DI Record Publish Date"
       mandatory_status: "required"
-      # 不读来源表：按**运行日**算（今天 + 1 天），格式固定 YYYY-MM-DD。
+      # 不读来源表：按**运行日**算 —— 运行日 + setting.yaml 里
+      # user_defined_data.di_record_publish_date_offset_days 的天数（当前 +5 天），
+      # 格式固定 YYYY-MM-DD。天数是一个固定参数（与统一社会信用代码同处，可在参数设定里改），
+      # 所以这里不写字面量，也不跟着运行日漂移。
       source: {}
       transform:
         type: "date_offset"
         base: "today"
-        offset_days: 1
+        offset_days_from: "di_record_publish_date_offset_days"
         format: "YYYY-MM-DD"
 
     # ── Health Authority Specific Change Description ──
