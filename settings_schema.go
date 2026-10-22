@@ -165,6 +165,8 @@ func settingsPolicyFor(fileKey string) settingsPolicy {
 				{match: "target_dataset.fields.*.mandatory_status", label: "必填口径", control: "select",
 					options: []string{"optional", "required", "required_if_applicable", "user_defined"}},
 				{match: "target_dataset.fields.*.comments", label: "说明（只给人看）"},
+				{match: "target_dataset.fields.*.transform.record_separator",
+					label: "多条记录之间的分隔符", note: "这一列读取的来源要声明 merge_records"},
 				{match: "target_dataset.duplicate_check.identity_fields", label: "重复判定字段"},
 				{match: "target_dataset.merge_rules.base_source.source", label: "基准来源", control: "select"},
 				{match: "target_dataset.merge_rules.base_source.key", label: "基准来源主键"},
@@ -182,6 +184,14 @@ func settingsPolicyFor(fileKey string) settingsPolicy {
 				{match: "target_dataset.merge_rules.sources.*.no_match.value", label: "无匹配填充值"},
 				{match: "target_dataset.merge_rules.sources.*.duplicates.*", label: "重复处理", control: "select",
 					options: []string{"deduplicate", "conflict"}},
+				// 同一键的多条记录合并成一格（与 duplicates 互斥）
+				{match: "target_dataset.merge_rules.sources.*.merge_records", label: "多条记录合并"},
+				{match: "target_dataset.merge_rules.sources.*.merge_records.separator",
+					label: "合并分隔符"},
+				{match: "target_dataset.merge_rules.sources.*.merge_records.deduplicate",
+					label: "整行相同才去重"},
+				{match: "target_dataset.merge_rules.sources.*.merge_records.order",
+					label: "合并顺序", control: "select", options: config.MergeRecordOrders},
 			},
 			listEdit: map[string]bool{
 				"target_dataset.duplicate_check.identity_fields":    true,

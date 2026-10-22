@@ -79,6 +79,10 @@ target_dataset:
         cardinality: many_to_one
         match:
           material_code: material_code
+        # A material code can carry several insurance codes: instead of keeping
+        # one record and reporting the others as a conflict, every record of the
+        # key is collected and the export column joins them with its
+        # record_separator (see "Medical Insurance Code" below).
         # An insurance code is optional data: not every material code has an
         # insurance row, and the export accepts an empty Medical Insurance Code.
         # Without this rule a material code whose insurance row is missing would
@@ -89,12 +93,10 @@ target_dataset:
         no_match:
           action: empty
           value: ""
-        duplicates:
-          compare_by:
-            - medical_insurance_code
-          same_value: deduplicate
-          different_value: conflict
-          selected_record: first
+        merge_records:
+          separator: ","
+          deduplicate: true   # 整行完全相同才去重
+          order: source       # 来源表顺序（sorted = 合并后按文本字典序）
 
       product_category:
         match_type: lookup
@@ -452,20 +454,18 @@ target_dataset:
     Medical Insurance Code:
       category: "NMPA MEDICAL INSURANCE CODE"
       comments: >
-        Medical Insurance Code must be
-        27-character long.
-        Multiple medical insurance codes are allowed.
+        Multiple medical insurance codes are allowed;
+        they are joined with an English comma.
       mandatory_status: "required_if_applicable"
       source:
         file: medical_insurance_code
         field:
           - medical_insurance_code
-          - serial_number
       transform:
         type: concatenate
-        separator: "-"
-      validation:
-        min_length: 27
+        # 同一型号有多条医保行时，只合并医保代码本身（不带序列号），用英文逗号连起来；
+        # 顺序与去重由来源的 merge_records 决定。
+        record_separator: ","
 
     # ── ADDITIONAL PACKAGE CONFIGURATIONS ──
     Package DI:

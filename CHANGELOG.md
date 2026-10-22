@@ -11,6 +11,30 @@
 
 （暂无）
 
+## [2.3.11] - 2026-10-23
+
+一个型号对应多个医保编码时，不再判冲突、也不再只取第一条：把**多个医保代码**用英文逗号合并到
+「Medical Insurance Code」一格。合并做成了配置能力（`merge_records` + `record_separator`），
+以后同类"多条记录合成一格"的需求只改配置。
+
+### 新增
+
+- **来源级 `merge_records`**（只支持 `many_to_one`，与 `duplicates` 互斥）：同一键的每条记录都留下，
+  `deduplicate: true` 表示整行完全相同才去重，`order: source | sorted` 决定合并顺序。
+  合并口径下**不再判冲突**，也不产出单元格候选值 —— 多条不同的值在这里本来就合法。
+- **导出列级 `transform.record_separator`**：把同一键的多条记录连成一格（只允许用在 `concatenate` 列，
+  且它读取的来源必须声明 `merge_records`，否则配置校验拦住）。每条先按列自己的字段拼好、空值跳过，
+  **拼出来相同的只留一次**，所以不会出现尾部分隔符或重复值。
+
+### 变更
+
+- 「Medical Insurance Code」只合并**医保代码本身**（不再带序列号）：单编码行从
+  `000INS-001-000SER-001` 变成 `000INS-001`，多编码行为 `code1,code2`；golden 基线随之更新。
+- 导出模板 `DEVICE` 页该列的填写说明改成「Multiple medical insurance codes are allowed;
+  separate them with an English comma.」，并删掉「27 字符」长度说明与没人读的 `validation.min_length`。
+- 在真实数据上的表现：冲突 12 → 1、缺失 7751 → 7762（那 11 行本来缺 `Primary DI`，以前被"冲突"
+  状态盖住），**合格行数不变（2446）**。
+
 ## [2.3.10] - 2026-10-20
 
 `DI Record Publish Date` 改为 **运行日 + 5 天**，并且这个天数做成了「参数设定」里的固定参数

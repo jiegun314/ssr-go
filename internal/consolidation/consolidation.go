@@ -337,12 +337,16 @@ func (scope conflictScope) keyFor(sourceName string) (string, bool) {
 type sourceData struct {
 	keyed   map[string]*store.KeyedTable
 	grouped map[string]map[string]*orderedGroup
+	// merged 是"合并多条记录"的来源（merge_records）：来源 → 键 → 该键的全部记录，
+	// 顺序 = 来源表顺序（order: sorted 时在导出时再按文本排序）。
+	merged map[string]map[string][]store.Row
 }
 
 func (service *Service) readSourceData() (*sourceData, map[string]sourceConflicts, error) {
 	data := &sourceData{
 		keyed:   map[string]*store.KeyedTable{},
 		grouped: map[string]map[string]*orderedGroup{},
+		merged:  map[string]map[string][]store.Row{},
 	}
 	conflicts := map[string]sourceConflicts{}
 	for _, sourceName := range service.Config.SourceOrder {
@@ -362,9 +366,12 @@ func (service *Service) readSourceData() (*sourceData, map[string]sourceConflict
 			if err != nil {
 				return nil, nil, err
 			}
-			keyed, details, candidates := service.groupManyToOne(sourceName, rows, rule)
+			keyed, details, candidates, merged := service.groupManyToOne(sourceName, rows, rule)
 			data.keyed[sourceName] = keyed
 			conflicts[sourceName] = sourceConflicts{Details: details, Candidates: candidates}
+			if merged != nil {
+				data.merged[sourceName] = merged
+			}
 		default:
 			match, _ := rule["match"].(map[string]any)
 			indexField := ""
@@ -434,13 +441,15 @@ func (service *Service) groupOneToMany(
 
 // groupManyToOne 按匹配值收口：同一键出现多个不同值记为冲突（R14）。
 //
+// 声明了 merge_records 的来源走**合并**口径：同一键的每条记录都留着（可以整行去重），
+// 不判冲突、不产出候选值 —— 多条不同的值本来就合法，导出时由列自己用分隔符连起来。
 // 除行级冲突文案外，还产出「键 → 导出列名 → 候选值集合」：冲突来自
 // duplicates.compare_by 的值组合，候选值就取自这些组合里各字段出现过的值。
 func (service *Service) groupManyToOne(
 	sourceName string,
 	rows []store.Row,
 	rule map[string]any,
-) (*store.KeyedTable, map[string]string, conflictCandidates) {
+) (*store.KeyedTable, map[string]string, conflictCandidates, map[string][]store.Row) {
 	keyed := &store.KeyedTable{Keys: []string{}, Rows: map[string]store.Row{}}
 	comparisonValues := map[string]map[string]bool{}
 	matchField := firstOf(mapValues(rule["match"]))
@@ -450,10 +459,20 @@ func (service *Service) groupManyToOne(
 	if configured := textOf(duplicateRule["selected_record"]); configured != "" {
 		selectedRecord = configured
 	}
+	mergeRule, _ := rule["merge_records"].(map[string]any)
+	deduplicateMerged, _ := mergeRule["deduplicate"].(bool)
+	merged := map[string][]store.Row{}
 	for _, row := range rows {
 		matchValue := normalizeKey(row[matchField])
 		if matchValue == "" {
 			continue
+		}
+		if mergeRule != nil {
+			// 合并口径：整行完全相同、且声明了 deduplicate 时才丢掉重复的那条
+			if deduplicateMerged && containsRow(merged[matchValue], row) {
+				continue
+			}
+			merged[matchValue] = append(merged[matchValue], row)
 		}
 		parts := make([]string, 0, len(compareBy))
 		anyValue := false
@@ -478,6 +497,10 @@ func (service *Service) groupManyToOne(
 			keyed.Rows[matchValue] = row
 		}
 	}
+	if mergeRule != nil {
+		// 合并口径下"多条不同值"是合法数据，不判冲突、也不产出单元格候选值
+		return keyed, map[string]string{}, conflictCandidates{}, merged
+	}
 	conflicts := map[string]string{}
 	for matchValue, values := range comparisonValues {
 		if len(values) <= 1 || textOf(duplicateRule["different_value"]) != "conflict" {
@@ -493,7 +516,17 @@ func (service *Service) groupManyToOne(
 	}
 	return keyed, conflicts, cellCandidates(
 		service.fieldsToExportColumns(sourceName),
-		tupleValues(comparisonValues, compareBy), conflicts)
+		tupleValues(comparisonValues, compareBy), conflicts), nil
+}
+
+// containsRow 判断一组行里是否已经有一模一样的一条（整行逐格比较，合并去重要用）。
+func containsRow(rows []store.Row, row store.Row) bool {
+	for _, existing := range rows {
+		if rowsEqual(existing, row) {
+			return true
+		}
+	}
+	return false
 }
 
 // --- 冲突的单元格级标识（AGENTS.md §11 第 1 步）---
@@ -707,8 +740,13 @@ func (service *Service) consolidateRows(
 					selected[sourceName] = keyed.Rows[baseKey]
 				}
 			}
+			// 合并口径的来源：把该键的全部记录交给列去连接（没声明 merge_records 的来源不在这里）
+			merged := map[string][]store.Row{}
+			for sourceName, rowsByKey := range data.merged {
+				merged[sourceName] = rowsByKey[baseKey]
+			}
 			notes, err := service.mapResultRow(
-				row, selected, &outcome, incomplete, resultKey,
+				row, selected, merged, &outcome, incomplete, resultKey,
 				scope, expansionFields, noMatchValue,
 			)
 			if err != nil {
@@ -724,11 +762,14 @@ func (service *Service) consolidateRows(
 
 // mapResultRow 按配置把来源字段写进输出列（R15），随后跑导出前的最后一道校验（R16）。
 //
+// selected 是每个来源"取来的一条记录"；merged 是声明了 merge_records 的来源在该键上的
+// **全部**记录（导出列声明 record_separator 时才会用到，用来把多条连成一格）。
 // 返回值是本行的单元格级冲突提示（导出列名 → 提示文本，见 conflictNotes）；
 // 它与行的取值无关，只取决于收口时记下的冲突。
 func (service *Service) mapResultRow(
 	row store.Row,
 	selected map[string]store.Row,
+	merged map[string][]store.Row,
 	outcome *Outcome,
 	incomplete map[string]bool,
 	resultKey string,
@@ -772,6 +813,13 @@ func (service *Service) mapResultRow(
 		default:
 			dataSource := textOf(sourceDefinition["file"])
 			sourceRow := selected[dataSource]
+			// 合并列：该键有多条记录、且列声明了 record_separator 时，按来源顺序连成一格
+			recordSeparator := textOf(transform["record_separator"])
+			if recordSeparator != "" && len(merged[dataSource]) > 0 {
+				row[columnName] = service.joinRecords(
+					merged[dataSource], sourceDefinition, transform, recordSeparator)
+				continue
+			}
 			if sourceRow == nil {
 				if service.noMatchAction(dataSource, scope.ExpansionSource) == "empty" {
 					row[columnName] = ""
@@ -787,14 +835,8 @@ func (service *Service) mapResultRow(
 				continue
 			}
 			if transformType == "concatenate" {
-				parts := []string{}
-				for _, field := range stringsOf(sourceDefinition["field"]) {
-					text := normalizeKey(sourceRow[field])
-					if !rules.IsEmptyValue(text, service.Config.EmptyValues) {
-						parts = append(parts, text)
-					}
-				}
-				row[columnName] = strings.Join(parts, textOf(transform["separator"]))
+				row[columnName] = service.concatenatedFields(
+					sourceRow, stringsOf(sourceDefinition["field"]), textOf(transform["separator"]))
 				continue
 			}
 			row[columnName] = sourceRow[firstOf(sourceDefinition["field"])]
@@ -802,6 +844,55 @@ func (service *Service) mapResultRow(
 	}
 	service.flagMissingRequiredValues(row, selected, outcome, incomplete, resultKey, noMatchValue)
 	return notes, nil
+}
+
+// concatenatedFields 把一条记录的多个字段按分隔符连起来：空值跳过，所以不会出现
+// 尾部分隔符（concatenate 列与合并列共用这一段）。
+func (service *Service) concatenatedFields(
+	row store.Row,
+	fields []string,
+	separator string,
+) string {
+	parts := []string{}
+	for _, field := range fields {
+		text := normalizeKey(row[field])
+		if !rules.IsEmptyValue(text, service.Config.EmptyValues) {
+			parts = append(parts, text)
+		}
+	}
+	return strings.Join(parts, separator)
+}
+
+// joinRecords 把同一键的多条来源记录合并成一格（merge_records + record_separator）。
+//
+// 每条记录先按列自己的字段与 separator 拼好（空值跳过），空的整条丢弃，**拼出来相同的
+// 只留一次**（整行去重挡不住"编码相同、其它列不同"的记录，同一格里显示两遍没有意义），
+// 再按 record_separator 连起来 —— 所以不会出现尾部分隔符。来源声明 order: sorted 时
+// 按拼好的文本字典序排，否则保持来源表顺序。
+func (service *Service) joinRecords(
+	rows []store.Row,
+	sourceDefinition map[string]any,
+	transform map[string]any,
+	recordSeparator string,
+) string {
+	fields := stringsOf(sourceDefinition["field"])
+	itemSeparator := textOf(transform["separator"])
+	items := make([]string, 0, len(rows))
+	seen := map[string]bool{}
+	for _, row := range rows {
+		item := service.concatenatedFields(row, fields, itemSeparator)
+		// 拼出来一模一样就只留一次：整行去重挡不住"编码相同、其它列不同"的两条记录
+		if item == "" || seen[item] {
+			continue
+		}
+		seen[item] = true
+		items = append(items, item)
+	}
+	mergeRule, _ := service.Config.SourceRules[textOf(sourceDefinition["file"])]["merge_records"].(map[string]any)
+	if textOf(mergeRule["order"]) == "sorted" {
+		sort.Strings(items)
+	}
+	return strings.Join(items, recordSeparator)
 }
 
 // noMatchValue 是"值拿不到"时写进单元格的占位文本（no_match.value，默认 MISSING）。

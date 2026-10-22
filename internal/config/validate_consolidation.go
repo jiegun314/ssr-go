@@ -165,6 +165,11 @@ func (loader *Loader) ValidateConsolidationMapping(
 				}
 			}
 		}
+		if mergeValue, present := rule["merge_records"]; present {
+			if err := validateMergeRecords(sourceName, cardinality, rule, mergeValue); err != nil {
+				return err
+			}
+		}
 	}
 
 	outputFields, err := requireMapping(dataset["fields"], "consolidation.target_dataset.fields")
@@ -255,7 +260,95 @@ func (loader *Loader) ValidateConsolidationMapping(
 	if err := validateDateOffsetTransform(dataset, outputFields, userDefinedDataOf(setting)); err != nil {
 		return err
 	}
+	if err := validateMergeRecordColumns(outputFields, sourceRules); err != nil {
+		return err
+	}
 	return validateRecordActionTransform(dataset, outputFields)
+}
+
+// validateMergeRecords 校验"同一键的多条记录合并成一格"（merge_records）。
+//
+// 口径：
+//   - 只对 many_to_one 有意义的：多条来源记录合成一格，而不是取第一条；
+//   - 与 duplicates 互斥 —— 合并了就不该再判冲突（否则这一行永远导不出去）；
+//   - separator 必须是非空字符串（多条记录之间的连接符）；
+//   - deduplicate 可选布尔（true = 整行完全相同才去重）；
+//   - order 可选，取 MergeRecordOrders（source = 来源顺序，sorted = 渲染后字典序）。
+func validateMergeRecords(
+	sourceName string,
+	cardinality string,
+	rule map[string]any,
+	raw any,
+) error {
+	label := "consolidation.target_dataset.merge_rules.sources." + sourceName + ".merge_records"
+	merge, err := requireMapping(raw, label)
+	if err != nil {
+		return err
+	}
+	if cardinality != "many_to_one" {
+		return errorf("%s is only supported for many_to_one sources (got %q)", label, cardinality)
+	}
+	if _, both := rule["duplicates"]; both {
+		return errorf("%s can not be combined with duplicates (merge instead of keeping one record)",
+			label)
+	}
+	if separator, _ := asString(merge["separator"]); separator == "" {
+		return errorf("%s.separator must be a non-empty string", label)
+	}
+	if value, present := merge["deduplicate"]; present && value != nil {
+		if _, ok := value.(bool); !ok {
+			return errorf("%s.deduplicate must be boolean, got %#v", label, value)
+		}
+	}
+	if value, present := merge["order"]; present && value != nil {
+		order, _ := asString(value)
+		if !contains(MergeRecordOrders, order) {
+			return errorf("%s.order must be one of %v, got %q", label, MergeRecordOrders, order)
+		}
+	}
+	return nil
+}
+
+// validateMergeRecordColumns 校验"导出列要把同一键的多条记录连起来"的声明（record_separator）。
+//
+// 只允许用在 concatenate 列上，且它读取的来源必须声明了 merge_records —— 否则是
+// "以为会合并、其实只拿到第一条"的静默错误，所以在这里拦住。
+func validateMergeRecordColumns(
+	exportFields map[string]any,
+	sourceRules map[string]any,
+) error {
+	mergedSources := map[string]bool{}
+	for name, raw := range sourceRules {
+		rule, _ := raw.(map[string]any)
+		if _, present := rule["merge_records"]; present {
+			mergedSources[name] = true
+		}
+	}
+	for _, fieldName := range sortedKeys(exportFields) {
+		definition, _ := exportFields[fieldName].(map[string]any)
+		transform, _ := definition["transform"].(map[string]any)
+		separator, present := transform["record_separator"]
+		if !present || separator == nil {
+			continue
+		}
+		label := "consolidation.target_dataset.fields." + fieldName + ".transform"
+		text, _ := asString(separator)
+		if text == "" {
+			return errorf("%s.record_separator must be a non-empty string", label)
+		}
+		if transformType, _ := asString(transform["type"]); transformType != "concatenate" {
+			return errorf("%s.record_separator is only supported by concatenate columns (got %q)",
+				label, transformType)
+		}
+		source, _ := definition["source"].(map[string]any)
+		sourceName, _ := asString(source["file"])
+		if !mergedSources[sourceName] {
+			return errorf(
+				"%s.record_separator needs merge_records on its source (%q)",
+				label, sourceName)
+		}
+	}
+	return nil
 }
 
 // validateTransform 要求声明的 transform 类型是字段循环真正认识的那种。

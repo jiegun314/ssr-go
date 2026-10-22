@@ -60,6 +60,10 @@ const RecordActionTransform = "record_action"
 // NoMatchActions 是来源没有基准记录时的四种动作（R13）。
 var NoMatchActions = []string{"emit_incomplete", "empty", "skip", "error"}
 
+// MergeRecordOrders 是 merge_records.order 的允许值：
+// source = 来源表顺序，sorted = 合并后按渲染出来的文本字典序。
+var MergeRecordOrders = []string{"source", "sorted"}
+
 // ChangeIdentityReference 是唯一被接受的比较身份写法。
 const ChangeIdentityReference = "duplicate_check"
 

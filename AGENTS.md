@@ -74,6 +74,13 @@
   两者同时写会被配置校验拦住。它**必须**写进变更比较的 `ignore_fields` ——
   日期每天都变，漏写会让每次整合都把全部行判成"有差异"；配置校验会直接拦住这种情况
   （`internal/config/date_offset_test.go`）。测试要冻结运行日：`Service.Now = func() time.Time {…}`。
+- **合并多条记录 `merge_records`**（写在来源上，只支持 `many_to_one`，与 `duplicates` 互斥）：
+  同一键的每条记录都留下（`deduplicate: true` = 整行完全相同才去重；`order: source | sorted`），
+  **不判冲突**、也不产出单元格候选值 —— 多条不同的值在这里本来就合法。导出列用
+  `transform.record_separator` 把多条连成一格（只允许用在 `concatenate` 列上，且它读取的来源必须
+  声明了 `merge_records`，否则配置校验拦住）：每条记录先按列自己的字段与 `separator` 拼好、
+  空值跳过，再按 `record_separator` 连接，所以不会出现尾部分隔符。当前用于「一个型号多个医保编码」：
+  只合并**医保代码本身**（不带序列号），英文逗号连接。
 - 两列是**运行期派生**的（由变更比较填值，不读来源表）：`Choose Action`（`transform.type: record_action`，
   只能是 Add 或 Modify）与 `Change Description`（`change_description`）。判定键与重复检查共用
   `duplicate_check.identity_fields`，不允许另写一份；比较顺序 = 导出列的**配置声明顺序**。

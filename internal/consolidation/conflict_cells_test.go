@@ -57,41 +57,29 @@ func TestR14ConflictCandidatesNameTheConflictingExportedCells(t *testing.T) {
 	}
 }
 
-// TestR14ConflictCandidatesNameTheConflictingExportedCellsManyToOne 覆盖 many_to_one：
+// TestR14ConflictCandidatesNameTheConflictingCellsManyToOne 覆盖 many_to_one 的冲突口径：
 // 同一 material_code 出现两个不同的医保编码时，冲突的格是「Medical Insurance Code」
-// （该来源的 db_field 反查到的唯一导出列；concatenate 的另一个字段取值相同，不并入候选值）。
+// （该来源的 db_field 反查到的唯一导出列）。
+//
+// 注意：仓库配置现在让医保来源走 merge_records（同一型号多条编码合并成一格、不判冲突），
+// 所以这里用一条等价的手写规则直接喂给 groupManyToOne，保留 many_to_one 冲突路径的覆盖。
 func TestR14ConflictCandidatesNameTheConflictingCellsManyToOne(t *testing.T) {
 	service, _, repository := consolidated(t)
-	before := ""
-	after := ""
-	replaceRows(t, repository, "medical_insurance_code", func(rows []store.Row) []store.Row {
-		// 复制第一行并把医保编码改成另一个值：同一 material_code 两个不同值 ⇒ 冲突（R14）
-		before = rows[0]["medical_insurance_code"]
-		after = before + "-X"
-		conflictRow := store.Row{}
-		for column, value := range rows[0] {
-			conflictRow[column] = value
-		}
-		conflictRow["medical_insurance_code"] = after
-		return append(rows, conflictRow)
-	})
+	rows := insuranceRowsWithCodes(t, repository, service, "-X")
 
-	_, conflicts, err := service.readSourceData()
-	if err != nil {
-		t.Fatalf("读来源数据失败：%v", err)
-	}
+	_, details, candidates, _ := service.groupManyToOne(
+		"medical_insurance_code", rows, manyToOneConflictRule())
 
-	found := conflicts["medical_insurance_code"]
-	if len(found.Details) != 1 {
-		t.Fatalf("行级冲突 = %v; want 1 条", found.Details)
+	if len(details) != 1 {
+		t.Fatalf("行级冲突 = %v; want 1 条", details)
 	}
-	if len(found.Candidates) != 1 {
-		t.Fatalf("单元格级冲突 = %v; want 1 个键", found.Candidates)
+	if len(candidates) != 1 {
+		t.Fatalf("单元格级冲突 = %v; want 1 个键", candidates)
 	}
-	expected := []string{before, after}
+	expected := []string{rows[0]["medical_insurance_code"], rows[1]["medical_insurance_code"]}
 	sort.Strings(expected)
-	for key, columns := range found.Candidates {
-		if _, present := found.Details[key]; !present {
+	for key, columns := range candidates {
+		if _, present := details[key]; !present {
 			t.Errorf("候选值的键 %q 不在行级冲突里", key)
 		}
 		if len(columns) != 1 ||
@@ -185,45 +173,78 @@ func TestR14ConflictNotesLandOnTheConflictingColumn(t *testing.T) {
 }
 
 // TestR14ConflictNotesListAtMostThreeCandidates 固定简版口径：候选值只列前 3 条。
+//
+// 同样用手写的 many_to_one 冲突规则（仓库配置对医保来源已改成 merge_records）。
 func TestR14ConflictNotesListAtMostThreeCandidates(t *testing.T) {
 	service, _, repository := consolidated(t)
-	base := ""
-	materialCode := ""
-	replaceRows(t, repository, "medical_insurance_code", func(rows []store.Row) []store.Row {
-		base = rows[0]["medical_insurance_code"]
-		materialCode = rows[0]["material_code"]
-		extra := []store.Row{}
-		for _, suffix := range []string{"-1", "-2", "-3"} {
-			conflictRow := store.Row{}
-			for column, value := range rows[0] {
-				conflictRow[column] = value
-			}
-			conflictRow["medical_insurance_code"] = base + suffix
-			extra = append(extra, conflictRow)
-		}
-		return append(rows, extra...)
-	})
+	rows := insuranceRowsWithCodes(t, repository, service, "-1", "-2", "-3")
+	materialCode := rows[0]["material_code"]
+	base := rows[0]["medical_insurance_code"]
 
-	_, conflicts, err := service.readSourceData()
-	if err != nil {
-		t.Fatalf("读来源数据失败：%v", err)
-	}
-	key := onlyConflictKey(t, conflicts["medical_insurance_code"].Details)
+	_, details, candidates, _ := service.groupManyToOne(
+		"medical_insurance_code", rows, manyToOneConflictRule())
+	key := onlyConflictKey(t, details)
 	if key != materialCode {
 		t.Fatalf("many_to_one 的冲突键 = %q; want 基准键 %q", key, materialCode)
 	}
+	conflicts := map[string]sourceConflicts{
+		"medical_insurance_code": {Details: details, Candidates: candidates},
+	}
 	notes := service.conflictNotes(conflictScope{Conflicts: conflicts, BaseKey: materialCode})
 
-	candidates := []string{base, base + "-1", base + "-2", base + "-3"}
-	sort.Strings(candidates)
+	all := []string{base, base + "-1", base + "-2", base + "-3"}
+	sort.Strings(all)
 	want := "医保编码信息：" + materialCode + " 有多个候选值：" +
-		strings.Join(candidates[:conflictNoteLimit], ", ")
+		strings.Join(all[:conflictNoteLimit], ", ")
 	if notes["Medical Insurance Code"] != want {
 		t.Errorf("提示 = %q; want %q", notes["Medical Insurance Code"], want)
 	}
 	if strings.Contains(notes["Medical Insurance Code"], base+"-3") {
 		t.Errorf("超过 3 条的候选值不该列出来：%q", notes["Medical Insurance Code"])
 	}
+}
+
+// manyToOneConflictRule 是医保来源改配置之前的等价规则：取第一条、不同值算冲突。
+// 只用来覆盖 many_to_one 的冲突路径，不代表仓库现在的配置。
+func manyToOneConflictRule() map[string]any {
+	return map[string]any{
+		"cardinality": "many_to_one",
+		"match":       map[string]any{"material_code": "material_code"},
+		"duplicates": map[string]any{
+			"compare_by":      []any{"medical_insurance_code"},
+			"different_value": "conflict",
+			"selected_record": "first",
+		},
+	}
+}
+
+// insuranceRowsWithCodes 取医保来源的第一条真实行，再按 suffixes 造出同一个 material_code 的
+// 多条不同编码（编码 = 原编码 + suffix）。返回 [原行, 原行+suffix1, …]，保持来源顺序。
+func insuranceRowsWithCodes(
+	t *testing.T,
+	repository *store.Repository,
+	service *Service,
+	suffixes ...string,
+) []store.Row {
+	t.Helper()
+	rows, err := repository.Rows(service.Config.SourceTables["medical_insurance_code"])
+	if err != nil {
+		t.Fatalf("读医保来源失败：%v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatal("医保来源没有数据")
+	}
+	original := rows[0]
+	extra := make([]store.Row, 0, len(suffixes))
+	for _, suffix := range suffixes {
+		conflictRow := store.Row{}
+		for column, value := range original {
+			conflictRow[column] = value
+		}
+		conflictRow["medical_insurance_code"] = original["medical_insurance_code"] + suffix
+		extra = append(extra, conflictRow)
+	}
+	return append([]store.Row{original}, extra...)
 }
 
 // TestR14NoMatchRowsCarryNoCellNotes：来源没有匹配记录的占位行（no_match）没有冲突格，
