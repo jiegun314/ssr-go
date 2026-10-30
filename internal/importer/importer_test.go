@@ -183,9 +183,18 @@ func TestImportRejectsUnknownFileType(t *testing.T) {
 
 func TestImportRejectsAWorkbookMissingARequiredColumn(t *testing.T) {
 	importer, repository, _ := newTestImporter(t)
-	// ra_input 的第一列是必填的「注册证编号/备案凭证编号」
-	path := writeVariant(t, importer, "ra_input", func(file *excelize.File, sheet string, _ int, _ map[string]int) {
-		if err := file.RemoveCol(sheet, "A"); err != nil {
+	// 按表头名找到必填的「注册证编号/备案凭证编号」再删掉它
+	// （不能写死 A 列：RA 前面可能再加列）
+	path := writeVariant(t, importer, "ra_input", func(file *excelize.File, sheet string, _ int, indexes map[string]int) {
+		index, present := indexes["注册证编号/备案凭证编号"]
+		if !present {
+			t.Fatal("样本里没有「注册证编号/备案凭证编号」这一列")
+		}
+		name, err := excelize.ColumnNumberToName(index)
+		if err != nil {
+			t.Fatalf("列号转列名失败：%v", err)
+		}
+		if err := file.RemoveCol(sheet, name); err != nil {
 			t.Fatalf("删列失败：%v", err)
 		}
 	})

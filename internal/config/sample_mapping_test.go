@@ -66,8 +66,8 @@ func TestSampleHintsLiveInTheirOwnFileAndAreMergedBack(t *testing.T) {
 	columns, _ := raInput["columns"].([]any)
 	first, _ := columns[0].(map[string]any)
 	hint, _ := first["sample"].(map[string]any)
-	if got, _ := hint["english_name"].(string); got != "Registration Filing Certificate Number" {
-		t.Errorf("第一条列的 english_name = %q；want Registration Filing Certificate Number", got)
+	if got, _ := hint["english_name"].(string); got != "Registration Certificate Unique Code" {
+		t.Errorf("第一条列的 english_name = %q；want Registration Certificate Unique Code", got)
 	}
 }
 

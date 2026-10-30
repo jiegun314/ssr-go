@@ -122,7 +122,8 @@ func TestStructuredSaveKeepsSharedMappingAnchorsIntact(t *testing.T) {
 
 	// 引用处（别名）不允许直接编辑
 	refused := app.SaveSettingsValues(config.ImportMappingFile, []SettingsChange{
-		{Path: []string{"sources", "ra_input", "columns", "9", "value_mapping"}, Value: "x"},
+		// 列下标是 YAML 列表位置（0 基）：第 11 列是「是否标记为一次性使用」，它用 *udi_yes_no 别名
+		{Path: []string{"sources", "ra_input", "columns", "11", "value_mapping"}, Value: "x"},
 	})
 	if !refused.Failed || !strings.Contains(refused.Message, "共享映射") {
 		t.Fatalf("共享映射的引用处应当被拒绝：%+v", refused)
@@ -349,7 +350,7 @@ func TestSettingsTreeCarriesCommentsControlsAndReadOnlyReasons(t *testing.T) {
 	if mapping == nil || !mapping.Editable {
 		t.Errorf("共享映射本体的值应当可编辑：%+v", mapping)
 	}
-	aliasNode := findSettingsNode(importTab.Tree, "sources", "ra_input", "columns", "9", "value_mapping")
+	aliasNode := findSettingsNode(importTab.Tree, "sources", "ra_input", "columns", "11", "value_mapping")
 	if aliasNode == nil || aliasNode.Alias == "" || aliasNode.Editable || aliasNode.Reason == "" {
 		t.Errorf("共享映射的引用处应当只读并指向锚点名：%+v", aliasNode)
 	}

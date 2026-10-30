@@ -14,6 +14,12 @@ version: "1.0"
 
 sources:
   ra_input:
+    registration_certificate_unique_code:
+      english_name: "Registration Certificate Unique Code"
+      data_type: "string"
+    business_unit:
+      english_name: "BU"
+      data_type: "string"
     registration_filing_certificate_number:
       english_name: "Registration Filing Certificate Number"
       data_type: "string"

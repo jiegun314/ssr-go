@@ -85,6 +85,20 @@ sources:
     # 列顺序即暂存表的列顺序；表头匹配只认 chinese_name 的精确值。
     columns:
 
+      # RA 团队给"一张注册证"分配的稳定编码：多行（多个规格型号）共享同一个值，
+      # 暂存表里只做记录 —— 整合与导出都不读它。
+      # 老格式的 RA 文件没有这一列也能导入（optional：缺列就整列为空）。
+      - chinese_name: "注册证唯一码"
+        db_field: "registration_certificate_unique_code"
+        mandatory_status: "optional"
+        # 只给样本工厂（gensample）用，导入/整合都不读
+
+      # BU（Business Unit）：维护人填的业务单元，同样只做记录，不参与整合/导出。
+      - chinese_name: "BU"
+        db_field: "business_unit"
+        mandatory_status: "optional"
+        # 只给样本工厂（gensample）用，导入/整合都不读
+
       - chinese_name: "注册证编号/备案凭证编号"
         db_field: "registration_filing_certificate_number"
         mandatory_status: "required"

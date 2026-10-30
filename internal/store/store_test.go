@@ -208,9 +208,9 @@ func TestR8SourceTablesFollowTheConfiguration(t *testing.T) {
 	if strings.Join(names, "|") != "ra_input|global_udi_input|medical_insurance_code|product_category" {
 		t.Fatalf("来源顺序 = %v", names)
 	}
-	// 列数由 AGENTS.md §3.3 记录：25 / 42 / 35 / 6
-	if len(counts) != 4 || counts[0] != 25 || counts[1] != 42 || counts[2] != 35 || counts[3] != 6 {
-		t.Fatalf("列数 = %v; want [25 42 35 6]", counts)
+	// 列数固定下来：27 / 42 / 35 / 6（RA 在 2.3.12 加了「注册证唯一码」与「BU」）
+	if len(counts) != 4 || counts[0] != 27 || counts[1] != 42 || counts[2] != 35 || counts[3] != 6 {
+		t.Fatalf("列数 = %v; want [27 42 35 6]", counts)
 	}
 }
 
