@@ -2,7 +2,7 @@
 // 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
 import { Button, Card, Tooltip } from "antd";
-import { ChevronLeft, ChevronRight, FileDown, Merge, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, Merge, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -436,25 +436,9 @@ export default function App() {
 
   return (
     <>
-      <div className="app-shell">
-        <div className="session-bar">
-          <span className="session-user">
-            已登录：{session?.name ?? "—"}（{session?.roleLabel ?? "—"}）
-          </span>
-          {share ? (
-            <span className={share.healthy ? "session-share" : "session-share session-share-bad"}>
-              共享盘：{share.mode === "local" ? "本地模式" : share.healthy ? "正常" : "异常"}
-            </span>
-          ) : null}
-          {session?.singleUser ? (
-            <span className="session-share">单机模式（全权限）</span>
-          ) : (
-            <Button size="small" type="text" onClick={handleLogout}>
-              切换身份
-            </Button>
-          )}
-        </div>
-        <div className={`columns${leftCollapsed ? " left-collapsed" : ""}`}>
+      <div className="app-frame">
+        <div className="app-shell">
+          <div className={`columns${leftCollapsed ? " left-collapsed" : ""}`}>
           <div className="left">
             <Card
               className="card"
@@ -561,6 +545,33 @@ export default function App() {
               />
             </Card>
           </div>
+        </div>
+        </div>
+
+        {/* 底部状态栏：登录人 + 共享盘状态 + 切换身份（图标），贴着窗口最底部 */}
+        <div className="status-bar">
+          <span className="status-user">
+            已登录：{session?.name ?? "—"}（{session?.roleLabel ?? "—"}）
+          </span>
+          {share ? (
+            <span className={share.healthy ? "status-share" : "status-share status-share-bad"}>
+              共享盘：{share.mode === "local" ? "本地模式" : share.healthy ? "正常" : "异常"}
+            </span>
+          ) : null}
+          {session?.singleUser ? (
+            <span className="status-share">单机模式（全权限）</span>
+          ) : (
+            <Tooltip title="切换身份">
+              <Button
+                className="status-switch"
+                type="text"
+                size="small"
+                aria-label="切换身份"
+                icon={<Users size={14} />}
+                onClick={handleLogout}
+              />
+            </Tooltip>
+          )}
         </div>
       </div>
 

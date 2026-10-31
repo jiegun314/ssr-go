@@ -53,10 +53,18 @@ body {
 
 /* ---------- 窗口骨架 ---------- */
 
-.app-shell {
+/* 整个窗口分两段：上面是可伸缩的主界面，下面是贴底的底部状态栏 */
+.app-frame {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 12px;
 }
 
@@ -1287,16 +1295,36 @@ body {
   gap: 8px;
 }
 
-/* 会话条：登录人 + 共享盘状态 + 切换身份；只在主界面顶部占一行 */
-.session-bar {
+/* 底部状态栏：登录人 + 共享盘状态 + 切换身份（图标）；不吃掉结果表的高度，
+   只在窗口最底下占一行，上方一条淡色分隔线。 */
+.status-bar {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 2px 6px;
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border-top: 1px solid var(--module-border);
+  background: #fafafa;
   font-size: 12px;
+  line-height: 20px;
   color: rgba(0, 0, 0, 0.55);
 }
 
-.session-share-bad {
+.status-share-bad {
   color: var(--danger-red);
+}
+
+/* 切换身份的图标按钮：高度与状态文字对齐，不要撑高状态栏 */
+.status-switch.ant-btn {
+  margin-left: auto;
+  width: 22px;
+  min-width: 22px;
+  height: 20px;
+  padding: 0;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.status-switch.ant-btn:hover,
+.status-switch.ant-btn:focus-visible {
+  color: var(--brand-red);
 }
