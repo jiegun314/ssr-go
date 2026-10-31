@@ -602,14 +602,42 @@ export default function App() {
           </Tooltip>
           <div className="right">
             {canAlign && overview?.enabled ? (
-              <AlignPanel
-                sources={overview.sources}
-                autoAlign={autoAlign}
-                aligning={aligning}
-                onAutoAlignChange={setAutoAlign}
-                onAlignAll={handleAlignAll}
-                onAlign={handleAlign}
-              />
+              <Card
+                className="card align-card"
+                size="small"
+                title="数据对齐"
+                extra={
+                  <Tooltip
+                    title={
+                      overview.sources.every((item) => item.aligned || !item.remoteVersion)
+                        ? "没有需要对齐的来源"
+                        : "把落后的来源都对齐到共享盘最新版本"
+                    }
+                  >
+                    <Button
+                      className="align-run"
+                      aria-label="全部对齐"
+                      icon={<RefreshCw size={16} />}
+                      loading={aligning}
+                      disabled={
+                        aligning ||
+                        overview.sources.every((item) => item.aligned || !item.remoteVersion)
+                      }
+                      onClick={handleAlignAll}
+                    >
+                      全部对齐
+                    </Button>
+                  </Tooltip>
+                }
+              >
+                <AlignPanel
+                  sources={overview.sources}
+                  autoAlign={autoAlign}
+                  aligning={aligning}
+                  onAutoAlignChange={setAutoAlign}
+                  onAlign={handleAlign}
+                />
+              </Card>
             ) : null}
             <Card
               className="card grow consolidation-card"
