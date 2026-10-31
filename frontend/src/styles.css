@@ -1266,6 +1266,30 @@ body {
   width: 132px;
 }
 
+/* 管理员方块：品牌红底、白字（普通组别保持白底描边） */
+.login-tile-admin.ant-btn {
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+  color: #fff;
+}
+
+.login-tile-admin.ant-btn:hover,
+.login-tile-admin.ant-btn:focus-visible {
+  background: #c02317;
+  border-color: #c02317;
+  color: #fff;
+}
+
+.login-tile-admin.ant-btn:active {
+  background: #a81f14;
+  border-color: #a81f14;
+  color: #fff;
+}
+
+.login-tile-admin .login-tile-hint {
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .login-tile-label {
   font-size: 14px;
   font-weight: 500;

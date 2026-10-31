@@ -44,6 +44,10 @@ describe("登录页", () => {
     const adminRow = document.querySelector(".login-row-admin") as HTMLElement;
     expect(adminRow.querySelectorAll(".login-tile")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Admin" })).toBeInTheDocument();
+
+    // Admin 方块是红底白字（login-tile-admin），其余组别不带这个类
+    expect(screen.getByRole("button", { name: "Admin" })).toHaveClass("login-tile-admin");
+    expect(screen.getByRole("button", { name: "RA" })).not.toHaveClass("login-tile-admin");
   });
 
   it("点非 Admin 的组别直接登录（不需要密码）", async () => {

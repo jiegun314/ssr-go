@@ -64,7 +64,7 @@ export function LoginScreen({ roles, username, onLogin, busy }: LoginScreenProps
     return (
       <Button
         key={role.key}
-        className="login-tile"
+        className={`login-tile${role.needsPassword ? " login-tile-admin" : ""}`}
         aria-label={role.label}
         disabled={disabled}
         onClick={() => choose(role)}
