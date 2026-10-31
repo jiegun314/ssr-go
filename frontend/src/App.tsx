@@ -35,7 +35,7 @@ import type {
   ImportState,
   InitialState,
   LoginResult,
-  LoginUser,
+  LoginRole,
   SessionInfo,
   ShareStatus,
   ReviewResult,
@@ -89,7 +89,9 @@ export default function App() {
 
   // 多人协作版（P1）：登录会话、登录页候选人、共享盘状态
   const [session, setSession] = useState<SessionInfo | null>(null);
-  const [users, setUsers] = useState<LoginUser[]>([]);
+  const [roles, setRoles] = useState<LoginRole[]>([]);
+  const [username, setUsername] = useState("");
+  const [singleUser, setSingleUser] = useState(false);
   const [share, setShare] = useState<ShareStatus | null>(null);
 
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -111,7 +113,9 @@ export default function App() {
     setImports(initial.imports ?? {});
     setLog(initial.operationLog ?? "");
     setSession(initial.session ?? null);
-    setUsers(initial.users ?? []);
+    setRoles(initial.roles ?? []);
+    setUsername(initial.username ?? "");
+    setSingleUser(initial.singleUser ?? false);
     setShare(initial.share ?? null);
   }, []);
 
@@ -122,8 +126,8 @@ export default function App() {
   /* ---------- 登录与权限 ---------- */
 
   const handleLogin = useCallback(
-    async (name: string, password: string) => {
-      const result = await call<LoginResult>("Login", name, password);
+    async (role: string, password: string) => {
+      const result = await call<LoginResult>("Login", role, password);
       if (!result) return;
       setLog(result.log ?? "");
       if (result.failed) {
@@ -419,11 +423,11 @@ export default function App() {
     });
   }, [openAbout, openSettings]);
 
-  // 有人员名单但没有会话 → 先登录；单机模式后端已自动建立会话，直接进主界面。
-  if (users.length > 0 && !session) {
+  // 多人模式（有 users.yaml）但没有会话 → 先登录；单机模式后端已自动建立会话，直接进主界面。
+  if (roles.length > 0 && !session && !singleUser) {
     return (
       <>
-        <LoginScreen users={users} onLogin={handleLogin} busy={busy} />
+        <LoginScreen roles={roles} username={username} onLogin={handleLogin} busy={busy} />
         <LoadingOverlay text={busy} />
         <MessageModal state={message} onClose={() => setMessage(null)} />
       </>

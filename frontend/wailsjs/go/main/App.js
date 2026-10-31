@@ -46,8 +46,8 @@ export function InitialState() {
   return window['go']['main']['App']['InitialState']();
 }
 
-export function ListUsers() {
-  return window['go']['main']['App']['ListUsers']();
+export function ListRoles() {
+  return window['go']['main']['App']['ListRoles']();
 }
 
 export function Login(arg1, arg2) {

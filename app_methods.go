@@ -36,7 +36,8 @@ func (app *App) InitialState() State {
 		Imports:      app.importStates,
 		Busy:         app.busy,
 		Session:      app.sessionInfo(),
-		Users:        loginUsers(app.users),
+		Roles:        loginRoles(),
+		Username:     auth.CurrentUsername(),
 		SingleUser:   app.singleUser,
 		Share:        app.shareStatus,
 	}

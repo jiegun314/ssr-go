@@ -17,13 +17,24 @@ import (
 	"github.com/jiegun314/ssr-go/internal/store"
 )
 
-// LoginUser 是登录页展示的一行（不含邮箱等敏感字段）。
-type LoginUser struct {
-	Name          string `json:"name"`
-	Role          string `json:"role"`
-	RoleLabel     string `json:"roleLabel"`
+// LoginRole 是登录页的一个"组别方块"：按组别登录，不按人名（人名显示为 Welcome, <本机用户名>）。
+type LoginRole struct {
+	Key           string `json:"key"`
+	Label         string `json:"label"`
+	Hint          string `json:"hint"`
 	NeedsPassword bool   `json:"needsPassword"`
-	Note          string `json:"note"`
+}
+
+// loginRoles 是登录页固定的五个组别：上面一行四个（RA / EAMA / UDI / Supply Chain），
+// 下面一行居中一个（Admin）。顺序即界面顺序。
+func loginRoles() []LoginRole {
+	return []LoginRole{
+		{Key: string(auth.RoleRA), Label: auth.Label(auth.RoleRA), Hint: "RA 信息上传"},
+		{Key: string(auth.RoleEAMA), Label: auth.Label(auth.RoleEAMA), Hint: "产品类别 / 医保代码"},
+		{Key: string(auth.RoleUDI), Label: auth.Label(auth.RoleUDI), Hint: "UDI 团队信息"},
+		{Key: string(auth.RoleSupplyChain), Label: auth.Label(auth.RoleSupplyChain), Hint: "数据整合"},
+		{Key: string(auth.RoleAdmin), Label: auth.Label(auth.RoleAdmin), Hint: "全部权限", NeedsPassword: true},
+	}
 }
 
 // SessionInfo 是登录后的身份信息（前端按 actions 决定按钮显隐）。
@@ -49,30 +60,15 @@ type LoginResult struct {
 	Session *SessionInfo `json:"session"`
 }
 
-// ListUsers 返回登录页可选的人（单机模式返回空，前端直接进主界面）。
-func (app *App) ListUsers() []LoginUser {
+// ListRoles 返回登录页的组别方块（单机模式不会用到）。
+func (app *App) ListRoles() []LoginRole {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	return loginUsers(app.users)
-}
-
-// loginUsers 把人员列表转成登录页结构（InitialState 与 ListUsers 共用）。
-func loginUsers(users []auth.User) []LoginUser {
-	converted := make([]LoginUser, 0, len(users))
-	for _, user := range users {
-		converted = append(converted, LoginUser{
-			Name:          user.Name,
-			Role:          string(user.Role),
-			RoleLabel:     auth.Label(user.Role),
-			NeedsPassword: user.Role == auth.RoleAdmin,
-			Note:          user.Note,
-		})
-	}
-	return converted
+	return loginRoles()
 }
 
 // Login 选择身份进入。Admin 需要密码；其余角色选择即可。
-func (app *App) Login(name string, password string) LoginResult {
+func (app *App) Login(role string, password string) LoginResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
@@ -83,32 +79,28 @@ func (app *App) Login(name string, password string) LoginResult {
 		// 单机模式：没有名单可登，直接返回当前（自动建立的）身份
 		return LoginResult{Log: app.logText(), Session: app.sessionInfo()}
 	}
-	var selected *auth.User
-	for index := range app.users {
-		if app.users[index].Name == name {
-			selected = &app.users[index]
-			break
-		}
+	if !auth.IsKnownRole(role) {
+		app.audit("login", role, "找不到这个组别", "denied")
+		return LoginResult{Failed: true, Title: "登录失败", Message: "找不到这个组别，请重新选择。"}
 	}
-	if selected == nil {
-		app.audit("login", name, "找不到这个用户", "denied")
-		return LoginResult{Failed: true, Title: "登录失败", Message: "找不到这个用户，请重新选择。"}
-	}
-	if selected.Role == auth.RoleAdmin && !auth.VerifyAdminPassword(password) {
+	selectedRole := auth.Role(role)
+	if selectedRole == auth.RoleAdmin && !auth.VerifyAdminPassword(password) {
 		reason := "Admin 密码不正确"
 		if strings.TrimSpace(password) == "" {
 			reason = "Admin 登录需要密码"
 		}
-		app.audit("login", selected.Name, reason, "denied")
+		app.audit("login", role, reason, "denied")
 		return LoginResult{Failed: true, Title: "登录失败", Message: reason + "。"}
 	}
+	// 登录人 = 本机用户名（Welcome, <用户名>）；角色 = 选中的组别
+	username := auth.CurrentUsername()
 	app.session = &auth.Session{
-		Name: selected.Name, Role: selected.Role,
-		Username: auth.CurrentUsername(), Machine: auth.CurrentMachine(), At: auth.Now(),
+		Name: username, Role: selectedRole,
+		Username: username, Machine: auth.CurrentMachine(), At: auth.Now(),
 	}
 	status := app.checkShare()
-	app.audit("login", selected.Name, fmt.Sprintf("角色=%s 共享盘=%s", auth.Label(selected.Role), status.Detail), "ok")
-	app.appendLog(LogInfo, fmt.Sprintf("已登录：%s（%s）", selected.Name, auth.Label(selected.Role)))
+	app.audit("login", string(selectedRole), fmt.Sprintf("组别=%s 共享盘=%s", auth.Label(selectedRole), status.Detail), "ok")
+	app.appendLog(LogInfo, fmt.Sprintf("已登录：%s（%s）", auth.Label(selectedRole), username))
 	return LoginResult{Log: app.logText(), Session: app.sessionInfo()}
 }
 

@@ -29,3 +29,6 @@
 
 # frontend (React + antd)：源码与构建产物都提交，只有依赖目录不入库
 /frontend/node_modules/
+
+# 运行期配置快照（configsnapshot 写在配置目录下，不入库）
+/config/.backup/

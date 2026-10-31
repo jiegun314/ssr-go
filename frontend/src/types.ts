@@ -62,7 +62,7 @@ export type SettingsSaveResult = Data<main.SettingsSaveResult>;
 
 /* ---------- 多人协作版（P1）：登录与会话 ---------- */
 
-export type LoginUser = Data<main.LoginUser>;
+export type LoginRole = Data<main.LoginRole>;
 export type SessionInfo = Data<main.SessionInfo>;
 export type LoginResult = Omit<Data<main.LoginResult>, "session"> & {
   session?: SessionInfo;

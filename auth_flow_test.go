@@ -65,8 +65,15 @@ func TestLoginRolesGateTheActions(t *testing.T) {
 	if initial.Session != nil {
 		t.Fatal("有 users.yaml 时启动后应当还没有会话（先登录）")
 	}
-	if len(initial.Users) != 3 {
-		t.Fatalf("登录页候选人数 = %d；want 3", len(initial.Users))
+	// 登录页按组别（固定 5 个），不按人名；用户名用于 Welcome, XXX
+	if len(initial.Roles) != 5 {
+		t.Fatalf("登录页组别数 = %d；want 5", len(initial.Roles))
+	}
+	if initial.Username == "" {
+		t.Error("应当带上本机用户名（Welcome, XXX）")
+	}
+	if initial.Roles[4].Key != "admin" || !initial.Roles[4].NeedsPassword {
+		t.Errorf("最后一行应当是 Admin 且需要密码：%+v", initial.Roles[4])
 	}
 
 	// 未登录：任何动作都拒绝
@@ -74,8 +81,8 @@ func TestLoginRolesGateTheActions(t *testing.T) {
 		t.Fatalf("未登录整合应当被拒：%+v", result)
 	}
 
-	// RA 登录：只能导入 RA
-	login := app.Login("张三", "")
+	// RA 登录（按组别）：只能导入 RA
+	login := app.Login("ra", "")
 	if login.Failed || login.Session == nil {
 		t.Fatalf("RA 登录失败：%+v", login)
 	}
@@ -98,10 +105,10 @@ func TestLoginRolesGateTheActions(t *testing.T) {
 	}
 
 	// 切换身份：Admin 需要密码
-	if result := app.Login("管理员", "wrong"); !result.Failed || !strings.Contains(result.Message, "密码不正确") {
+	if result := app.Login("admin", "wrong"); !result.Failed || !strings.Contains(result.Message, "密码不正确") {
 		t.Fatalf("错误的 Admin 密码应当被拒：%+v", result)
 	}
-	admin := app.Login("管理员", "SsrAdmin@2026")
+	admin := app.Login("admin", "SsrAdmin@2026")
 	if admin.Failed || admin.Session == nil || admin.Session.Role != "admin" {
 		t.Fatalf("Admin 登录失败：%+v", admin)
 	}
@@ -140,18 +147,18 @@ func TestSingleUserModeNeedsNoLogin(t *testing.T) {
 	if initial.Session == nil || initial.Session.Role != "admin" {
 		t.Fatalf("单机模式应当自动以 Admin 进入：%+v", initial.Session)
 	}
-	if len(initial.Users) != 0 {
-		t.Errorf("单机模式登录页候选应当为空：%v", initial.Users)
+	if !initial.Session.SingleUser {
+		t.Error("单机模式的会话应当标记 SingleUser（前端据此跳过登录页）")
 	}
 	if result := app.ImportSource("ra_input", filepath.Join("testdata", "sample-valid", "ra_input.xlsx")); result.Failed {
 		t.Fatalf("单机模式导入应当照常可用：%+v", result)
 	}
 }
 
-func TestUnknownUserIsRejected(t *testing.T) {
+func TestUnknownRoleIsRejected(t *testing.T) {
 	app := newUsersApp(t)
-	result := app.Login("不存在的人", "")
-	if !result.Failed || !strings.Contains(result.Message, "找不到这个用户") {
-		t.Fatalf("未知用户应当被拒：%+v", result)
+	result := app.Login("boss", "")
+	if !result.Failed || !strings.Contains(result.Message, "找不到这个组别") {
+		t.Fatalf("未知组别应当被拒：%+v", result)
 	}
 }

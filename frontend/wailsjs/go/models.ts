@@ -233,24 +233,22 @@ export namespace main {
 		    return a;
 		}
 	}
-	export class LoginUser {
-	    name: string;
-	    role: string;
-	    roleLabel: string;
+	export class LoginRole {
+	    key: string;
+	    label: string;
+	    hint: string;
 	    needsPassword: boolean;
-	    note: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new LoginUser(source);
+	        return new LoginRole(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.role = source["role"];
-	        this.roleLabel = source["roleLabel"];
+	        this.key = source["key"];
+	        this.label = source["label"];
+	        this.hint = source["hint"];
 	        this.needsPassword = source["needsPassword"];
-	        this.note = source["note"];
 	    }
 	}
 	export class ReviewResult {
@@ -430,7 +428,8 @@ export namespace main {
 	    imports: Record<string, ImportState>;
 	    busy: boolean;
 	    session?: SessionInfo;
-	    users: LoginUser[];
+	    roles: LoginRole[];
+	    username: string;
 	    singleUser: boolean;
 	    share: share.Status;
 	
@@ -445,7 +444,8 @@ export namespace main {
 	        this.imports = this.convertValues(source["imports"], ImportState, true);
 	        this.busy = source["busy"];
 	        this.session = this.convertValues(source["session"], SessionInfo);
-	        this.users = this.convertValues(source["users"], LoginUser);
+	        this.roles = this.convertValues(source["roles"], LoginRole);
+	        this.username = source["username"];
 	        this.singleUser = source["singleUser"];
 	        this.share = this.convertValues(source["share"], share.Status);
 	    }

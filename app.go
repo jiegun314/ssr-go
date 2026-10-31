@@ -97,7 +97,8 @@ type State struct {
 	Busy         bool                   `json:"busy"`
 	// 多人协作版（P1）：会话、登录页候选人与共享盘状态。
 	Session    *SessionInfo `json:"session"`
-	Users      []LoginUser  `json:"users"`
+	Roles      []LoginRole  `json:"roles"`
+	Username   string       `json:"username"`
 	SingleUser bool         `json:"singleUser"`
 	Share      share.Status `json:"share"`
 }

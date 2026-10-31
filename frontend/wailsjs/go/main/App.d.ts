@@ -24,7 +24,7 @@ export function ImportState(arg1:string):Promise<main.ImportState>;
 
 export function InitialState():Promise<main.State>;
 
-export function ListUsers():Promise<Array<main.LoginUser>>;
+export function ListRoles():Promise<Array<main.LoginRole>>;
 
 export function Login(arg1:string,arg2:string):Promise<main.LoginResult>;
 
