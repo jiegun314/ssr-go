@@ -33,6 +33,11 @@ const (
 	// allowed_values）。导入、整合、导出都不读它；它是可选文件 —— 不存在时表示
 	// "样本元数据写在导入映射的列里"（老写法），程序照常运行。
 	SampleMappingFile = "sample_mapping.yaml"
+	// WorkflowFile 是**多人协作版**的流程配置（共享盘地址、收件人、邮件通道）。
+	// 它也是可选的：缺失时程序按"本地模式/单机模式"运行。
+	WorkflowFile = "workflow.yaml"
+	// UsersFile 是**多人协作版**的人员名单；缺失时程序进入单机模式（全权限）。
+	UsersFile = "users.yaml"
 )
 
 // 日志记录自己的列：导出模板里没有它们，但表缺了它们就存不下应用写的东西。
@@ -298,6 +303,32 @@ func (loader *Loader) mergeSampleHints(imports map[string]any) {
 			column["sample"] = hint
 		}
 	}
+}
+
+// LoadWorkflow 读 config/workflow.yaml；没有时返回 nil（可选文件）。
+func (loader *Loader) LoadWorkflow() (map[string]any, error) {
+	path := loader.Resolver.ConfigFile(WorkflowFile)
+	if _, err := os.Stat(path); err != nil {
+		fallback := filepath.Join(loader.Resolver.ConfigDir, DefaultsDirectory, WorkflowFile)
+		if _, fallbackErr := os.Stat(fallback); fallbackErr != nil {
+			return nil, nil
+		}
+		path = fallback
+	}
+	return loader.loadYAMLAt(path, WorkflowFile)
+}
+
+// LoadUsers 读 config/users.yaml；没有时返回 nil（可选文件，缺失 = 单机模式）。
+func (loader *Loader) LoadUsers() (map[string]any, error) {
+	path := loader.Resolver.ConfigFile(UsersFile)
+	if _, err := os.Stat(path); err != nil {
+		fallback := filepath.Join(loader.Resolver.ConfigDir, DefaultsDirectory, UsersFile)
+		if _, fallbackErr := os.Stat(fallback); fallbackErr != nil {
+			return nil, nil
+		}
+		path = fallback
+	}
+	return loader.loadYAMLAt(path, UsersFile)
 }
 
 // LoadConsolidationMapping 读 config/consolidation_mapping.yaml。

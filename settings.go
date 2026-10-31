@@ -8,6 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/jiegun314/ssr-go/internal/auth"
 	"github.com/jiegun314/ssr-go/internal/config"
 )
 
@@ -65,6 +66,12 @@ func (app *App) ConfigurationDocument() []SettingsTab {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	tabs := settingsTabs()
+	if err := app.authorize(auth.ActionViewSettings); err != nil {
+		for index := range tabs {
+			tabs[index].Note = err.Error()
+		}
+		return tabs
+	}
 	if app.loader == nil {
 		for index := range tabs {
 			tabs[index].Note = "配置未加载：请确认 config/ 与程序位于同一目录。"
@@ -86,8 +93,27 @@ func (app *App) ConfigurationDocument() []SettingsTab {
 		}
 		tabs[index].Tree = settingsTree(tabs[index].Key, &document)
 		tabs[index].Raw = string(content)
+		if app.session != nil && !auth.Can(app.session.Role, auth.ActionEditSettings) {
+			// 只读身份（例如 Supply Chain）：整棵树标成只读，保存入口也会被后端拒绝
+			markReadOnly(tabs[index].Tree, "只读：当前身份（"+auth.Label(app.session.Role)+"）不能修改配置")
+		}
 	}
 	return tabs
+}
+
+// markReadOnly 把整棵设置树标成只读（列表也不许增删）。
+func markReadOnly(nodes []SettingsNode, reason string) {
+	for index := range nodes {
+		node := &nodes[index]
+		if node.Editable || node.ListEdit || node.Control != "" || node.Value != "" {
+			node.Editable = false
+			node.Reason = reason
+		}
+		node.ListEdit = false
+		if len(node.Children) > 0 {
+			markReadOnly(node.Children, reason)
+		}
+	}
 }
 
 // ShowSettings 由菜单「设置 → 参数设定」调用：请前端打开参数设定窗口。
@@ -229,6 +255,9 @@ type SettingsSaveResult struct {
 func (app *App) SaveConfigurationFile(key string, content string) SettingsSaveResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	if err := app.authorize(auth.ActionEditSettings); err != nil {
+		return SettingsSaveResult{Failed: true, Message: userMessage(err)}
+	}
 	if app.loader == nil {
 		return SettingsSaveResult{Failed: true, Title: "错误", Message: "配置未加载"}
 	}
@@ -248,14 +277,14 @@ func (app *App) SaveConfigurationFile(key string, content string) SettingsSaveRe
 	path := app.loader.Resolver.ConfigFile(key)
 	original, err := os.ReadFile(path)
 	if err != nil {
-		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	backup := path + ".bak"
 	if err := os.WriteFile(backup, original, 0o644); err != nil {
-		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	// 写盘后整体校验：不通过就还原，绝不让磁盘上留下不可启动的配置
 	reloaded, loadErr := config.NewLoader(app.loader.Resolver.ConfigDir)

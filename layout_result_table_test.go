@@ -149,8 +149,9 @@ func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	if strings.Contains(exportButton, `type="primary"`) {
 		t.Error("「生成文件」应当是次按钮：一个区域只留「整合」一个主按钮")
 	}
-	if !strings.Contains(app, "disabled={readyCount === 0}") {
-		t.Error("没有 Ready 行时「生成文件」要禁用")
+	// 没有 Ready 行要禁用；P1 起再叠加身份权限（没有导出权限时同样禁用）
+	if !strings.Contains(app, `disabled={!can("export") || readyCount === 0}`) {
+		t.Error("没有 Ready 行（或没有导出权限）时「生成文件」要禁用")
 	}
 	// 图标 + 文字（与「整合」同一形式）：文字是按钮的子节点，不是 aria-label
 	if !regexp.MustCompile(`>\s*生成文件\s*</Button>`).MatchString(exportButton) {

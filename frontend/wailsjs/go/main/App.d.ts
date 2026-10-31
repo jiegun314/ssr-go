@@ -24,6 +24,12 @@ export function ImportState(arg1:string):Promise<main.ImportState>;
 
 export function InitialState():Promise<main.State>;
 
+export function ListUsers():Promise<Array<main.LoginUser>>;
+
+export function Login(arg1:string,arg2:string):Promise<main.LoginResult>;
+
+export function Logout():Promise<main.LoginResult>;
+
 export function OpenConfigDirectory():Promise<void>;
 
 export function OpenDataDirectory():Promise<void>;

@@ -46,6 +46,18 @@ export function InitialState() {
   return window['go']['main']['App']['InitialState']();
 }
 
+export function ListUsers() {
+  return window['go']['main']['App']['ListUsers']();
+}
+
+export function Login(arg1, arg2) {
+  return window['go']['main']['App']['Login'](arg1, arg2);
+}
+
+export function Logout() {
+  return window['go']['main']['App']['Logout']();
+}
+
 export function OpenConfigDirectory() {
   return window['go']['main']['App']['OpenConfigDirectory']();
 }

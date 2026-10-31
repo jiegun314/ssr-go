@@ -179,7 +179,8 @@ state/consolidate.lock    内容 {"id","owner","machine","pid","since","heartbea
 
 - **不读域信息**：只用 `os.Getenv("USERNAME")`（或 `os/user.Current().Username`），仅作记录与审计。
 - 除 Admin 外**无密码**。
-- **Admin 密码写死在程序里**：源码常量存 argon2id 哈希（不存明文），界面不可修改；改密码必须发新版本。
+- **Admin 密码写死在程序里**：源码常量存 PBKDF2-HMAC-SHA256 哈希（不存明文），界面不可修改；改密码必须发新版本。
+  当前密码由项目负责人保管；实现见 `internal/auth/auth.go` 的 `adminPasswordRecord`（P1 交付时同步告知）。
   连续 5 次失败冷却 1 分钟并写审计（防误触/暴力尝试，不视作强安全）。
 - 切换身份 = 退出重进；每次进入写审计。
 
@@ -552,6 +553,14 @@ email:
 | 故障模拟 | `share.root` 指向不存在/被改名/只读目录 → 启动即锁定；恢复后「重新检查」解锁 |
 
 ---
+
+## 16.5 实现进度
+
+| 阶段 | 状态 | 交付物 |
+| --- | --- | --- |
+| P0 演练环境 | ✅ 已完成 | `scripts/ssr-share-init.sh` / `ssr-share-launch.sh`、`config/*.example`、`docs/design/p0-rehearsal.md` |
+| P1 登录与权限 | ✅ 已完成（单机模式兼容） | `internal/auth`（角色/权限矩阵/Admin 哈希密码）、`internal/share`（共享盘检查骨架）、`audit_log`、登录页、会话条、按角色显隐 |
+| P2 发布与状态 | ⏳ 待开始 | — |
 
 ## 17. 建议实施步骤
 

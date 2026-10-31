@@ -23,6 +23,7 @@ import {
   RecordExportPanel,
   type MessageState,
 } from "./components/Panels";
+import { LoginScreen } from "./components/LoginScreen";
 import { AboutModal, HiddenModal, ReviewModal, SettingsModal } from "./components/Modals";
 import type {
   AboutInfo,
@@ -33,6 +34,10 @@ import type {
   ImportResult,
   ImportState,
   InitialState,
+  LoginResult,
+  LoginUser,
+  SessionInfo,
+  ShareStatus,
   ReviewResult,
   SettingsChange,
   SettingsSaveResult,
@@ -82,6 +87,11 @@ export default function App() {
   const [treePath, setTreePath] = useState<string[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 
+  // 多人协作版（P1）：登录会话、登录页候选人、共享盘状态
+  const [session, setSession] = useState<SessionInfo | null>(null);
+  const [users, setUsers] = useState<LoginUser[]>([]);
+  const [share, setShare] = useState<ShareStatus | null>(null);
+
   const [aboutOpen, setAboutOpen] = useState(false);
   const [about, setAbout] = useState<AboutInfo | null>(null);
   const [hiddenOpen, setHiddenOpen] = useState(false);
@@ -100,11 +110,56 @@ export default function App() {
     if (!initial) return;
     setImports(initial.imports ?? {});
     setLog(initial.operationLog ?? "");
+    setSession(initial.session ?? null);
+    setUsers(initial.users ?? []);
+    setShare(initial.share ?? null);
   }, []);
 
   useEffect(() => {
     void refreshInitial();
   }, [refreshInitial]);
+
+  /* ---------- 登录与权限 ---------- */
+
+  const handleLogin = useCallback(
+    async (name: string, password: string) => {
+      const result = await call<LoginResult>("Login", name, password);
+      if (!result) return;
+      setLog(result.log ?? "");
+      if (result.failed) {
+        setMessage({ title: result.title, message: result.message, failed: true });
+        return;
+      }
+      setSession(result.session ?? null);
+      await refreshInitial();
+    },
+    [refreshInitial],
+  );
+
+  const handleLogout = useCallback(async () => {
+    const result = await call<LoginResult>("Logout");
+    if (!result) return;
+    setLog(result.log ?? "");
+    setSession(result.session ?? null);
+    await refreshInitial();
+  }, [refreshInitial]);
+
+  /** can 按后端下发的 actions 决定界面显隐（后端仍会再裁决一次）。 */
+  const can = useCallback(
+    (action: string) => Boolean(session?.actions?.includes(action)),
+    [session],
+  );
+
+  /** 能导入/发布的来源（登录页之外，导入按钮据此显隐）。 */
+  const allowedSources = SOURCES.filter((source) => {
+    const action =
+      source.key === "ra_input"
+        ? "import:ra_input"
+        : source.key === "global_udi_input"
+          ? "import:global_udi_input"
+          : "import:eama";
+    return can(action);
+  }).map((source) => source.key);
 
   const applyImportStates = useCallback((next: Record<string, ImportState>) => {
     setImports((current) => ({ ...current, ...next }));
@@ -364,9 +419,37 @@ export default function App() {
     });
   }, [openAbout, openSettings]);
 
+  // 有人员名单但没有会话 → 先登录；单机模式后端已自动建立会话，直接进主界面。
+  if (users.length > 0 && !session) {
+    return (
+      <>
+        <LoginScreen users={users} onLogin={handleLogin} busy={busy} />
+        <LoadingOverlay text={busy} />
+        <MessageModal state={message} onClose={() => setMessage(null)} />
+      </>
+    );
+  }
+
   return (
     <>
       <div className="app-shell">
+        <div className="session-bar">
+          <span className="session-user">
+            已登录：{session?.name ?? "—"}（{session?.roleLabel ?? "—"}）
+          </span>
+          {share ? (
+            <span className={share.healthy ? "session-share" : "session-share session-share-bad"}>
+              共享盘：{share.mode === "local" ? "本地模式" : share.healthy ? "正常" : "异常"}
+            </span>
+          ) : null}
+          {session?.singleUser ? (
+            <span className="session-share">单机模式（全权限）</span>
+          ) : (
+            <Button size="small" type="text" onClick={handleLogout}>
+              切换身份
+            </Button>
+          )}
+        </div>
         <div className={`columns${leftCollapsed ? " left-collapsed" : ""}`}>
           <div className="left">
             <Card
@@ -374,20 +457,24 @@ export default function App() {
               size="small"
               title="数据导入"
               extra={
-                // 清空：只有白色图标（无文字、无边框），标题栏里靠右，省下模块内那一行的高度
-                <Tooltip title="清空导入数据">
-                  <Button
-                    className="head-icon-action"
-                    type="text"
-                    aria-label="清空导入数据"
-                    icon={<Trash2 size={16} />}
-                    onClick={handleClear}
-                  />
-                </Tooltip>
+                // 清空：只有白色图标（无文字、无边框），标题栏里靠右，省下模块内那一行的高度；
+                // 只有 Admin 有这个动作（权限矩阵 clear）
+                can("clear") ? (
+                  <Tooltip title="清空导入数据">
+                    <Button
+                      className="head-icon-action"
+                      type="text"
+                      aria-label="清空导入数据"
+                      icon={<Trash2 size={16} />}
+                      onClick={handleClear}
+                    />
+                  </Tooltip>
+                ) : null
               }
             >
               <ImportPanel
                 states={imports}
+                allowedSources={allowedSources}
                 onImport={handleImport}
                 onReview={openSourceReview}
                 onReviewCleaned={openCleanedReview}
@@ -424,25 +511,36 @@ export default function App() {
                 // 标题栏：模块名在左，「整合」主按钮在整条标题栏正中（绝对定位居中，见 styles.css）
                 <>
                   <span className="consolidation-name">数据整合</span>
-                  <Button
-                    className="consolidation-run"
-                    type="primary"
-                    icon={<Merge size={16} />}
-                    onClick={handleConsolidate}
-                  >
-                    整合
-                  </Button>
+                  <Tooltip title={can("consolidate") ? "整合数据" : "当前身份没有整合权限"}>
+                    <Button
+                      className="consolidation-run"
+                      type="primary"
+                      icon={<Merge size={16} />}
+                      disabled={!can("consolidate")}
+                      onClick={handleConsolidate}
+                    >
+                      整合
+                    </Button>
+                  </Tooltip>
                 </>
               }
               extra={
                 // 生成文件：与「整合」同一形式（白底、红字、图标 + 文字、28px 高），留在标题栏右侧；
                 // 没有合格行时禁用并给出原因
-                <Tooltip title={readyCount === 0 ? "还没有可导出的行（只有合格的行会导出）" : "生成文件"}>
+                <Tooltip
+                  title={
+                    !can("export")
+                      ? "当前身份没有导出权限"
+                      : readyCount === 0
+                        ? "还没有可导出的行（只有合格的行会导出）"
+                        : "生成文件"
+                  }
+                >
                   <Button
                     className="consolidation-export"
                     aria-label="生成文件"
                     icon={<FileDown size={16} />}
-                    disabled={readyCount === 0}
+                    disabled={!can("export") || readyCount === 0}
                     onClick={handleExport}
                   >
                     生成文件

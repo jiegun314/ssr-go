@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jiegun314/ssr-go/internal/auth"
 	"github.com/jiegun314/ssr-go/internal/config"
 	"gopkg.in/yaml.v3"
 )
@@ -306,6 +307,9 @@ func planSettingsChange(raw []byte, document *yaml.Node, policy settingsPolicy, 
 func (app *App) SaveSettingsValues(key string, changes []SettingsChange) SettingsSaveResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
+	if err := app.authorize(auth.ActionEditSettings); err != nil {
+		return SettingsSaveResult{Failed: true, Message: userMessage(err)}
+	}
 	if app.loader == nil {
 		return SettingsSaveResult{Failed: true, Title: "错误", Message: "配置未加载"}
 	}
@@ -322,7 +326,7 @@ func (app *App) SaveSettingsValues(key string, changes []SettingsChange) Setting
 	path := app.loader.Resolver.ConfigFile(key)
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	var document yaml.Node
 	if err := yaml.Unmarshal(raw, &document); err != nil {
@@ -349,7 +353,7 @@ func (app *App) SaveSettingsValues(key string, changes []SettingsChange) Setting
 	}
 	lines, err := applySettingsEdits(strings.Split(string(raw), "\n"), edits)
 	if err != nil {
-		return SettingsSaveResult{Failed: true, Title: "无法保存", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "无法保存", Message: userMessage(err)}
 	}
 	updated := strings.Join(lines, "\n")
 	if updated == string(raw) {
@@ -363,10 +367,10 @@ func (app *App) SaveSettingsValues(key string, changes []SettingsChange) Setting
 	}
 	backup := path + ".bak"
 	if err := os.WriteFile(backup, raw, 0o644); err != nil {
-		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	if err := os.WriteFile(path, []byte(updated), 0o644); err != nil {
-		return SettingsSaveResult{Failed: true, Title: "错误", Message: err.Error()}
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	reloaded, loadErr := config.NewLoader(app.loader.Resolver.ConfigDir)
 	if loadErr == nil {

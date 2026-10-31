@@ -59,6 +59,8 @@ import type { ImportState } from "../types";
 
 type ImportPanelProps = {
   states: Record<string, ImportState>;
+  /** 当前身份能导入/查看的来源；不在这里的只显示一行提示（权限矩阵 §12） */
+  allowedSources: string[];
   onImport: (source: string) => void;
   onReview: (source: string) => void;
   /** 「查看清洗后数据」：只有声明了 clean 的来源才会有这个按钮 */
@@ -78,10 +80,17 @@ function importBadge(state: string): BadgeProps["status"] {
   }
 }
 
-export function ImportPanel({ states, onImport, onReview, onReviewCleaned }: ImportPanelProps) {
+export function ImportPanel({
+  states,
+  allowedSources,
+  onImport,
+  onReview,
+  onReviewCleaned,
+}: ImportPanelProps) {
   return (
     <div>
       {SOURCES.map((source) => {
+        const allowed = allowedSources.includes(source.key);
         const current = states[source.key] ?? { state: "empty", label: "", tooltip: "" };
         return (
           <div key={source.key}>
@@ -93,6 +102,12 @@ export function ImportPanel({ states, onImport, onReview, onReviewCleaned }: Imp
                 />
               </div>
               <div className="actions">
+                {!allowed ? (
+                  <Typography.Text className="status" type="secondary">
+                    无查看权限
+                  </Typography.Text>
+                ) : (
+                  <>
                 <Tooltip title="载入文件">
                   <Button
                     type="text"
@@ -130,6 +145,8 @@ export function ImportPanel({ states, onImport, onReview, onReviewCleaned }: Imp
                       onClick={() => onReviewCleaned(source.key)}
                     />
                   </Tooltip>
+                )}
+                  </>
                 )}
               </div>
             </div>

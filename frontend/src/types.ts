@@ -11,7 +11,7 @@
 //
 // 只有两类留在本文件手写：Go 侧没有对应结构体的（AboutInfo）与纯前端的（SourceDefinition）。
 
-import type { main } from "../wailsjs/go/models";
+import type { main, share } from "../wailsjs/go/models";
 
 /**
  * 只取数据字段：Wails 生成的类上还带一个 convertValues 方法（原型方法，类型里也有），
@@ -59,6 +59,15 @@ export type SettingsTab = Omit<Data<main.SettingsTab>, "tree"> & {
 };
 
 export type SettingsSaveResult = Data<main.SettingsSaveResult>;
+
+/* ---------- 多人协作版（P1）：登录与会话 ---------- */
+
+export type LoginUser = Data<main.LoginUser>;
+export type SessionInfo = Data<main.SessionInfo>;
+export type LoginResult = Omit<Data<main.LoginResult>, "session"> & {
+  session?: SessionInfo;
+};
+export type ShareStatus = Data<share.Status>;
 
 /* ---------- 以下为前端自有类型（Go 侧没有对应结构体） ---------- */
 

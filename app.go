@@ -10,12 +10,14 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/jiegun314/ssr-go/internal/auth"
 	"github.com/jiegun314/ssr-go/internal/config"
 	"github.com/jiegun314/ssr-go/internal/configsnapshot"
 	"github.com/jiegun314/ssr-go/internal/consolidation"
 	"github.com/jiegun314/ssr-go/internal/importer"
 	"github.com/jiegun314/ssr-go/internal/numfmt"
 	"github.com/jiegun314/ssr-go/internal/paths"
+	"github.com/jiegun314/ssr-go/internal/share"
 	"github.com/jiegun314/ssr-go/internal/store"
 )
 
@@ -68,6 +70,13 @@ type App struct {
 	cleanedTables []string
 	busy          bool
 	aboutVisible  bool
+
+	// 多人协作版（P1）：人员名单、当前会话、共享盘配置与最近一次检查结果。
+	users       []auth.User
+	session     *auth.Session
+	singleUser  bool
+	shareConfig share.Config
+	shareStatus share.Status
 }
 
 // ImportState 是一个来源的界面状态（对应现有界面的状态标签与圆点）。
@@ -86,6 +95,11 @@ type State struct {
 	OperationLog string                 `json:"operationLog"`
 	Imports      map[string]ImportState `json:"imports"`
 	Busy         bool                   `json:"busy"`
+	// 多人协作版（P1）：会话、登录页候选人与共享盘状态。
+	Session    *SessionInfo `json:"session"`
+	Users      []LoginUser  `json:"users"`
+	SingleUser bool         `json:"singleUser"`
+	Share      share.Status `json:"share"`
 }
 
 // NewApp 建一个尚未初始化配置的后端（startup 里才碰数据库）。
@@ -135,6 +149,10 @@ func (app *App) startup(ctx context.Context) {
 	app.resetImportStates()
 	app.cleanupOnStartup(setting)
 	app.reportExistingCounts()
+	// 没有 users.yaml → 单机模式：自动以 Admin 身份进入（行为与旧版本一致）
+	if len(app.users) == 0 {
+		app.startSingleUserSession()
+	}
 }
 
 // wireConfiguration 用给定 loader 装配依赖：启动与「保存后热重载」共用这一条路径。
@@ -188,6 +206,22 @@ func (app *App) wireConfiguration(loader *config.Loader) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("数据库错误：%w", err)
 	}
+	// 多人协作版：人员名单（缺失 = 单机模式）与共享盘配置（缺失 = 本地模式）。
+	usersDocument, err := loader.LoadUsers()
+	if err != nil {
+		return "", fmt.Errorf("配置错误：%w", err)
+	}
+	users, err := auth.ParseUsers(usersDocument)
+	if err != nil {
+		return "", fmt.Errorf("配置错误：%w", err)
+	}
+	app.users = users
+	shareConfig, err := share.Load(loader)
+	if err != nil {
+		return "", fmt.Errorf("配置错误：%w", err)
+	}
+	app.shareConfig = shareConfig
+
 	app.loader = loader
 	app.importer = importerValue
 	app.log = logStore

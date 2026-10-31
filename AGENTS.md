@@ -81,6 +81,12 @@
   声明了 `merge_records`，否则配置校验拦住）：每条记录先按列自己的字段与 `separator` 拼好、
   空值跳过，再按 `record_separator` 连接，所以不会出现尾部分隔符。当前用于「一个型号多个医保编码」：
   只合并**医保代码本身**（不带序列号），英文逗号连接。
+- **多人协作版（P1）**：`config/users.yaml`（人员与角色，可选）与 `config/workflow.yaml`（共享盘地址、
+  收件人等，可选）是新增的两份配置，缺失时程序按**单机模式 / 本地模式**运行（行为与旧版本一致）。
+  有 `users.yaml` 时启动先登录（选择身份，不读域信息，只记录本机用户名）；除 Admin 外无密码，
+  Admin 密码是 `internal/auth` 里的哈希常量（换密码 = 发新版）。权限矩阵（角色 × 动作）集中在
+  `internal/auth`，`App` 的每个绑定方法用 `authorize`/`authorizeSource` 裁决，拒绝也写审计；
+  审计表 `audit_log`（本地库）记录登录、拒绝、导入、整合、导出、设置保存等动作。
 - **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
   （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
   `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行

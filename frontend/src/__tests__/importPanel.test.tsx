@@ -31,6 +31,7 @@ const renderPanel = (states: Record<string, ImportState>) => {
       <AntApp>
         <ImportPanel
           states={states}
+          allowedSources={Object.keys(states)}
           onImport={onImport}
           onReview={onReview}
           onReviewCleaned={onReviewCleaned}

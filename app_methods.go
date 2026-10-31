@@ -9,6 +9,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/jiegun314/ssr-go/internal/auth"
 	"github.com/jiegun314/ssr-go/internal/buildinfo"
 	"github.com/jiegun314/ssr-go/internal/consolidation"
 	"github.com/jiegun314/ssr-go/internal/excelio"
@@ -34,6 +35,10 @@ func (app *App) InitialState() State {
 		OperationLog: app.logText(),
 		Imports:      app.importStates,
 		Busy:         app.busy,
+		Session:      app.sessionInfo(),
+		Users:        loginUsers(app.users),
+		SingleUser:   app.singleUser,
+		Share:        app.shareStatus,
 	}
 }
 
@@ -59,6 +64,10 @@ func (app *App) SelectImportFile(source string) string {
 	if app.importer == nil {
 		return ""
 	}
+	if err := app.authorizeSource(source, true); err != nil {
+		app.appendLog(LogWarning, "导入被拒绝："+err.Error())
+		return ""
+	}
 	path, err := app.selectFile()
 	if err != nil {
 		return ""
@@ -74,6 +83,10 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 		return ImportResult{Source: source, Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
+	if err := app.authorizeSource(source, true); err != nil {
+		app.audit("deny", source, "导入", "denied")
+		return ImportResult{Source: source, Failed: true, Title: "无权限", Message: userMessage(err)}
+	}
 	path := filePath
 	if path == "" {
 		// 用户取消文件对话框不算失败：状态与标签都不变（§5.2）
@@ -81,8 +94,10 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 	}
 	rule := app.importer.Rules[source]
 	if _, importErr := app.importer.Import(source, path); importErr != nil {
+		app.audit("import", source, "导入失败："+importErr.Error(), "failed")
 		return app.markImportFailed(source, importErr)
 	}
+	app.audit("import", source, "导入成功："+filepath.Base(path), "ok")
 	app.markImported(source, filepath.Base(path))
 	state := app.importStates[source]
 	return ImportResult{
@@ -166,6 +181,9 @@ func (app *App) ClearImportedData() ClearResult {
 		return ClearResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
+	if err := app.authorize(auth.ActionClearData); err != nil {
+		return ClearResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
+	}
 	names, err := store.SourceCleanupNames(app.loader)
 	if err != nil {
 		return ClearResult{Failed: true, Title: "错误", Message: userMessage(err)}
@@ -222,8 +240,12 @@ func (app *App) Consolidate() ConsolidateResult {
 		return ConsolidateResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
+	if err := app.authorize(auth.ActionConsolidate); err != nil {
+		return ConsolidateResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
+	}
 	outcome, err := app.service.Consolidate()
 	if err != nil {
+		app.audit("consolidate", "", "整合失败："+err.Error(), "failed")
 		app.appendLog(LogError, "数据整合失败："+err.Error())
 		return ConsolidateResult{Log: app.logText(), Title: "数据缺失", Message: userMessage(err), Failed: true}
 	}
@@ -245,6 +267,7 @@ func (app *App) Consolidate() ConsolidateResult {
 		summary = append(summary, fmt.Sprintf("冲突 %d 行", conflicts))
 	}
 	app.appendLog(LogSuccess, "数据整合完成："+strings.Join(summary, "，"))
+	app.audit("consolidate", "", "整合完成："+strings.Join(summary, "，"), "ok")
 	// 安全网：动作是 Modify 却没有任何变更描述 —— 正常不会出现（完全一致的行会被判为
 	// 「重复」且不进导出），真出现时留一条警告便于排查，不改行状态。
 	if warnings := outcome.ChangeDescriptionWarnings; len(warnings) > 0 {
@@ -306,6 +329,10 @@ func (app *App) SelectExportTarget() ExportTarget {
 	if app.importer == nil {
 		return ExportTarget{}
 	}
+	if err := app.authorize(auth.ActionExport); err != nil {
+		app.appendLog(LogWarning, "导出被拒绝："+err.Error())
+		return ExportTarget{}
+	}
 	defaultName := app.service.DefaultExportFileName(time.Now())
 	target, err := app.saveFile(defaultName)
 	if err != nil {
@@ -322,6 +349,9 @@ func (app *App) Export(fileName string, target string) ExportResult {
 		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err)}
 	}
 	defer app.endOperation()
+	if err := app.authorize(auth.ActionExport); err != nil {
+		return ExportResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
+	}
 	if target == "" {
 		// 用户取消：什么都不做
 		return ExportResult{Log: app.logText()}
@@ -347,6 +377,7 @@ func (app *App) Export(fileName string, target string) ExportResult {
 		app.appendLog(LogError, "记录整合结果失败："+err.Error())
 	}
 	app.appendLog(LogSuccess, "整合结果已导出到 "+target)
+	app.audit("export", target, "整合结果", "ok")
 	return ExportResult{
 		Log: app.logText(), Title: "成功",
 		Message: "整合结果已导出。", Path: target,
@@ -449,6 +480,12 @@ type ReviewResult struct {
 // 医保编码来源同样可以回顾 —— 这是 #3 的修复：现状实现里那个分支被注释掉了。
 // 运行日志只在打开回顾窗口（第 1 页）时写一行，与现状实现的开窗时机一致。
 func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult {
+	app.mu.Lock()
+	err := app.authorizeSource(source, false)
+	app.mu.Unlock()
+	if err != nil {
+		return ReviewResult{Failed: true, Title: "无权限", Message: userMessage(err)}
+	}
 	return app.reviewPaged(source, page, pageSize)
 }
 
@@ -457,6 +494,12 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 // 与 ReviewSource 共用同一套分页与回顾窗口，只是读的表与列不同：
 // 数据回顾看原文表，这里看整合实际读取的清洗表，方便核对合并结果。
 func (app *App) ReviewCleanedSource(source string, page int, pageSize int) ReviewResult {
+	app.mu.Lock()
+	err := app.authorizeSource(source, false)
+	app.mu.Unlock()
+	if err != nil {
+		return ReviewResult{Failed: true, Title: "无权限", Message: userMessage(err)}
+	}
 	return app.reviewPaged(source+cleanedReviewSuffix, page, pageSize)
 }
 
@@ -587,6 +630,15 @@ func reviewLabel(rules map[string]*importer.Rule, reviewKey string) (string, boo
 // 记录导出的回顾用 fileType = operation_log，于是默认名是 operation_log_imported_data.xlsx。
 func (app *App) SelectReviewExportTarget(fileType string) ExportTarget {
 	app.mu.Lock()
+	if base, _ := splitReviewKey(fileType); base != "operation_log" {
+		if err := app.authorizeSource(base, false); err != nil {
+			app.appendLog(LogWarning, "回顾导出被拒绝："+err.Error())
+			app.mu.Unlock()
+			return ExportTarget{}
+		}
+	}
+	app.mu.Unlock()
+	app.mu.Lock()
 	defer app.mu.Unlock()
 	if app.importer == nil {
 		return ExportTarget{}
@@ -623,6 +675,11 @@ func (app *App) ExportReviewData(fileType string, target string) ExportResult {
 		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err)}
 	}
 	defer app.endOperation()
+	if base, _ := splitReviewKey(fileType); base != "operation_log" {
+		if err := app.authorizeSource(base, false); err != nil {
+			return ExportResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
+		}
+	}
 	if target == "" {
 		return ExportResult{Log: app.logText()}
 	}
