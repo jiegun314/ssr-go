@@ -34,6 +34,7 @@ import {
   CircleAlert,
   Copy,
   FileSpreadsheet,
+  Filter,
   Search,
   Table as TableIcon,
   X,
@@ -42,7 +43,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 
-import { SOURCES, copyToClipboard } from "../bridge";
+import { CLEANED_SOURCES, SOURCES, copyToClipboard } from "../bridge";
 import {
   LOG_LEVELS,
   LOG_LEVEL_LABELS,
@@ -60,6 +61,8 @@ type ImportPanelProps = {
   states: Record<string, ImportState>;
   onImport: (source: string) => void;
   onReview: (source: string) => void;
+  /** 「查看清洗后数据」：只有声明了 clean 的来源才会有这个按钮 */
+  onReviewCleaned: (source: string) => void;
 };
 
 /** 导入状态 → antd Badge 的语义色（imported / existing 都是"已有数据"，同色）。 */
@@ -75,7 +78,7 @@ function importBadge(state: string): BadgeProps["status"] {
   }
 }
 
-export function ImportPanel({ states, onImport, onReview }: ImportPanelProps) {
+export function ImportPanel({ states, onImport, onReview, onReviewCleaned }: ImportPanelProps) {
   return (
     <div>
       {SOURCES.map((source) => {
@@ -116,6 +119,18 @@ export function ImportPanel({ states, onImport, onReview }: ImportPanelProps) {
                     onClick={() => onReview(source.key)}
                   />
                 </Tooltip>
+                {/* 有清洗表的来源（RA 信息）：同一个窗口，读清洗表 —— 方便核对合并结果 */}
+                {CLEANED_SOURCES.includes(source.key) && (
+                  <Tooltip title="查看清洗后数据">
+                    <Button
+                      type="text"
+                      aria-label="查看清洗后数据"
+                      icon={<Filter size={16} />}
+                      disabled={current.state !== "imported" && current.state !== "existing"}
+                      onClick={() => onReviewCleaned(source.key)}
+                    />
+                  </Tooltip>
+                )}
               </div>
             </div>
           </div>

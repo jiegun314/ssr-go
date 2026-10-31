@@ -126,6 +126,13 @@ func settingsPolicyFor(fileKey string) settingsPolicy {
 					reason: "条件必填表达式：v1 只读展示（改动请用『编辑原文』）"},
 				{match: "sources.*.columns.*.required_when.*", readOnly: true,
 					reason: "条件必填表达式：v1 只读展示（改动请用『编辑原文』）"},
+				// 清洗表规则：决定「原文表 + 清洗表」两张表的形状，只能整块改
+				{match: "sources.*.clean", readOnly: true,
+					reason: "清洗表规则：决定清洗表的形状（列、分组、连接口径），改动请用『编辑原文』"},
+				{match: "sources.*.clean.*", readOnly: true,
+					reason: "清洗表规则：决定清洗表的形状（列、分组、连接口径），改动请用『编辑原文』"},
+				{match: "sources.*.clean.*.*", readOnly: true,
+					reason: "清洗表规则：决定清洗表的形状（列、分组、连接口径），改动请用『编辑原文』"},
 				// 列本身的字段
 				{match: "sources.*.columns.*.chinese_name", label: "列名（Excel 表头精确匹配）"},
 				{match: "sources.*.columns.*.mandatory_status", label: "必填状态", control: "select"},

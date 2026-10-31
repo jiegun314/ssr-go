@@ -48,13 +48,17 @@ type Rule struct {
 	// RequiredFields 是所有 mandatory_status 非空的 db_field，顺序即配置顺序。
 	RequiredFields []string
 	EmptyValues    []any
+	// Clean 是「导入后生成清洗表」的规则（clean 块）；nil = 只写原文表。
+	Clean *CleanRule
 }
 
 // Result 是一次成功导入的结果。
 type Result struct {
-	RowCount   int
-	FileName   string
-	ImportTime string
+	RowCount int
+	// CleanedRowCount 是清洗表的行数（没有 clean 规则时是 0）。
+	CleanedRowCount int
+	FileName        string
+	ImportTime      string
 }
 
 // Importer 持有配置与数据库连接。
@@ -110,6 +114,7 @@ func LoadRules(loader *config.Loader) (map[string]*Rule, []string, error) {
 			DataStartRow:      intOf(excel["data_start_row"], 2),
 			ColumnMapping:     map[string]string{},
 			EmptyValues:       emptyValues,
+			Clean:             parseCleanRule(source["clean"]),
 		}
 		columnDefinitions, _ := source["columns"].([]any)
 		for _, rawColumn := range columnDefinitions {
@@ -211,11 +216,24 @@ func (importer *Importer) importWithRule(rule *Rule, filePath string) (Result, e
 		records = append(records, record)
 		rawCells = append(rawCells, raw)
 	}
+	// 清洗（可选）：先把原文收成「一个分组一行」。规则冲突在这里就拒绝整份文件。
+	conditionalRows := records
+	var cleanedRows []store.Row
+	var cleanedColumns []string
+	if rule.Clean != nil {
+		cleaned, columns, err := CleanRows(rule.Clean, rule.Columns, records)
+		if err != nil {
+			return Result{}, err
+		}
+		cleanedRows, cleanedColumns = cleaned, columns
+		// 条件必填按清洗后的行判断：去重时被淘汰的旧行不该拦住整份文件
+		conditionalRows = cleanedRows
+	}
 	// 校验（表头 → 必填 → 条件必填 → 取值白名单）
-	if err := importer.validate(rule, columnIndexes, records, rawCells); err != nil {
+	if err := importer.validate(rule, columnIndexes, records, rawCells, conditionalRows); err != nil {
 		return Result{}, err
 	}
-	// 写暂存表
+	// 写原文表（数据回顾读它）
 	table := store.SourceTable{
 		SourceName:      rule.SourceName,
 		TableName:       rule.TargetTable,
@@ -225,10 +243,23 @@ func (importer *Importer) importWithRule(rule *Rule, filePath string) (Result, e
 	if err := store.ImportSourceRows(importer.Repository, table, records); err != nil {
 		return Result{}, fmt.Errorf("Failed to import Excel data to database: %w", err)
 	}
+	// 写清洗表（整合读它）
+	if rule.Clean != nil {
+		cleanedTable := store.SourceTable{
+			SourceName:      rule.SourceName,
+			TableName:       rule.Clean.TargetTable,
+			Columns:         cleanedColumns,
+			ReplaceOnImport: true,
+		}
+		if err := store.ImportSourceRows(importer.Repository, cleanedTable, cleanedRows); err != nil {
+			return Result{}, fmt.Errorf("Failed to import Excel data to database: %w", err)
+		}
+	}
 	return Result{
-		RowCount:   len(records),
-		FileName:   rule.ChineseName,
-		ImportTime: importer.Now(),
+		RowCount:        len(records),
+		CleanedRowCount: len(cleanedRows),
+		FileName:        rule.ChineseName,
+		ImportTime:      importer.Now(),
 	}, nil
 }
 
@@ -240,6 +271,7 @@ func (importer *Importer) validate(
 	columnIndexes map[string]int,
 	records []store.Row,
 	rawCells []map[string]string,
+	conditionalRows []store.Row,
 ) error {
 	missingRequired := []Column{}
 	for _, column := range rule.Columns {
@@ -269,7 +301,7 @@ func (importer *Importer) validate(
 	if violations := requiredViolations(rule, records); len(violations) > 0 {
 		return NewMissingRequiredValuesError(rule.ChineseName, violations)
 	}
-	if violations := conditionalViolations(rule, records); len(violations) > 0 {
+	if violations := conditionalViolations(rule, conditionalRows); len(violations) > 0 {
 		return NewMissingConditionalValuesError(rule.ChineseName, violations)
 	}
 	if violations := acceptedValueViolations(rule, rawCells); len(violations) > 0 {

@@ -82,6 +82,50 @@ sources:
       data_start_row: 2
       # sheet_name / english_header_row / required_row 只给样本工厂（gensample）用：
       # 样本文件里写工作表名、英文表头行、必填标记行；导入读的是第一个工作表，不看英文行
+    # 导入后额外生成一张「清洗表」给整合读（原文表照旧保留，供数据回顾）：
+    #   1) 同一张证（规格型号 + 注册证唯一码 + 注册证编号）只留 RA生效日期 最新的一行；
+    #   2) 一个规格型号只剩一行：unique 列取最新证的值（跨证不同时按 conflict 处理，
+    #      latest = 取最新证的值）、注册证编号用英文逗号连接、文本项用反斜杠连接；
+    #   3) drop 里的列只用于挑选/追溯，不进清洗表。
+    clean:
+      target_table: "ra_input_cleaned"
+      group_by: ["material_code"]
+      dedupe:
+        by: ["material_code", "registration_certificate_unique_code", "registration_filing_certificate_number"]
+        latest_by: "ra_effective_date"
+      drop:
+        - "registration_certificate_unique_code"
+        - "business_unit"
+        - "original_registration_filing_certificate_number"
+        - "registration_certificate_approval_date"
+        - "ra_effective_date"
+        - "ra_expiration_date"
+        - "registrant_filing_entity_name_en"
+        - "remarks"
+      # 一个规格型号只能有一个值（多张证在这几项上不一致时按 conflict 处理）
+      unique:
+        - "if_one_time_use"
+        - "if_sterilized"
+        - "if_requires_sterilization_before_use"
+        - "device_catalog_classification_code"
+        - "mr_safety_information"
+        - "is_identifier_consistent_with_registered_product"
+        - "registered_product_identifier"
+        - "medical_device_management_class"
+        - "device_category"
+      # 先整合（去重 + 合并算出结果），再判冲突：
+      #   error  = 任一分组在 unique 列上有多个值 → 整份文件报错、不导入（当前口径）
+      #   latest = 不报错，取最新证（RA生效日期最大）那一行的值
+      conflict: "error"
+      # 多张证合并时用英文逗号连接
+      join_comma: ["registration_filing_certificate_number"]
+      # 多张证合并时用反斜杠连接（同一值只出现一次）
+      join_backslash:
+        - "product_name"
+        - "registrant_name"
+        - "product_description"
+        - "max_reuse_count"
+        - "sterilization_method"
     # 列顺序即暂存表的列顺序；表头匹配只认 chinese_name 的精确值。
     columns:
 

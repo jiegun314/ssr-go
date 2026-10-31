@@ -120,8 +120,111 @@ func (loader *Loader) ValidateImportMapping(imports map[string]any) error {
 				return errorf("%s", err.Error())
 			}
 		}
+
+		// 清洗表（可选）：只允许已声明的列，表名不能与其它表撞车
+		if cleanValue, present := source["clean"]; present && cleanValue != nil {
+			cleanTable, err := validateCleanRule(sourceName, source, cleanValue, available)
+			if err != nil {
+				return err
+			}
+			if tableNames[cleanTable] {
+				return errorf("Duplicate source clean table: %s", cleanTable)
+			}
+			tableNames[cleanTable] = true
+		}
 	}
 	return nil
+}
+
+// validateCleanRule 校验「导入后生成清洗表」的规则（来源的 clean 块）。
+//
+// 口径：表名独立且不同于原文表；分组/去重/最新日期/丢弃/唯一/连接列都必须是该来源
+// 已声明的 db_field；连接与唯一列不能被 drop（它们是输出列）；conflict 只收 latest / error。
+func validateCleanRule(sourceName string, source map[string]any, raw any, available []string) (string, error) {
+	label := "imports.sources." + sourceName + ".clean"
+	clean, err := requireMapping(raw, label)
+	if err != nil {
+		return "", err
+	}
+	tableName, _ := asString(clean["target_table"])
+	if tableName == "" {
+		return "", errorf("%s.target_table is required", label)
+	}
+	if rawTable, _ := asString(source["target_table"]); tableName == rawTable {
+		return "", errorf("%s.target_table must differ from target_table", label)
+	}
+	groupBy, ok := stringListStrict(clean["group_by"])
+	if !ok || len(groupBy) == 0 {
+		return "", errorf("%s.group_by must be a non-empty list of db_field", label)
+	}
+	dedupe, err := requireMapping(clean["dedupe"], label+".dedupe")
+	if err != nil {
+		return "", err
+	}
+	dedupeBy, ok := stringListStrict(dedupe["by"])
+	if !ok || len(dedupeBy) == 0 {
+		return "", errorf("%s.dedupe.by must be a non-empty list of db_field", label)
+	}
+	latestBy, _ := asString(dedupe["latest_by"])
+	if latestBy == "" {
+		return "", errorf("%s.dedupe.latest_by is required", label)
+	}
+	conflict, _ := asString(clean["conflict"])
+	if conflict == "" {
+		conflict = "latest"
+	}
+	if conflict != "latest" && conflict != "error" {
+		return "", errorf("%s.conflict must be latest or error", label)
+	}
+
+	drop, ok := stringListStrict(clean["drop"])
+	if !ok && clean["drop"] != nil {
+		return "", errorf("%s.drop must be a list of db_field", label)
+	}
+	unique, ok := stringListStrict(clean["unique"])
+	if !ok && clean["unique"] != nil {
+		return "", errorf("%s.unique must be a list of db_field", label)
+	}
+	joinComma, ok := stringListStrict(clean["join_comma"])
+	if !ok && clean["join_comma"] != nil {
+		return "", errorf("%s.join_comma must be a list of db_field", label)
+	}
+	joinBackslash, ok := stringListStrict(clean["join_backslash"])
+	if !ok && clean["join_backslash"] != nil {
+		return "", errorf("%s.join_backslash must be a list of db_field", label)
+	}
+
+	for key, fields := range map[string][]string{
+		"group_by": groupBy, "dedupe.by": dedupeBy, "drop": drop,
+		"unique": unique, "join_comma": joinComma, "join_backslash": joinBackslash,
+	} {
+		for _, field := range fields {
+			if !contains(available, field) {
+				return "", errorf("%s.%s: unknown db_field %s", label, key, field)
+			}
+		}
+	}
+	if !contains(available, latestBy) {
+		return "", errorf("%s.dedupe.latest_by: unknown db_field %s", label, latestBy)
+	}
+	// 连接/唯一列是输出列，不能被 drop 掉（否则规则等于没生效）
+	for key, fields := range map[string][]string{
+		"unique": unique, "join_comma": joinComma, "join_backslash": joinBackslash,
+		"group_by": groupBy,
+	} {
+		for _, field := range fields {
+			if contains(drop, field) {
+				return "", errorf("%s.%s: %s is dropped, cannot be used", label, key, field)
+			}
+		}
+	}
+	// 一列只能有一种合并口径
+	for _, field := range joinComma {
+		if contains(joinBackslash, field) {
+			return "", errorf("%s: %s cannot be both join_comma and join_backslash", label, field)
+		}
+	}
+	return tableName, nil
 }
 
 func sortedKeys(mapping map[string]any) []string {

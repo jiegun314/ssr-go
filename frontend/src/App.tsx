@@ -44,7 +44,7 @@ const ICON_CLICK_COUNT = 8;
 const ICON_CLICK_WINDOW_MS = 5000;
 
 type ReviewSession = {
-  kind: "source" | "log";
+  kind: "source" | "cleaned-source" | "log";
   source: string;
   fileType: string;
   start: string;
@@ -158,7 +158,9 @@ export default function App() {
     const result =
       session.kind === "log"
         ? await call<ReviewResult>("ReviewLog", session.start, session.end, page, pageSize)
-        : await call<ReviewResult>("ReviewSource", session.source, page, pageSize);
+        : session.kind === "cleaned-source"
+          ? await call<ReviewResult>("ReviewCleanedSource", session.source, page, pageSize)
+          : await call<ReviewResult>("ReviewSource", session.source, page, pageSize);
     if (!result) return;
     setLog(result.log);
     if (result.failed) {
@@ -171,6 +173,15 @@ export default function App() {
   const openSourceReview = useCallback(
     async (source: string) => {
       reviewSession.current = { kind: "source", source, fileType: source, start: "", end: "" };
+      await loadReviewPage(1);
+      setReviewOpen(true);
+    },
+    [loadReviewPage],
+  );
+
+  const openCleanedReview = useCallback(
+    async (source: string) => {
+      reviewSession.current = { kind: "cleaned-source", source, fileType: source, start: "", end: "" };
       await loadReviewPage(1);
       setReviewOpen(true);
     },
@@ -379,6 +390,7 @@ export default function App() {
                 states={imports}
                 onImport={handleImport}
                 onReview={openSourceReview}
+                onReviewCleaned={openCleanedReview}
               />
             </Card>
             {/* 记录导出：与其余模块同构（红标题栏 + 正文一行），位置在数据导入与操作日志之间 */}

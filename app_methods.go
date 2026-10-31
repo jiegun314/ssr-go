@@ -449,6 +449,19 @@ type ReviewResult struct {
 // 医保编码来源同样可以回顾 —— 这是 #3 的修复：现状实现里那个分支被注释掉了。
 // 运行日志只在打开回顾窗口（第 1 页）时写一行，与现状实现的开窗时机一致。
 func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult {
+	return app.reviewPaged(source, page, pageSize)
+}
+
+// ReviewCleanedSource 是「查看清洗后数据」：同一个来源的清洗表（只有声明了 clean 的来源才有）。
+//
+// 与 ReviewSource 共用同一套分页与回顾窗口，只是读的表与列不同：
+// 数据回顾看原文表，这里看整合实际读取的清洗表，方便核对合并结果。
+func (app *App) ReviewCleanedSource(source string, page int, pageSize int) ReviewResult {
+	return app.reviewPaged(source+cleanedReviewSuffix, page, pageSize)
+}
+
+// reviewPaged 是来源回顾的分页主体；reviewKey 可以带「清洗后」后缀。
+func (app *App) reviewPaged(reviewKey string, page int, pageSize int) ReviewResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
@@ -461,7 +474,7 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 	if page < 1 {
 		page = 1
 	}
-	columns, rows, err := app.reviewData(source)
+	columns, rows, err := app.reviewData(reviewKey)
 	if err != nil {
 		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: userMessage(err)}
 	}
@@ -477,12 +490,16 @@ func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult
 	if finish > len(rows) {
 		finish = len(rows)
 	}
+	label, cleaned := reviewLabel(app.importer.Rules, reviewKey)
 	if page == 1 {
-		app.appendLog(LogInfo, fmt.Sprintf(
-			"%s数据回顾完成：共 %d 行", app.importer.Rules[source].ChineseName, len(rows)))
+		app.appendLog(LogInfo, fmt.Sprintf("%s数据回顾完成：共 %d 行", label, len(rows)))
+	}
+	title := label + "数据回顾"
+	if cleaned {
+		title += "（清洗后）"
 	}
 	return ReviewResult{
-		Log: app.logText(), Title: app.importer.Rules[source].ChineseName + "数据回顾",
+		Log: app.logText(), Title: title,
 		Columns: columns, Rows: rows[begin:finish],
 		Total: len(rows), Page: page, PageSize: pageSize, PageCount: pageCount,
 	}
@@ -509,27 +526,59 @@ func (app *App) reviewData(fileType string) ([]string, [][]string, error) {
 		}
 		return columns, table, nil
 	}
-	rule, known := app.importer.Rules[fileType]
+	base, cleaned := splitReviewKey(fileType)
+	rule, known := app.importer.Rules[base]
 	if !known {
 		return nil, nil, fmt.Errorf("Invalid file type: %s", fileType)
 	}
-	rows, err := app.repo.Rows(rule.TargetTable)
+	// 清洗后的视图：读清洗表、列也按清洗表（去掉 drop 的列）
+	tableName := rule.TargetTable
+	definitions := rule.Columns
+	if cleaned {
+		if rule.Clean == nil {
+			return nil, nil, fmt.Errorf("Source %s has no cleaned table", base)
+		}
+		tableName = rule.Clean.TargetTable
+		definitions = importer.CleanColumns(rule)
+	}
+	rows, err := app.repo.Rows(tableName)
 	if err != nil {
 		return nil, nil, err
 	}
-	columns := make([]string, 0, len(rule.Columns))
-	for _, column := range rule.Columns {
+	columns := make([]string, 0, len(definitions))
+	for _, column := range definitions {
 		columns = append(columns, column.ChineseName)
 	}
 	table := make([][]string, 0, len(rows))
 	for _, row := range rows {
-		values := make([]string, 0, len(rule.Columns))
-		for _, column := range rule.Columns {
+		values := make([]string, 0, len(definitions))
+		for _, column := range definitions {
 			values = append(values, row[column.DBField])
 		}
 		table = append(table, values)
 	}
 	return columns, table, nil
+}
+
+// cleanedReviewSuffix 是「查看清洗后数据」在回顾键上的后缀（ra_input::cleaned）。
+const cleanedReviewSuffix = "::cleaned"
+
+// splitReviewKey 拆出「来源键 + 是否清洗后」。
+func splitReviewKey(reviewKey string) (string, bool) {
+	if strings.HasSuffix(reviewKey, cleanedReviewSuffix) {
+		return strings.TrimSuffix(reviewKey, cleanedReviewSuffix), true
+	}
+	return reviewKey, false
+}
+
+// reviewLabel 是回顾窗口的标题前缀（来源中文名，清洗后加后缀）。
+func reviewLabel(rules map[string]*importer.Rule, reviewKey string) (string, bool) {
+	base, cleaned := splitReviewKey(reviewKey)
+	label := base
+	if rule, known := rules[base]; known {
+		label = rule.ChineseName
+	}
+	return label, cleaned
 }
 
 // SelectReviewExportTarget 打开回顾窗口的「Save Imported Data」对话框。
@@ -542,7 +591,7 @@ func (app *App) SelectReviewExportTarget(fileType string) ExportTarget {
 	if app.importer == nil {
 		return ExportTarget{}
 	}
-	defaultName := fileType + "_imported_data.xlsx"
+	defaultName := reviewFileName(fileType)
 	target, err := runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
 		Title:           "保存导入数据",
 		DefaultFilename: defaultName,
@@ -554,6 +603,14 @@ func (app *App) SelectReviewExportTarget(fileType string) ExportTarget {
 		return ExportTarget{DefaultName: defaultName}
 	}
 	return ExportTarget{DefaultName: defaultName, Target: target}
+}
+
+// reviewFileName 是回顾导出的默认文件名；清洗后视图用 _cleaned 而不是 "::"（文件名里不能有冒号）。
+func reviewFileName(fileType string) string {
+	if base, cleaned := splitReviewKey(fileType); cleaned {
+		return base + "_cleaned_imported_data.xlsx"
+	}
+	return fileType + "_imported_data.xlsx"
 }
 
 // ExportReviewData 把回顾窗口里的全部数据写成 Excel（保存位置由上一步选定）。

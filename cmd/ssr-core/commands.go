@@ -387,15 +387,17 @@ func runSnapshotCommand(configDir string, inputDir string, outDir string, stdout
 	}
 
 	// 5. 变更路径：改一个字段 → 保持 Ready 且带描述；改医保编码 → 同一身份、描述换一条
+	// 改的是整合实际读取的那张表（RA 有 clean 时是清洗表，不是原文表）
+	raTable := space.Service.Config.SourceTables["ra_input"]
 	firstIdentity := outcome.Rows[0].Key
 	originalName, err := readCell(
-		space.Repository, "ra_input_staging", "material_code", "000MAT-001", "product_name")
+		space.Repository, raTable, "material_code", "000MAT-001", "product_name")
 	if err != nil {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 	if err := setCellWhere(
-		space.Repository, "ra_input_staging", "material_code", "000MAT-001",
+		space.Repository, raTable, "material_code", "000MAT-001",
 		"product_name", "Changed device"); err != nil {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
@@ -411,7 +413,7 @@ func runSnapshotCommand(configDir string, inputDir string, outDir string, stdout
 		return 1
 	}
 	if err := setCellWhere(
-		space.Repository, "ra_input_staging", "material_code", "000MAT-001",
+		space.Repository, raTable, "material_code", "000MAT-001",
 		"product_name", originalName); err != nil {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
@@ -439,7 +441,7 @@ func runSnapshotCommand(configDir string, inputDir string, outDir string, stdout
 	}
 	if err := writeJSON(filepath.Join(outDir, "变更路径.json"), changePathSnapshot{
 		FieldChange: fieldChangeSnapshot{
-			Source:            "ra_input_staging.product_name",
+			Source:            raTable + ".product_name",
 			Identity:          firstIdentity,
 			Status:            changedRow["status"],
 			ChangeDescription: changedRow["Change Description"],

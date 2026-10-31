@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jiegun314/ssr-go/internal/config"
 	"github.com/jiegun314/ssr-go/internal/store"
 )
 
@@ -136,4 +137,116 @@ func functionBody(t *testing.T, source string, signature string) string {
 		t.Fatalf("函数 %s 没有找到收尾", signature)
 	}
 	return rest[:end+2]
+}
+
+// TestReviewCleanedSourceReadsTheCleanTable 固定「查看清洗后数据」的口径：
+//
+//   - 同一个回顾窗口，读的是清洗表（= 整合实际读的那张表），列 = 全部列去掉 clean.drop；
+//   - 「数据回顾」仍看原文表（全部列、原始行数）；
+//   - 标题带「（清洗后）」，导出的默认文件名用 _cleaned 而不是 "::"。
+func TestReviewCleanedSourceReadsTheCleanTable(t *testing.T) {
+	workspace := t.TempDir()
+	copyDirectoryForTest(t, "config", filepath.Join(workspace, "config"))
+	t.Setenv("UDI_CONFIG_DIR", filepath.Join(workspace, "config"))
+	app := NewApp(nil)
+	app.startup(context.Background())
+	if app.importer == nil {
+		t.Fatal("导入器没有初始化")
+	}
+
+	imported := app.ImportSource("ra_input", filepath.Join("testdata", "sample-valid", "ra_input.xlsx"))
+	if imported.Failed {
+		t.Fatalf("样本应当导入成功：%+v", imported)
+	}
+
+	raw := app.ReviewSource("ra_input", 1, 100)
+	if raw.Failed {
+		t.Fatalf("数据回顾失败：%s", raw.Message)
+	}
+	if raw.Total != 6 || len(raw.Columns) != 27 {
+		t.Fatalf("原文回顾应当 6 行 / 27 列，实际 %d 行 / %d 列", raw.Total, len(raw.Columns))
+	}
+
+	cleaned := app.ReviewCleanedSource("ra_input", 1, 100)
+	if cleaned.Failed {
+		t.Fatalf("清洗后回顾失败：%s", cleaned.Message)
+	}
+	if cleaned.Total != 6 {
+		t.Errorf("清洗后应当 6 行（样本一个规格型号一行），实际 %d 行", cleaned.Total)
+	}
+	// 清洗表列 = 27 - 8 = 19
+	if len(cleaned.Columns) != 19 {
+		t.Errorf("清洗后列数 = %d；want 19", len(cleaned.Columns))
+	}
+	for _, dropped := range []string{
+		"注册证唯一码", "BU", "原注册证编号", "批准日期",
+		"RA生效日期", "RA失效日期", "注册/备案人英文名称", "备注",
+	} {
+		for _, column := range cleaned.Columns {
+			if column == dropped {
+				t.Errorf("清洗后视图不该有 drop 掉的列：%s", dropped)
+			}
+		}
+	}
+	if !strings.Contains(cleaned.Title, "（清洗后）") {
+		t.Errorf("标题应当标明清洗后：%q", cleaned.Title)
+	}
+	if len(cleaned.Rows) == 0 || !containsString(cleaned.Columns, "产品名称/通用名称") {
+		t.Fatal("清洗后视图应当保留可导出的列")
+	}
+	Name := "产品名称/通用名称"
+	index := -1
+	for position, column := range cleaned.Columns {
+		if column == Name {
+			index = position
+		}
+	}
+	if index < 0 || strings.TrimSpace(cleaned.Rows[0][index]) == "" {
+		t.Errorf("清洗后视图的产品名称不该为空：%v", cleaned.Rows[0])
+	}
+
+	if name := reviewFileName("ra_input" + cleanedReviewSuffix); name != "ra_input_cleaned_imported_data.xlsx" {
+		t.Errorf("清洗后导出的默认文件名 = %q", name)
+	}
+}
+
+// TestCleanedSourceButtonsMatchTheConfiguration 固定「查看清洗后数据」按钮与配置一致：
+// 前端 CLEANED_SOURCES 必须正好是 excel_import_mapping 里声明了 clean 的来源。
+func TestCleanedSourceButtonsMatchTheConfiguration(t *testing.T) {
+	workspace := t.TempDir()
+	copyDirectoryForTest(t, "config", filepath.Join(workspace, "config"))
+	loader, err := config.NewLoader(filepath.Join(workspace, "config"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := loader.LoadImportMappingDocument()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources, _ := document.Value["sources"].(map[string]any)
+	expected := []string{}
+	for _, sourceName := range document.Keys("sources") {
+		source, _ := sources[sourceName].(map[string]any)
+		if clean, _ := source["clean"].(map[string]any); clean != nil {
+			expected = append(expected, sourceName)
+		}
+	}
+	if len(expected) == 0 {
+		t.Fatal("配置里应当至少有一个声明了 clean 的来源")
+	}
+	bridge := readFrontendSource(t, "src/bridge.ts")
+	wanted := `export const CLEANED_SOURCES: string[] = ["` + strings.Join(expected, `", "`) + `"];`
+	if !strings.Contains(bridge, wanted) {
+		t.Errorf("前端 CLEANED_SOURCES 要与配置里的 clean 来源一致，期望：\n%s", wanted)
+	}
+}
+
+// containsString 判断列表里有没有这个字符串（根包测试的小工具）。
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }

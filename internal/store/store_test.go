@@ -259,7 +259,7 @@ func TestR9CleanupTableNamesFollowTheConfiguration(t *testing.T) {
 		t.Fatalf("读清理清单失败：%v", err)
 	}
 	if strings.Join(names, "|") !=
-		"ra_input_staging|global_udi_input_staging|product_category_staging|consolidation_staging" {
+		"ra_input_staging|ra_input_cleaned|global_udi_input_staging|product_category_staging|consolidation_staging" {
 		t.Fatalf("启动清理清单 = %v", names)
 	}
 	sourceNames, err := SourceCleanupNames(loader)
@@ -300,7 +300,7 @@ func TestR25CleaningImportedSourcesDropsOnlySourceTables(t *testing.T) {
 		t.Fatalf("删表失败：%v", failed)
 	}
 	if strings.Join(dropped, "|") !=
-		"ra_input_staging|global_udi_input_staging|product_category_staging" {
+		"ra_input_staging|ra_input_cleaned|global_udi_input_staging|product_category_staging" {
 		t.Fatalf("被删的表 = %v", dropped)
 	}
 	remaining, err := repository.TableNames()

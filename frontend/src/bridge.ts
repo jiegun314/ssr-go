@@ -23,6 +23,11 @@ export const SOURCES: SourceDefinition[] = [
   { key: "ra_input", title: "RA信息" },
 ];
 
+// 声明了 clean（导入后额外生成清洗表）的来源：RA 信息。
+// 「查看清洗后数据」按钮只对这些来源出现；与 config/excel_import_mapping.yaml 的
+// clean 块一致，由根目录契约测试把关（review_test.go）。
+export const CLEANED_SOURCES: string[] = ["ra_input"];
+
 // 第一个分组之后插一个空行（对应原界面的 horizontalSpacer）。
 
 // 数据回顾默认每页行数（与结果表共用同一个默认值）
@@ -34,6 +39,7 @@ export const BUSY_TEXT: Record<string, string> = {
   ImportSource: "正在导入 Excel 数据...",
   Consolidate: "正在整合数据...",
   ReviewSource: "正在加载已导入数据...",
+  ReviewCleanedSource: "正在加载清洗后数据...",
   ReviewLog: "正在加载已导入数据...",
   Export: "正在导出文件...",
   ExportReviewData: "正在导出文件...",

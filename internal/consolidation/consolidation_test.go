@@ -91,7 +91,7 @@ func TestR18AChangedColumnIsDescribedAndStaysExportable(t *testing.T) {
 	first := firstReadyIdentity(outcome)
 	recordReady(t, service, outcome)
 	// 改掉 RA 里的产品名称
-	changeSourceValue(t, repository, "ra_input_staging", "000MAT-001", "product_name", "Changed device")
+	changeSourceValue(t, repository, "ra_input_cleaned", "000MAT-001", "product_name", "Changed device")
 
 	second, err := service.Consolidate()
 	if err != nil {

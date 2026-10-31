@@ -259,15 +259,18 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 	if !strings.Contains(group, "margin-bottom: 6px;") {
 		t.Errorf("四个分组的间隔应当统一（margin-bottom: 6px），实际块：\n%s", group)
 	}
-	for _, wanted := range []string{`aria-label="载入文件"`, `aria-label="数据回顾"`} {
+	for _, wanted := range []string{
+		`aria-label="载入文件"`, `aria-label="数据回顾"`, `aria-label="查看清洗后数据"`,
+	} {
 		if !strings.Contains(panels, wanted) {
 			t.Errorf("导入区的图标按钮缺少可读名称：%s", wanted)
 		}
 	}
 	// 图标全部用 Lucide，语义按用户口径挑：
 	//   FileSpreadsheet（载入文件 = 一个 Excel 文件）/ TableIcon（数据回顾 = 看数据表格）/
-	//   Trash2（清空，现在挂在标题栏上）/ Search（记录导出的回顾）
-	for _, icon := range []string{"FileSpreadsheet", "TableIcon", "Search"} {
+	//   Filter（查看清洗后数据 = 合并/筛选后的表）/ Trash2（清空，现在挂在标题栏上）/
+	//   Search（记录导出的回顾）
+	for _, icon := range []string{"FileSpreadsheet", "TableIcon", "Filter", "Search"} {
 		if !strings.Contains(panels, icon) {
 			t.Errorf("图标应当使用 Lucide 的 %s", icon)
 		}

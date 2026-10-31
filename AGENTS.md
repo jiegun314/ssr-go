@@ -81,6 +81,16 @@
   声明了 `merge_records`，否则配置校验拦住）：每条记录先按列自己的字段与 `separator` 拼好、
   空值跳过，再按 `record_separator` 连接，所以不会出现尾部分隔符。当前用于「一个型号多个医保编码」：
   只合并**医保代码本身**（不带序列号），英文逗号连接。
+- **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
+  （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
+  `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行
+  （同值取靠后的记录）→ `group_by` 分组 → `unique` 列组内必须唯一（`conflict: latest` 取最新那一行的值 /
+  `error` 整份文件被拒）→ `join_comma` / `join_backslash` 列去重后连接（空值跳过，不会出现首尾分隔符）→
+  其余列取最新那行的值；`drop` 的列不进清洗表（仍参与去重/挑最新）。当前 RA 用它把「注册证 × 规格型号」
+  收成「一个规格型号一行」：`注册证编号/备案凭证编号` 用英文逗号连接、5 个文本项用反斜杠连接，
+  `注册证唯一码` / `BU` 等 8 列只用于挑选与追溯。
+  ⚠️ 有 `clean` 时，**条件必填**校验看的是**清洗后**的行（被淘汰的旧行不该拦住整份文件），
+  表头 / 必填 / 取值白名单仍看原文；「清空导入数据」会把原文表与清洗表一起删。
 - 两列是**运行期派生**的（由变更比较填值，不读来源表）：`Choose Action`（`transform.type: record_action`，
   只能是 Add 或 Modify）与 `Change Description`（`change_description`）。判定键与重复检查共用
   `duplicate_check.identity_fields`，不允许另写一份；比较顺序 = 导出列的**配置声明顺序**。

@@ -147,7 +147,15 @@ func LoadConfig(loader *config.Loader) (*Config, error) {
 	}
 	for _, sourceName := range configValue.SourceOrder {
 		source, _ := sources[sourceName].(map[string]any)
-		configValue.SourceTables[sourceName] = textOf(source["target_table"])
+		// 有 clean 块的来源整合读「清洗表」（原文表留给数据回顾）；
+		// 没有就还是原文表。
+		tableName := textOf(source["target_table"])
+		if clean, _ := source["clean"].(map[string]any); clean != nil {
+			if cleaned := textOf(clean["target_table"]); cleaned != "" {
+				tableName = cleaned
+			}
+		}
+		configValue.SourceTables[sourceName] = tableName
 		columns := map[string]map[string]any{}
 		definitions, _ := source["columns"].([]any)
 		for _, rawColumn := range definitions {

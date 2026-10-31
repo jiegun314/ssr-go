@@ -32,6 +32,8 @@ export function OpenExportDirectory():Promise<void>;
 
 export function Quit():Promise<void>;
 
+export function ReviewCleanedSource(arg1:string,arg2:number,arg3:number):Promise<main.ReviewResult>;
+
 export function ReviewLog(arg1:string,arg2:string,arg3:number,arg4:number):Promise<main.ReviewResult>;
 
 export function ReviewSource(arg1:string,arg2:number,arg3:number):Promise<main.ReviewResult>;

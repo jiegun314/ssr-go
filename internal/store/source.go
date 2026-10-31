@@ -92,6 +92,12 @@ func SourceCleanupTableNames(loader *config.Loader) ([]string, error) {
 		if tableName, ok := source["target_table"].(string); ok {
 			tables = append(tables, tableName)
 		}
+		// 有 clean 块的来源还有一张清洗表，一起清掉
+		if clean, ok := source["clean"].(map[string]any); ok {
+			if cleaned, ok := clean["target_table"].(string); ok && cleaned != "" {
+				tables = append(tables, cleaned)
+			}
+		}
 	}
 	return tables, nil
 }

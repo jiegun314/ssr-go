@@ -79,8 +79,8 @@ func TestChangeDescriptionListsEveryChangedColumnInExportOrder(t *testing.T) {
 	recordReady(t, service, outcome)
 
 	// 故意先改后面的列、再改前面的列：输出顺序必须是导出列顺序，不是改动顺序
-	changeSourceValue(t, repository, "ra_input_staging", "000MAT-001", "product_description", "描述也改了")
-	changeSourceValue(t, repository, "ra_input_staging", "000MAT-001", "product_name", "名称改了")
+	changeSourceValue(t, repository, "ra_input_cleaned", "000MAT-001", "product_description", "描述也改了")
+	changeSourceValue(t, repository, "ra_input_cleaned", "000MAT-001", "product_name", "名称改了")
 
 	second, err := service.Consolidate()
 	if err != nil {
@@ -112,7 +112,7 @@ func TestChangeDescriptionListsEveryChangedColumnInExportOrder(t *testing.T) {
 func TestChooseActionIsNeverEmpty(t *testing.T) {
 	service, outcome, repository := consolidated(t)
 	recordReady(t, service, outcome)
-	changeSourceValue(t, repository, "ra_input_staging", "000MAT-002", "product_name", "改过的名称")
+	changeSourceValue(t, repository, "ra_input_cleaned", "000MAT-002", "product_name", "改过的名称")
 
 	second, err := service.Consolidate()
 	if err != nil {
