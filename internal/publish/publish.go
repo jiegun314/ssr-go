@@ -184,3 +184,58 @@ func writeAtomic(path string, content []byte) error {
 	}
 	return nil
 }
+
+// Fetch 读取共享盘上的快照并校验（sha256 + 行数），返回 manifest 与按列还原的行。
+//
+// 对齐（sync）用：这里只读、不写；任何校验失败都返回错误（绝不降级使用旧版）。
+func Fetch(root string, source string, version string) (Manifest, []store.Row, []string, error) {
+	var manifest Manifest
+	directory := filepath.Join(root, "published", share.Department(source))
+	manifestPath := filepath.Join(directory, version+".manifest.json")
+	manifestBytes, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return manifest, nil, nil, fmt.Errorf("读取快照 manifest 失败：%w", err)
+	}
+	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+		return manifest, nil, nil, fmt.Errorf("快照 manifest 损坏（%s）：%w", version, err)
+	}
+	if manifest.Source != source || manifest.Version != version {
+		return manifest, nil, nil, fmt.Errorf("快照与请求不一致（请求 %s/%s，文件里是 %s/%s）",
+			source, version, manifest.Source, manifest.Version)
+	}
+	content, err := os.ReadFile(filepath.Join(directory, version+".csv"))
+	if err != nil {
+		return manifest, nil, nil, fmt.Errorf("读取快照失败：%w", err)
+	}
+	sum := sha256.Sum256(content)
+	if digest := hex.EncodeToString(sum[:]); digest != manifest.SHA256 {
+		return manifest, nil, nil, fmt.Errorf("快照校验失败（sha256 不符），请该部门重新发布：%s", version)
+	}
+	reader := csv.NewReader(bytes.NewReader(content))
+	records, err := reader.ReadAll()
+	if err != nil {
+		return manifest, nil, nil, fmt.Errorf("快照 CSV 不合法：%w", err)
+	}
+	if len(records) == 0 {
+		return manifest, nil, nil, fmt.Errorf("快照为空（没有表头）：%s", version)
+	}
+	columns := records[0]
+	if len(manifest.Columns) > 0 && len(columns) != len(manifest.Columns) {
+		return manifest, nil, nil, fmt.Errorf("快照列数与 manifest 不一致（%s）", version)
+	}
+	rows := make([]store.Row, 0, len(records)-1)
+	for _, record := range records[1:] {
+		row := store.Row{}
+		for index, column := range columns {
+			if index < len(record) {
+				row[column] = record[index]
+			}
+		}
+		rows = append(rows, row)
+	}
+	if len(rows) != manifest.Rows {
+		return manifest, nil, nil, fmt.Errorf("快照行数不符（文件 %d 行，manifest %d 行）：%s",
+			len(rows), manifest.Rows, version)
+	}
+	return manifest, rows, columns, nil
+}

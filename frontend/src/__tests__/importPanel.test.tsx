@@ -22,7 +22,15 @@ const importedState = (): ImportState =>
     importTime: "2026/10/31 20:00",
   }) as ImportState;
 
-const renderPanel = (states: Record<string, ImportState>, locked = false) => {
+const renderPanel = (
+  states: Record<string, ImportState>,
+  locked = false,
+  options: {
+    importable?: string[];
+    viewable?: string[];
+    shareInfo?: Record<string, import("../types").SourceStatus>;
+  } = {},
+) => {
   const onImport = vi.fn();
   const onReview = vi.fn();
   const onReviewCleaned = vi.fn();
@@ -31,7 +39,9 @@ const renderPanel = (states: Record<string, ImportState>, locked = false) => {
       <AntApp>
         <ImportPanel
           states={states}
-          allowedSources={Object.keys(states)}
+          importableSources={options.importable ?? Object.keys(states)}
+          viewableSources={options.viewable ?? Object.keys(states)}
+          shareInfo={options.shareInfo}
           locked={locked}
           onImport={onImport}
           onReview={onReview}
@@ -74,6 +84,32 @@ describe("数据导入区的查看入口", () => {
     const row = sourceRow("UDI团队信息");
     expect(within(row).queryByLabelText("查看清洗后数据")).toBeNull();
     expect(within(row).getByLabelText("数据回顾")).toBeInTheDocument();
+  });
+
+  it("看不到他人来源明细时只显示最后更新时间（没有按钮）", () => {
+    renderPanel({ ra_input: importedState() }, false, {
+      importable: ["ra_input"],
+      viewable: ["ra_input"],
+      shareInfo: {
+        ra_input: {
+          source: "ra_input", label: "RA信息", canView: true, localVersion: "",
+          remoteVersion: "v1", remoteRows: 6, publishedAt: "2026-11-01 00:00:00",
+          publishedBy: "zhangsan", aligned: false, pending: true,
+        },
+        global_udi_input: {
+          source: "global_udi_input", label: "UDI团队信息", canView: false,
+          localVersion: "", remoteVersion: "", remoteRows: 0,
+          publishedAt: "2026-11-01 00:30:00", publishedBy: "", aligned: false, pending: false,
+        },
+      },
+    });
+    const own = sourceRow("RA信息");
+    expect(within(own).getByText("待整合")).toBeInTheDocument();
+
+    const other = sourceRow("UDI团队信息");
+    expect(within(other).getByText("最后更新：2026-11-01 00:30:00")).toBeInTheDocument();
+    expect(within(other).queryByLabelText("载入文件")).toBeNull();
+    expect(within(other).queryByLabelText("数据回顾")).toBeNull();
   });
 
   it("共享盘异常（locked）时载入文件禁用", () => {

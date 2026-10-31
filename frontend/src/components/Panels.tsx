@@ -53,14 +53,18 @@ import {
   type LogLevel,
 } from "../log";
 import { statusLabel } from "../theme";
-import type { ImportState } from "../types";
+import type { ImportState, SourceStatus } from "../types";
 
 /* ---------- 数据导入 ---------- */
 
 type ImportPanelProps = {
   states: Record<string, ImportState>;
-  /** 当前身份能导入/查看的来源；不在这里的只显示一行提示（权限矩阵 §12） */
-  allowedSources: string[];
+  /** 当前身份能导入/发布的来源（决定"载入文件"按钮） */
+  importableSources: string[];
+  /** 当前身份能查看明细的来源（RA/EAMA/UDI 只有自己那份，SC/Admin 全部） */
+  viewableSources: string[];
+  /** 共享盘上的对齐/待整合状态（按来源；没有配置共享盘时为空） */
+  shareInfo?: Record<string, SourceStatus>;
   /** 共享盘异常时锁住导入/发布（P2 闸门） */
   locked?: boolean;
   onImport: (source: string) => void;
@@ -84,7 +88,9 @@ function importBadge(state: string): BadgeProps["status"] {
 
 export function ImportPanel({
   states,
-  allowedSources,
+  importableSources,
+  viewableSources,
+  shareInfo,
   locked = false,
   onImport,
   onReview,
@@ -93,7 +99,9 @@ export function ImportPanel({
   return (
     <div>
       {SOURCES.map((source) => {
-        const allowed = allowedSources.includes(source.key);
+        const canImport = importableSources.includes(source.key);
+        const canView = viewableSources.includes(source.key);
+        const info = shareInfo?.[source.key];
         const current = states[source.key] ?? { state: "empty", label: "", tooltip: "" };
         return (
           <div key={source.key}>
@@ -103,23 +111,32 @@ export function ImportPanel({
                   status={importBadge(current.state)}
                   text={<span className="group-title">{source.title}</span>}
                 />
+                {canView && info?.pending ? (
+                  <Tooltip title="共享盘上这份数据比最后一次整合更新">
+                    <Tag className="pending-tag" color="orange">
+                      待整合
+                    </Tag>
+                  </Tooltip>
+                ) : null}
               </div>
               <div className="actions">
-                {!allowed ? (
+                {!canView ? (
                   <Typography.Text className="status" type="secondary">
-                    无查看权限
+                    {info?.publishedAt ? `最后更新：${info.publishedAt}` : "尚未发布"}
                   </Typography.Text>
                 ) : (
                   <>
-                <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
-                  <Button
-                    type="text"
-                    aria-label="载入文件"
-                    icon={<FileSpreadsheet size={16} />}
-                    disabled={locked}
-                    onClick={() => onImport(source.key)}
-                  />
-                </Tooltip>
+                {canImport ? (
+                  <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
+                    <Button
+                      type="text"
+                      aria-label="载入文件"
+                      icon={<FileSpreadsheet size={16} />}
+                      disabled={locked}
+                      onClick={() => onImport(source.key)}
+                    />
+                  </Tooltip>
+                ) : null}
                 {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
                 <Typography.Text
                   className="status"

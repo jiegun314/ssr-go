@@ -276,6 +276,9 @@ func (app *App) Consolidate() ConsolidateResult {
 	if err := app.authorize(auth.ActionConsolidate); err != nil {
 		return ConsolidateResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
 	}
+	if err := app.requireAligned(); err != nil {
+		return ConsolidateResult{Failed: true, Title: "数据未对齐", Message: userMessage(err), Log: app.logText()}
+	}
 	outcome, err := app.service.Consolidate()
 	if err != nil {
 		app.audit("consolidate", "", "整合失败："+err.Error(), "failed")
@@ -301,6 +304,7 @@ func (app *App) Consolidate() ConsolidateResult {
 	}
 	app.appendLog(LogSuccess, "数据整合完成："+strings.Join(summary, "，"))
 	app.audit("consolidate", "", "整合完成："+strings.Join(summary, "，"), "ok")
+	app.recordConsolidation(counts)
 	// 安全网：动作是 Modify 却没有任何变更描述 —— 正常不会出现（完全一致的行会被判为
 	// 「重复」且不进导出），真出现时留一条警告便于排查，不改行状态。
 	if warnings := outcome.ChangeDescriptionWarnings; len(warnings) > 0 {

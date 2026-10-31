@@ -93,6 +93,14 @@
   版本号 = 时间戳 + 内容哈希前 8 位；发布是"先写快照、后改状态、全程原子 rename"。
   发布前会复查共享盘：不健康就**拒绝导入**（避免"以为传上去了"），审计记 deny；
   没配 `share.root` = 本地模式，不发布也不拦。实现见 `internal/publish` 与 `app_publish.go`。
+- **对齐与整合门禁（P3）**：配了共享盘时，SC 的本地数据要先"对齐"（读 `state.json` 取最新版本 →
+  `publish.Fetch` 拉快照 → 校验 sha256 与行数 → **整表覆盖导入** → 记本地 `synced_versions` →
+  RA 还要 `importer.RebuildCleaned` 重建清洗表）。整合前校验"四份都已对齐"
+  （`sync.require_before_consolidate`，默认开），不通过就拒绝；整合成功后在 `state.state.json`
+  写 `last_consolidation`（四个版本 + 计数），各端的「待整合」标志据此清除。
+  `ShareOverview` 负责按角色下发：RA/EAMA/UDI 只看自己来源的版本/行数/发布人，其他来源只给
+  `published_at`（前端只显示"最后更新：…"）。实现见 `app_align.go`、`internal/publish.Fetch`、
+  `internal/store/sync.go`。
 - **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
   （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
   `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行

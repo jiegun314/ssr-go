@@ -23,6 +23,7 @@ import {
   RecordExportPanel,
   type MessageState,
 } from "./components/Panels";
+import { AlignPanel } from "./components/AlignPanel";
 import { LoginScreen } from "./components/LoginScreen";
 import { AboutModal, HiddenModal, ReviewModal, SettingsModal } from "./components/Modals";
 import type {
@@ -31,13 +32,16 @@ import type {
   ConsolidateResult,
   ExportResult,
   ExportTarget,
+  AlignResult,
   ImportResult,
   ImportState,
   InitialState,
   LoginResult,
   LoginRole,
   SessionInfo,
+  ShareOverview,
   ShareStatus,
+  SourceStatus,
   ReviewResult,
   SettingsChange,
   SettingsSaveResult,
@@ -93,6 +97,10 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [singleUser, setSingleUser] = useState(false);
   const [share, setShare] = useState<ShareStatus | null>(null);
+  // 共享盘总览（对齐/待整合/最后整合时间）：SC 看全部，其他角色只看到自己那份的明细
+  const [overview, setOverview] = useState<ShareOverview | null>(null);
+  const [aligning, setAligning] = useState(false);
+  const [autoAlign, setAutoAlign] = useState(true);
 
   const [aboutOpen, setAboutOpen] = useState(false);
   const [about, setAbout] = useState<AboutInfo | null>(null);
@@ -166,8 +174,8 @@ export default function App() {
     [session],
   );
 
-  /** 能导入/发布的来源（登录页之外，导入按钮据此显隐）。 */
-  const allowedSources = SOURCES.filter((source) => {
+  /** 能导入/发布的来源（决定"载入文件"按钮）。 */
+  const importableSources = SOURCES.filter((source) => {
     const action =
       source.key === "ra_input"
         ? "import:ra_input"
@@ -176,6 +184,88 @@ export default function App() {
           : "import:eama";
     return can(action);
   }).map((source) => source.key);
+
+  /** 能查看明细的来源：SC/Admin 看全部，其余只看自己那份。 */
+  const viewableSources = can("review:any")
+    ? SOURCES.map((source) => source.key)
+    : importableSources;
+
+  const shareInfo: Record<string, SourceStatus> = {};
+  for (const item of overview?.sources ?? []) shareInfo[item.source] = item;
+
+  /** 是否可以在整合前对齐（只有 SC/Admin 有 align 动作）。 */
+  const canAlign = can("align");
+  /** 四份都已对齐（本地模式视为已对齐）。 */
+  const allAligned =
+    !overview?.enabled ||
+    overview.sources.every((item) => Boolean(item.remoteVersion) && item.aligned);
+
+  const refreshOverview = useCallback(async () => {
+    const next = await call<ShareOverview>("ShareOverview");
+    if (!next) return;
+    setOverview(next);
+    setAutoAlign(next.autoAlign ?? true);
+    if (next.status) setShare(next.status);
+  }, []);
+
+  const applyAlignResult = useCallback(
+    (result: AlignResult) => {
+      setLog(result.log ?? "");
+      if (result.message) {
+        setMessage({ title: result.title, message: result.message, failed: result.failed });
+      }
+      void refreshOverview();
+    },
+    [refreshOverview],
+  );
+
+  const handleAlignAll = useCallback(async () => {
+    setAligning(true);
+    const result = await call<AlignResult>("AlignAll");
+    setAligning(false);
+    if (result) applyAlignResult(result);
+  }, [applyAlignResult]);
+
+  const handleAlign = useCallback(
+    async (source: string) => {
+      setAligning(true);
+      const result = await call<AlignResult>("AlignSource", source);
+      setAligning(false);
+      if (result) applyAlignResult(result);
+    },
+    [applyAlignResult],
+  );
+
+  // 打开界面/切换身份后拉一次总览，之后按 pollSeconds 轮询（网络盘上文件监听不可靠）
+  useEffect(() => {
+    if (!session) return;
+    void refreshOverview();
+    const seconds = overview?.pollSeconds && overview.pollSeconds > 0 ? overview.pollSeconds : 30;
+    const timer = window.setInterval(() => {
+      void refreshOverview();
+    }, Math.max(5, seconds) * 1000);
+    const onFocus = () => {
+      void refreshOverview();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+    // 只在登录/退出时重建定时器；轮询间隔用首次拿到的值
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // 自动对齐：开了开关、有未对齐的来源、且当前身份能对齐时，自动跑一次（15 秒内不重复）
+  const lastAutoAlign = useRef(0);
+  useEffect(() => {
+    if (!session || !autoAlign || !overview?.enabled || !canAlign || aligning) return;
+    const pendingAlign = overview.sources.some((item) => Boolean(item.remoteVersion) && !item.aligned);
+    if (!pendingAlign) return;
+    if (Date.now() - lastAutoAlign.current < 15000) return;
+    lastAutoAlign.current = Date.now();
+    void handleAlignAll();
+  }, [session, autoAlign, overview, canAlign, aligning, handleAlignAll]);
 
   const applyImportStates = useCallback((next: Record<string, ImportState>) => {
     setImports((current) => ({ ...current, ...next }));
@@ -194,6 +284,7 @@ export default function App() {
       const result = await call<ImportResult>("ImportSource", source, filePath);
       if (!result) return;
       setLog(result.log);
+      void refreshOverview();
       if (result.state) applyImportStates({ [source]: result.state });
       // 成功时把结果摊成「信息类别 / 导入数量」两行，失败时只给原因（failed 让标题配红色图标）
       const category = SOURCES.find((item) => item.key === source)?.title ?? source;
@@ -477,7 +568,9 @@ export default function App() {
             >
               <ImportPanel
                 states={imports}
-                allowedSources={allowedSources}
+                importableSources={importableSources}
+                viewableSources={viewableSources}
+                shareInfo={shareInfo}
                 locked={shareBlocked}
                 onImport={handleImport}
                 onReview={openSourceReview}
@@ -508,6 +601,16 @@ export default function App() {
             />
           </Tooltip>
           <div className="right">
+            {canAlign && overview?.enabled ? (
+              <AlignPanel
+                sources={overview.sources}
+                autoAlign={autoAlign}
+                aligning={aligning}
+                onAutoAlignChange={setAutoAlign}
+                onAlignAll={handleAlignAll}
+                onAlign={handleAlign}
+              />
+            ) : null}
             <Card
               className="card grow consolidation-card"
               size="small"
@@ -519,16 +622,18 @@ export default function App() {
                     title={
                       shareBlocked
                         ? "共享盘异常：处理后再整合"
-                        : can("consolidate")
-                          ? "整合数据"
-                          : "当前身份没有整合权限"
+                        : !can("consolidate")
+                          ? "当前身份没有整合权限"
+                          : !allAligned
+                            ? "还有数据未对齐：先在「数据对齐」里对齐"
+                            : "整合数据"
                     }
                   >
                     <Button
                       className="consolidation-run"
                       type="primary"
                       icon={<Merge size={16} />}
-                      disabled={!can("consolidate") || shareBlocked}
+                      disabled={!can("consolidate") || shareBlocked || !allAligned}
                       onClick={handleConsolidate}
                     >
                       整合
@@ -580,6 +685,11 @@ export default function App() {
           {share ? (
             <span className={share.healthy ? "status-share" : "status-share status-share-bad"}>
               共享盘：{share.mode === "local" ? "本地模式" : share.healthy ? "正常" : "异常"}
+            </span>
+          ) : null}
+          {overview?.lastConsolidation ? (
+            <span className="status-consolidated">
+              最后整合：{overview.lastConsolidation.at}（{overview.lastConsolidation.by}）
             </span>
           ) : null}
           {share?.mode === "share" ? (

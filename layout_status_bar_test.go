@@ -81,8 +81,8 @@ func TestTheShareGateLocksImportAndOffersRecheck(t *testing.T) {
 	if !strings.Contains(app, `share.mode === "share" && !share.healthy`) {
 		t.Error("应当按「配置了共享盘且不健康」判定锁定")
 	}
-	if !strings.Contains(app, `disabled={!can("consolidate") || shareBlocked}`) {
-		t.Error("共享盘异常时整合按钮应当禁用")
+	if !strings.Contains(app, `disabled={!can("consolidate") || shareBlocked || !allAligned}`) {
+		t.Error("共享盘异常或数据未对齐时整合按钮应当禁用")
 	}
 	recheck := cssBlock(t, styles, ".status-recheck.ant-btn {")
 	if !strings.Contains(recheck, "height: 20px;") {

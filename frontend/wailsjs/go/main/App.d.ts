@@ -5,6 +5,10 @@ import {share} from '../models';
 
 export function About():Promise<Record<string, string>>;
 
+export function AlignAll():Promise<main.AlignResult>;
+
+export function AlignSource(arg1:string):Promise<main.AlignResult>;
+
 export function BackupDatabase():Promise<main.BackupResult>;
 
 export function ClearImportedData():Promise<main.ClearResult>;
@@ -56,6 +60,8 @@ export function SelectExportTarget():Promise<main.ExportTarget>;
 export function SelectImportFile(arg1:string):Promise<string>;
 
 export function SelectReviewExportTarget(arg1:string):Promise<main.ExportTarget>;
+
+export function ShareOverview():Promise<main.ShareOverview>;
 
 export function ShowAbout():Promise<void>;
 

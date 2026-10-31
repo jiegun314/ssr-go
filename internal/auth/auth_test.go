@@ -23,6 +23,8 @@ func TestPermissionMatrix(t *testing.T) {
 		{RoleUDI, ActionImportUDI, true},
 		{RoleUDI, ActionExport, false},
 
+		{RoleSupplyChain, ActionAlign, true},
+		{RoleRA, ActionAlign, false},
 		{RoleSupplyChain, ActionConsolidate, true},
 		{RoleSupplyChain, ActionExport, true},
 		{RoleSupplyChain, ActionViewSettings, true},

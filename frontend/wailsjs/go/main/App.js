@@ -6,6 +6,14 @@ export function About() {
   return window['go']['main']['App']['About']();
 }
 
+export function AlignAll() {
+  return window['go']['main']['App']['AlignAll']();
+}
+
+export function AlignSource(arg1) {
+  return window['go']['main']['App']['AlignSource'](arg1);
+}
+
 export function BackupDatabase() {
   return window['go']['main']['App']['BackupDatabase']();
 }
@@ -108,6 +116,10 @@ export function SelectImportFile(arg1) {
 
 export function SelectReviewExportTarget(arg1) {
   return window['go']['main']['App']['SelectReviewExportTarget'](arg1);
+}
+
+export function ShareOverview() {
+  return window['go']['main']['App']['ShareOverview']();
 }
 
 export function ShowAbout() {

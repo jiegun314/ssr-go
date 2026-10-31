@@ -1366,3 +1366,79 @@ body {
 .status-recheck.ant-btn:focus-visible {
   color: var(--brand-red);
 }
+
+/* ---------- 数据对齐面板（P3，只有 SC/Admin）---------- */
+.align-panel {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid var(--module-border);
+}
+
+.align-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.align-title {
+  font-weight: 600;
+  color: var(--brand-red);
+}
+
+.align-count {
+  margin-inline-end: 0;
+}
+
+.align-auto {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.align-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.align-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.align-label {
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.align-version {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(0, 0, 0, 0.65);
+  font-variant-numeric: tabular-nums;
+}
+
+.align-time {
+  color: rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}
+
+.align-tag {
+  margin-inline-end: 0;
+}
+
+/* 导入区：来源标题后面的「待整合」小徽标（只在能看到该来源时出现） */
+.pending-tag {
+  margin-left: 6px;
+}
+
+.status-consolidated {
+  color: rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}

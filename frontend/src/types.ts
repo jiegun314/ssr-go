@@ -68,6 +68,14 @@ export type LoginResult = Omit<Data<main.LoginResult>, "session"> & {
   session?: SessionInfo;
 };
 export type ShareStatus = Data<share.Status>;
+export type SourceStatus = Data<main.SourceStatus>;
+export type LastConsolidation = Data<main.LastConsolidation>;
+export type ShareOverview = Omit<Data<main.ShareOverview>, "sources" | "lastConsolidation" | "status"> & {
+  sources: SourceStatus[];
+  lastConsolidation?: LastConsolidation;
+  status: ShareStatus;
+};
+export type AlignResult = Data<main.AlignResult>;
 
 /* ---------- 以下为前端自有类型（Go 侧没有对应结构体） ---------- */
 

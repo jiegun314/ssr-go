@@ -64,6 +64,8 @@ const (
 	ActionImportRA   Action = "import:ra_input"
 	ActionImportEAMA Action = "import:eama"
 	ActionImportUDI  Action = "import:global_udi_input"
+	// 对齐（从共享盘拉取并校验最新版本）：Supply Chain / Admin。
+	ActionAlign Action = "align"
 	// 整合与导出：Supply Chain / Admin。
 	ActionConsolidate Action = "consolidate"
 	ActionExport      Action = "export"
@@ -86,11 +88,11 @@ var matrix = map[Role][]Action{
 	RoleEAMA: {ActionImportEAMA},
 	RoleUDI:  {ActionImportUDI},
 	RoleSupplyChain: {
-		ActionConsolidate, ActionExport, ActionViewSettings, ActionReviewAny, ActionViewAuditAny,
+		ActionAlign, ActionConsolidate, ActionExport, ActionViewSettings, ActionReviewAny, ActionViewAuditAny,
 	},
 	RoleAdmin: {
 		ActionImportRA, ActionImportEAMA, ActionImportUDI,
-		ActionConsolidate, ActionExport, ActionClearData,
+		ActionAlign, ActionConsolidate, ActionExport, ActionClearData,
 		ActionViewSettings, ActionEditSettings, ActionManageShare,
 		ActionReviewAny, ActionViewAuditAny,
 	},

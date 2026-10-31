@@ -319,3 +319,27 @@ func CleanColumns(rule *Rule) []Column {
 	}
 	return columns
 }
+
+// RebuildCleaned 按规则从本机原文表重建清洗表（对齐共享盘快照后使用）。
+//
+// 返回清洗表行数；没有 clean 规则时返回 0。原文表必须先由调用方写入。
+func RebuildCleaned(repository *store.Repository, rule *Rule) (int, error) {
+	if rule == nil || rule.Clean == nil {
+		return 0, nil
+	}
+	rawRows, err := repository.Rows(rule.TargetTable)
+	if err != nil {
+		return 0, err
+	}
+	cleaned, columns, err := CleanRows(rule.Clean, rule.Columns, rawRows)
+	if err != nil {
+		return 0, err
+	}
+	if err := store.ImportSourceRows(repository, store.SourceTable{
+		SourceName: rule.SourceName, TableName: rule.Clean.TargetTable,
+		Columns: columns, ReplaceOnImport: true,
+	}, cleaned); err != nil {
+		return 0, err
+	}
+	return len(cleaned), nil
+}

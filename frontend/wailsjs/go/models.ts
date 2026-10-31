@@ -1,5 +1,27 @@
 export namespace main {
 	
+	export class AlignResult {
+	    failed: boolean;
+	    title: string;
+	    message: string;
+	    log: string;
+	    aligned: string[];
+	    failures: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new AlignResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.failed = source["failed"];
+	        this.title = source["title"];
+	        this.message = source["message"];
+	        this.log = source["log"];
+	        this.aligned = source["aligned"];
+	        this.failures = source["failures"];
+	    }
+	}
 	export class BackupResult {
 	    title: string;
 	    message: string;
@@ -167,6 +189,22 @@ export namespace main {
 		}
 	}
 	
+	export class LastConsolidation {
+	    at: string;
+	    by: string;
+	    versions: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new LastConsolidation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.at = source["at"];
+	        this.by = source["by"];
+	        this.versions = source["versions"];
+	    }
+	}
 	export class SessionInfo {
 	    name: string;
 	    role: string;
@@ -424,6 +462,77 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class SourceStatus {
+	    source: string;
+	    label: string;
+	    canView: boolean;
+	    localVersion: string;
+	    remoteVersion: string;
+	    remoteRows: number;
+	    publishedAt: string;
+	    publishedBy: string;
+	    aligned: boolean;
+	    pending: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SourceStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.label = source["label"];
+	        this.canView = source["canView"];
+	        this.localVersion = source["localVersion"];
+	        this.remoteVersion = source["remoteVersion"];
+	        this.remoteRows = source["remoteRows"];
+	        this.publishedAt = source["publishedAt"];
+	        this.publishedBy = source["publishedBy"];
+	        this.aligned = source["aligned"];
+	        this.pending = source["pending"];
+	    }
+	}
+	export class ShareOverview {
+	    status: share.Status;
+	    sources: SourceStatus[];
+	    lastConsolidation?: LastConsolidation;
+	    autoAlign: boolean;
+	    pollSeconds: number;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ShareOverview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = this.convertValues(source["status"], share.Status);
+	        this.sources = this.convertValues(source["sources"], SourceStatus);
+	        this.lastConsolidation = this.convertValues(source["lastConsolidation"], LastConsolidation);
+	        this.autoAlign = source["autoAlign"];
+	        this.pollSeconds = source["pollSeconds"];
+	        this.enabled = source["enabled"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class State {
 	    version: string;
 	    operationLog: string;
