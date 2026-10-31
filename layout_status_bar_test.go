@@ -59,3 +59,33 @@ func TestTheStatusBarSitsAtTheBottomWithASwitchIcon(t *testing.T) {
 		}
 	}
 }
+
+// TestTheShareGateLocksImportAndOffersRecheck 固定 P2 的共享盘闸门在界面上的表现：
+//   - 状态栏在"共享盘模式"下有「重新检查」图标（调 RecheckShare）；
+//   - 共享盘异常时导入按钮锁定（ImportPanel 的 locked），整合按钮同样禁用；
+//   - 导入成功的弹窗里展示"发布版本"。
+func TestTheShareGateLocksImportAndOffersRecheck(t *testing.T) {
+	app := readFrontendSource(t, "src/App.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	for _, wanted := range []string{
+		`aria-label="重新检查共享盘"`,
+		`call<ShareStatus>("RecheckShare")`,
+		"locked={shareBlocked}",
+		"发布版本",
+	} {
+		if !strings.Contains(app, wanted) {
+			t.Errorf("共享盘闸门缺少：%s", wanted)
+		}
+	}
+	if !strings.Contains(app, `share.mode === "share" && !share.healthy`) {
+		t.Error("应当按「配置了共享盘且不健康」判定锁定")
+	}
+	if !strings.Contains(app, `disabled={!can("consolidate") || shareBlocked}`) {
+		t.Error("共享盘异常时整合按钮应当禁用")
+	}
+	recheck := cssBlock(t, styles, ".status-recheck.ant-btn {")
+	if !strings.Contains(recheck, "height: 20px;") {
+		t.Errorf("重新检查图标应当与状态栏同高，实际块：\n%s", recheck)
+	}
+}

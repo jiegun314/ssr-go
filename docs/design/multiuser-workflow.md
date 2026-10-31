@@ -290,6 +290,9 @@ share:
 `synced_versions` 是本地记录的"本机当前已导入哪一版"（来源 / 版本 / sha256 / 行数 / 对齐时间 / 对齐人），
 用于界面显示"本地版本 vs 共享盘版本"的差异。
 
+> 实现进度：**P2 已落地"全量发布 + state.json + state.lock + 导入前闸门"**；
+> 对齐（sync）与 `synced_versions` 属于 P3。
+
 ### 7.2 对齐（sync）时序
 
 ```
@@ -568,8 +571,9 @@ email:
 | 阶段 | 状态 | 交付物 |
 | --- | --- | --- |
 | P0 演练环境 | ✅ 已完成 | `scripts/ssr-share-init.sh` / `ssr-share-launch.sh`、`config/*.example`、`docs/design/p0-rehearsal.md` |
-| P1 登录与权限 | ✅ 已完成（单机模式兼容） | `internal/auth`（角色/权限矩阵/Admin 哈希密码）、`internal/share`（共享盘检查骨架）、`audit_log`、登录页、会话条、按角色显隐 |
-| P2 发布与状态 | ⏳ 待开始 | — |
+| P1 登录与权限 | ✅ 已完成（单机模式兼容） | `internal/auth`（角色/权限矩阵/Admin 哈希密码）、`internal/share`（共享盘检查骨架）、`audit_log`、登录页、底部状态栏、按角色显隐 |
+| P2 发布与状态 | ✅ 已完成 | `internal/publish`（全量 CSV + manifest + 原子写）、`share.State`（state.json + `state.lock`）、导入后自动发布、导入前共享盘闸门、状态栏「重新检查」 |
+| P3 状态与对齐 | ⏳ 待开始 | — |
 
 ## 17. 建议实施步骤
 

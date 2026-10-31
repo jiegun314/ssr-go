@@ -2,7 +2,7 @@
 // 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
 import { Button, Card, Tooltip } from "antd";
-import { ChevronLeft, ChevronRight, FileDown, Merge, Trash2, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown, Merge, RefreshCw, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -148,6 +148,18 @@ export default function App() {
     await refreshInitial();
   }, [refreshInitial]);
 
+  /** 共享盘异常（配置了共享盘但不健康）：锁住导入/发布与整合。 */
+  const shareBlocked = Boolean(share && share.mode === "share" && !share.healthy);
+
+  const handleRecheckShare = useCallback(async () => {
+    const status = await call<ShareStatus>("RecheckShare");
+    if (!status) return;
+    setShare(status);
+    if (!status.healthy) {
+      setMessage({ title: "共享盘异常", message: status.detail, failed: true });
+    }
+  }, []);
+
   /** can 按后端下发的 actions 决定界面显隐（后端仍会再裁决一次）。 */
   const can = useCallback(
     (action: string) => Boolean(session?.actions?.includes(action)),
@@ -194,6 +206,9 @@ export default function App() {
             ? [
                 { label: "信息类别", value: category },
                 { label: "导入数量", value: `${result.rowCount.toLocaleString("zh-CN")} 行` },
+                ...(result.publishedVersion
+                  ? [{ label: "发布版本", value: result.publishedVersion }]
+                  : []),
               ]
             : undefined,
       });
@@ -463,6 +478,7 @@ export default function App() {
               <ImportPanel
                 states={imports}
                 allowedSources={allowedSources}
+                locked={shareBlocked}
                 onImport={handleImport}
                 onReview={openSourceReview}
                 onReviewCleaned={openCleanedReview}
@@ -499,12 +515,20 @@ export default function App() {
                 // 标题栏：模块名在左，「整合」主按钮在整条标题栏正中（绝对定位居中，见 styles.css）
                 <>
                   <span className="consolidation-name">数据整合</span>
-                  <Tooltip title={can("consolidate") ? "整合数据" : "当前身份没有整合权限"}>
+                  <Tooltip
+                    title={
+                      shareBlocked
+                        ? "共享盘异常：处理后再整合"
+                        : can("consolidate")
+                          ? "整合数据"
+                          : "当前身份没有整合权限"
+                    }
+                  >
                     <Button
                       className="consolidation-run"
                       type="primary"
                       icon={<Merge size={16} />}
-                      disabled={!can("consolidate")}
+                      disabled={!can("consolidate") || shareBlocked}
                       onClick={handleConsolidate}
                     >
                       整合
@@ -557,6 +581,18 @@ export default function App() {
             <span className={share.healthy ? "status-share" : "status-share status-share-bad"}>
               共享盘：{share.mode === "local" ? "本地模式" : share.healthy ? "正常" : "异常"}
             </span>
+          ) : null}
+          {share?.mode === "share" ? (
+            <Tooltip title="重新检查共享盘">
+              <Button
+                className="status-recheck"
+                type="text"
+                size="small"
+                aria-label="重新检查共享盘"
+                icon={<RefreshCw size={13} />}
+                onClick={handleRecheckShare}
+              />
+            </Tooltip>
           ) : null}
           {session?.singleUser ? (
             <span className="status-share">单机模式（全权限）</span>

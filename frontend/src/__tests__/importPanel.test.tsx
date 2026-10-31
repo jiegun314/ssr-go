@@ -22,7 +22,7 @@ const importedState = (): ImportState =>
     importTime: "2026/10/31 20:00",
   }) as ImportState;
 
-const renderPanel = (states: Record<string, ImportState>) => {
+const renderPanel = (states: Record<string, ImportState>, locked = false) => {
   const onImport = vi.fn();
   const onReview = vi.fn();
   const onReviewCleaned = vi.fn();
@@ -32,6 +32,7 @@ const renderPanel = (states: Record<string, ImportState>) => {
         <ImportPanel
           states={states}
           allowedSources={Object.keys(states)}
+          locked={locked}
           onImport={onImport}
           onReview={onReview}
           onReviewCleaned={onReviewCleaned}
@@ -73,6 +74,12 @@ describe("数据导入区的查看入口", () => {
     const row = sourceRow("UDI团队信息");
     expect(within(row).queryByLabelText("查看清洗后数据")).toBeNull();
     expect(within(row).getByLabelText("数据回顾")).toBeInTheDocument();
+  });
+
+  it("共享盘异常（locked）时载入文件禁用", () => {
+    renderPanel({ ra_input: importedState() }, true);
+    const row = sourceRow("RA信息");
+    expect(within(row).getByLabelText("载入文件")).toBeDisabled();
   });
 
   it("未导入时两个查看按钮都禁用", () => {

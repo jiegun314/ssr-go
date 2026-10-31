@@ -61,6 +61,8 @@ type ImportPanelProps = {
   states: Record<string, ImportState>;
   /** 当前身份能导入/查看的来源；不在这里的只显示一行提示（权限矩阵 §12） */
   allowedSources: string[];
+  /** 共享盘异常时锁住导入/发布（P2 闸门） */
+  locked?: boolean;
   onImport: (source: string) => void;
   onReview: (source: string) => void;
   /** 「查看清洗后数据」：只有声明了 clean 的来源才会有这个按钮 */
@@ -83,6 +85,7 @@ function importBadge(state: string): BadgeProps["status"] {
 export function ImportPanel({
   states,
   allowedSources,
+  locked = false,
   onImport,
   onReview,
   onReviewCleaned,
@@ -108,11 +111,12 @@ export function ImportPanel({
                   </Typography.Text>
                 ) : (
                   <>
-                <Tooltip title="载入文件">
+                <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
                   <Button
                     type="text"
                     aria-label="载入文件"
                     icon={<FileSpreadsheet size={16} />}
+                    disabled={locked}
                     onClick={() => onImport(source.key)}
                   />
                 </Tooltip>

@@ -53,6 +53,8 @@ type ImportResult struct {
 	Title    string      `json:"title"`
 	Message  string      `json:"message"`
 	Failed   bool        `json:"failed"`
+	// PublishedVersion 是发布到共享盘的版本号（本地模式为空）。
+	PublishedVersion string `json:"publishedVersion"`
 }
 
 // SelectImportFile 打开「Select Excel File」对话框并返回用户选中的文件（取消返回空串）。
@@ -67,6 +69,10 @@ func (app *App) SelectImportFile(source string) string {
 	}
 	if err := app.authorizeSource(source, true); err != nil {
 		app.appendLog(LogWarning, "导入被拒绝："+err.Error())
+		return ""
+	}
+	if err := app.requireShare("导入/发布"); err != nil {
+		app.appendLog(LogError, "导入被拒绝："+err.Error())
 		return ""
 	}
 	path, err := app.selectFile()
@@ -88,6 +94,9 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 		app.audit("deny", source, "导入", "denied")
 		return ImportResult{Source: source, Failed: true, Title: "无权限", Message: userMessage(err)}
 	}
+	if err := app.requireShare("导入/发布"); err != nil {
+		return ImportResult{Source: source, Failed: true, Title: "共享盘异常", Message: userMessage(err), Log: app.logText()}
+	}
 	path := filePath
 	if path == "" {
 		// 用户取消文件对话框不算失败：状态与标签都不变（§5.2）
@@ -101,6 +110,28 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 	app.audit("import", source, "导入成功："+filepath.Base(path), "ok")
 	app.markImported(source, filepath.Base(path))
 	state := app.importStates[source]
+
+	// 配了共享盘就自动发布（整张表 + manifest + state.json）；失败要明确告诉用户"只在本机"
+	published := ""
+	if app.shareConfig.Enabled() {
+		version, publishErr := app.publishSource(source, path)
+		if publishErr != nil {
+			app.audit("publish", source, "发布失败："+publishErr.Error(), "failed")
+			app.appendLog(LogError, "发布到共享盘失败："+publishErr.Error())
+			return ImportResult{
+				Source: source, FileName: filepath.Base(path), RowCount: state.RowCount, State: state,
+				Log:   app.logText(),
+				Title: "导入成功，发布失败",
+				Message: fmt.Sprintf("%s导入成功（只保存在本机），但发布到共享盘失败。\n"+
+					"请检查共享盘后重新导入；技术详情见日志窗口。", rule.ChineseName),
+				Failed: true,
+			}
+		}
+		published = version
+		app.audit("publish", source, "版本="+version, "ok")
+		app.appendLog(LogSuccess, fmt.Sprintf("%s已发布到共享盘：%s", rule.ChineseName, version))
+	}
+
 	return ImportResult{
 		Source:   source,
 		FileName: filepath.Base(path),
@@ -108,8 +139,9 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 		State:    state,
 		Log:      app.logText(),
 		// 成功反馈固定两行中文：第一行「{来源中文名}导入成功」，第二行行数
-		Title:   "导入成功",
-		Message: fmt.Sprintf("%s导入成功\n导入行数：%d", rule.ChineseName, state.RowCount),
+		Title:            "导入成功",
+		Message:          fmt.Sprintf("%s导入成功\n导入行数：%d", rule.ChineseName, state.RowCount),
+		PublishedVersion: published,
 	}
 }
 

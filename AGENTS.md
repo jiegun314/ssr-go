@@ -87,6 +87,12 @@
   Admin 密码是 `internal/auth` 里的哈希常量（换密码 = 发新版）。权限矩阵（角色 × 动作）集中在
   `internal/auth`，`App` 的每个绑定方法用 `authorize`/`authorizeSource` 裁决，拒绝也写审计；
   审计表 `audit_log`（本地库）记录登录、拒绝、导入、整合、导出、设置保存等动作。
+- **导入后自动发布（P2）**：配了 `workflow.yaml` 的 `share.root` 时，导入成功会把整张表发布成
+  `published/<部门>/<version>.csv` + `<version>.manifest.json`（+ 原始 xlsx 留档），
+  再在 `state/state.lock` 里更新 `state/state.json`（哪个来源、谁、何时、行数、sha256）。
+  版本号 = 时间戳 + 内容哈希前 8 位；发布是"先写快照、后改状态、全程原子 rename"。
+  发布前会复查共享盘：不健康就**拒绝导入**（避免"以为传上去了"），审计记 deny；
+  没配 `share.root` = 本地模式，不发布也不拦。实现见 `internal/publish` 与 `app_publish.go`。
 - **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
   （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
   `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行

@@ -43,7 +43,41 @@ func Load(loader *config.Loader) (Config, error) {
 		SyncAuto:                 boolean(sync["auto"], true),
 		RequireBeforeConsolidate: boolean(sync["require_before_consolidate"], true),
 	}
+	if !ValidRoot(configValue.Root) {
+		return Config{}, fmt.Errorf(
+			"workflow.yaml 的 share.root 必须是绝对路径或 UNC（例如 /tmp/ssr-share 或 \\\\server\\share）：%s",
+			configValue.Root)
+	}
 	return configValue, nil
+}
+
+// ValidRoot 判断共享盘地址是否可接受：空串（本地模式）、UNC（\\server\share）或绝对路径。
+func ValidRoot(root string) bool {
+	if root == "" {
+		return true
+	}
+	if strings.HasPrefix(root, `\\`) {
+		return true
+	}
+	return filepath.IsAbs(root)
+}
+
+// EnsureLayout 建出共享盘目录骨架（published/{ra,eama,udi}、state、consolidated、audit）。
+func EnsureLayout(root string) error {
+	directories := []string{
+		filepath.Join(root, "published", "ra"),
+		filepath.Join(root, "published", "eama"),
+		filepath.Join(root, "published", "udi"),
+		filepath.Join(root, "state"),
+		filepath.Join(root, "consolidated"),
+		filepath.Join(root, "audit"),
+	}
+	for _, directory := range directories {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			return fmt.Errorf("创建共享盘目录失败 %s：%w", directory, err)
+		}
+	}
+	return nil
 }
 
 // Enabled 表示配置了共享盘（否则是本地模式）。

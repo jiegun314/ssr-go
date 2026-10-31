@@ -129,6 +129,7 @@ export namespace main {
 	    title: string;
 	    message: string;
 	    failed: boolean;
+	    publishedVersion: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ImportResult(source);
@@ -144,6 +145,7 @@ export namespace main {
 	        this.title = source["title"];
 	        this.message = source["message"];
 	        this.failed = source["failed"];
+	        this.publishedVersion = source["publishedVersion"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -74,6 +74,10 @@ export function Quit() {
   return window['go']['main']['App']['Quit']();
 }
 
+export function RecheckShare() {
+  return window['go']['main']['App']['RecheckShare']();
+}
+
 export function ReviewCleanedSource(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReviewCleanedSource'](arg1, arg2, arg3);
 }

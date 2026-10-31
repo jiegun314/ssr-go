@@ -1352,3 +1352,17 @@ body {
 .status-switch.ant-btn:focus-visible {
   color: var(--brand-red);
 }
+
+/* 状态栏里的「重新检查共享盘」图标（与切换身份同一尺寸口径） */
+.status-recheck.ant-btn {
+  width: 22px;
+  min-width: 22px;
+  height: 20px;
+  padding: 0;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.status-recheck.ant-btn:hover,
+.status-recheck.ant-btn:focus-visible {
+  color: var(--brand-red);
+}
