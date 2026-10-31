@@ -1,7 +1,7 @@
 // 主界面：左列（数据导入 / 记录导出）+ 右列（数据整合）+ 底部（操作日志）+ 四个弹窗。
 // 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
-import { Button, Card, Tooltip } from "antd";
+import { Button, Card, Switch, Tag, Tooltip } from "antd";
 import { ChevronLeft, ChevronRight, FileDown, Merge, RefreshCw, Trash2, Users } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -195,6 +195,16 @@ export default function App() {
 
   /** 是否可以在整合前对齐（只有 SC/Admin 有 align 动作）。 */
   const canAlign = can("align");
+
+  /** 标题栏里的"发布状态"：还有几份待对齐 / 几份未发布 / 全部已对齐。 */
+  const alignSummary = (() => {
+    const sources = overview?.sources ?? [];
+    const pending = sources.filter((item) => Boolean(item.remoteVersion) && !item.aligned).length;
+    const unpublished = sources.filter((item) => !item.remoteVersion).length;
+    if (pending > 0) return { pending, text: `${pending} 份待对齐`, color: "orange" };
+    if (unpublished > 0) return { pending, text: `${unpublished} 份未发布`, color: "default" };
+    return { pending, text: "全部已对齐", color: "green" };
+  })();
   /** 四份都已对齐（本地模式视为已对齐）。 */
   const allAligned =
     !overview?.enabled ||
@@ -607,36 +617,36 @@ export default function App() {
                 size="small"
                 title="数据对齐"
                 extra={
-                  <Tooltip
-                    title={
-                      overview.sources.every((item) => item.aligned || !item.remoteVersion)
-                        ? "没有需要对齐的来源"
-                        : "把落后的来源都对齐到共享盘最新版本"
-                    }
-                  >
-                    <Button
-                      className="align-run"
-                      aria-label="全部对齐"
-                      icon={<RefreshCw size={16} />}
-                      loading={aligning}
-                      disabled={
-                        aligning ||
-                        overview.sources.every((item) => item.aligned || !item.remoteVersion)
+                  <div className="align-head-extra">
+                    <Tag className="align-status" color={alignSummary.color}>
+                      {alignSummary.text}
+                    </Tag>
+                    <span className="align-auto">
+                      <span className="align-auto-label">自动对齐</span>
+                      <Switch size="small" checked={autoAlign} onChange={setAutoAlign} />
+                    </span>
+                    <Tooltip
+                      title={
+                        alignSummary.pending === 0
+                          ? "没有需要对齐的来源"
+                          : "把落后的来源都对齐到共享盘最新版本"
                       }
-                      onClick={handleAlignAll}
                     >
-                      全部对齐
-                    </Button>
-                  </Tooltip>
+                      <Button
+                        className="align-run"
+                        aria-label="全部对齐"
+                        icon={<RefreshCw size={16} />}
+                        loading={aligning}
+                        disabled={aligning || alignSummary.pending === 0}
+                        onClick={handleAlignAll}
+                      >
+                        全部对齐
+                      </Button>
+                    </Tooltip>
+                  </div>
                 }
               >
-                <AlignPanel
-                  sources={overview.sources}
-                  autoAlign={autoAlign}
-                  aligning={aligning}
-                  onAutoAlignChange={setAutoAlign}
-                  onAlign={handleAlign}
-                />
+                <AlignPanel sources={overview.sources} aligning={aligning} onAlign={handleAlign} />
               </Card>
             ) : null}
             <Card

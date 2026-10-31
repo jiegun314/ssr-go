@@ -1368,9 +1368,49 @@ body {
 }
 
 /* ---------- 数据对齐模块（P3，只有 SC/Admin）---------- */
-/* 模块本体用 .card（红底白字标题栏与其它模块一致）；这里是标题栏按钮与四张来源卡片 */
+/* 模块本体用 .card（红底白字标题栏与其它模块一致）。
+   标题栏右侧 = 发布状态（几份待对齐）+ 自动对齐开关 + 全部对齐；
+   卡片里 = 来源/状态/右上角对齐按钮 + 两行版本 + 一行发布时间。 */
 .align-card > .ant-card-body {
-  padding: 8px 10px;
+  padding: 6px 10px;
+}
+
+.align-head-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 红底上的状态标签：白色半透明，避免橙/绿在红底上看不清 */
+.align-card .align-status.ant-tag {
+  margin-inline-end: 0;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.align-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.align-auto-label {
+  color: #fff;
+  font-size: 12px;
+}
+
+/* 红底上的开关：开启时白色轨道 + 红把手，关闭时半透明白 */
+.align-card .align-auto .ant-switch {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.align-card .align-auto .ant-switch.ant-switch-checked {
+  background: #fff;
+}
+
+.align-card .align-auto .ant-switch.ant-switch-checked .ant-switch-handle::before {
+  background: var(--brand-red);
 }
 
 .align-card .align-run.ant-btn {
@@ -1396,24 +1436,6 @@ body {
   border-color: #e8e8e8;
 }
 
-.align-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.align-count {
-  margin-inline-end: 0;
-}
-
-.align-auto {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 /* 四个来源卡片：宽度够时一行四个，窗口变窄自动换成 2×2（容器查询，按模块自身宽度判断） */
 .align-grid-wrap {
   container-type: inline-size;
@@ -1434,35 +1456,47 @@ body {
 .align-source-card {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
-  padding: 6px 8px;
+  padding: 4px 8px 5px;
   border: 1px solid var(--module-border);
   background: #fff;
 }
 
+/* 标题行：来源 + 状态 + 右上角「对齐」（与标题同高，尽量不撑卡片） */
 .align-source-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  min-height: 22px;
 }
 
 .align-source-label {
+  flex: 0 0 auto;
   font-weight: 600;
+  line-height: 22px;
   color: rgba(0, 0, 0, 0.85);
 }
 
 .align-tag {
+  flex: 0 0 auto;
   margin-inline-end: 0;
+}
+
+.align-source-run.ant-btn {
+  flex: 0 0 auto;
+  height: 22px;
+  margin-left: auto;
+  padding-inline: 8px;
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .align-source-line {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   font-size: 12px;
-  line-height: 18px;
+  line-height: 16px;
 }
 
 .align-key {
@@ -1479,14 +1513,9 @@ body {
 
 .align-source-meta {
   font-size: 12px;
-  line-height: 18px;
+  line-height: 16px;
   color: rgba(0, 0, 0, 0.45);
   overflow-wrap: anywhere;
-}
-
-.align-source-run {
-  align-self: flex-end;
-  margin-top: 2px;
 }
 
 /* 导入区：来源标题后面的「待整合」小徽标（只在能看到该来源时出现） */

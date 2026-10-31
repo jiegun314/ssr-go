@@ -30,19 +30,32 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 			t.Errorf("App.tsx 缺少：%s", wanted)
 		}
 	}
-	if !strings.Contains(app, `disabled={!can("consolidate") || shareBlocked || !allAligned}`) {
-		t.Error("未对齐时整合按钮应当禁用")
-	}
-	// 对齐模块与其它模块同构：Card + 红底白字标题栏（.card 已由全局规则给），"全部对齐"在标题栏
+	// 对齐模块与其它模块同构：Card + 红底白字标题栏；发布状态/自动对齐/全部对齐都在标题栏
 	if !strings.Contains(app, `className="card align-card"`) || !strings.Contains(app, `title="数据对齐"`) {
 		t.Error("数据对齐应当是 .card 模块（红底白字标题栏）")
 	}
-	if !strings.Contains(app, `aria-label="全部对齐"`) {
-		t.Error("标题栏里应当有「全部对齐」按钮")
+	for _, wanted := range []string{
+		`className="align-head-extra"`,
+		`className="align-status"`,
+		`className="align-auto-label"`,
+		`aria-label="全部对齐"`,
+	} {
+		if !strings.Contains(app, wanted) {
+			t.Errorf("标题栏缺少：%s", wanted)
+		}
 	}
-	// 四个来源是四张卡片
-	if count := strings.Count(align, `className="align-source-card"`); count != 1 {
-		t.Errorf("来源卡片应当由同一个模板渲染（找到 %d 处）", count)
+
+	// 卡片：对齐按钮在标题行（右上角），面板里不再有工具栏
+	if !strings.Contains(align, `className="align-source-head"`) {
+		t.Error("来源卡片应当有标题行")
+	}
+	headStart := strings.Index(align, `className="align-source-head"`)
+	headEnd := strings.Index(align[headStart:], `</div>`)
+	if headEnd < 0 || !strings.Contains(align[headStart:headStart+headEnd], `className="align-source-run"`) {
+		t.Error("「对齐」按钮应当在标题行里（右上角）")
+	}
+	if strings.Contains(align, "align-toolbar") {
+		t.Error("工具栏已合并进标题栏，面板里不该再有 align-toolbar")
 	}
 
 	// 导入区：看不到明细的来源只显示最后更新时间，且不渲染按钮
@@ -69,9 +82,17 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 		!strings.Contains(styles, "repeat(4, minmax(0, 1fr))") {
 		t.Error("宽度够时四个卡片应当排成一行（@container min-width: 760px）")
 	}
-	// 标题栏按钮与其它模块同一形式（白底红字、28px）
-	run := cssBlock(t, styles, ".align-card .align-run.ant-btn {")
-	if !strings.Contains(run, "height: 28px;") || !strings.Contains(run, "color: var(--brand-red);") {
-		t.Errorf("标题栏「全部对齐」应当白底红字 28px，实际块：\n%s", run)
+	// 卡片紧凑：右上角按钮与标题同高；标题栏状态是白字
+	run := cssBlock(t, styles, ".align-source-run.ant-btn {")
+	if !strings.Contains(run, "height: 22px;") || !strings.Contains(run, "margin-left: auto;") {
+		t.Errorf("「对齐」按钮应当高 22px 并靠右，实际块：\n%s", run)
+	}
+	statusTag := cssBlock(t, styles, ".align-card .align-status.ant-tag {")
+	if !strings.Contains(statusTag, "color: #fff;") {
+		t.Errorf("标题栏状态标签在黑底上应当是白字，实际块：\n%s", statusTag)
+	}
+	runButton := cssBlock(t, styles, ".align-card .align-run.ant-btn {")
+	if !strings.Contains(runButton, "height: 28px;") || !strings.Contains(runButton, "color: var(--brand-red);") {
+		t.Errorf("标题栏「全部对齐」应当白底红字 28px，实际块：\n%s", runButton)
 	}
 }

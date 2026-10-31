@@ -30,13 +30,7 @@ const renderPanel = (sources: SourceStatus[]) => {
   render(
     <ConfigProvider locale={zhCN}>
       <AntApp>
-        <AlignPanel
-          sources={sources}
-          autoAlign
-          aligning={false}
-          onAutoAlignChange={vi.fn()}
-          onAlign={onAlign}
-        />
+        <AlignPanel sources={sources} aligning={false} onAlign={onAlign} />
       </AntApp>
     </ConfigProvider>,
   );
@@ -89,12 +83,12 @@ describe("数据对齐面板", () => {
     expect(within(cards[2] as HTMLElement).getByRole("button", { name: /对\s*齐/ })).toBeDisabled();
   });
 
-  it("待对齐数量与「已对齐 · 待整合」都会显示", () => {
+  it("「已对齐 · 待整合」显示在卡片状态里", () => {
     renderPanel([
       status({ source: "ra_input", remoteVersion: "v1", aligned: true, pending: true }),
       status({ source: "global_udi_input", label: "UDI团队信息", remoteVersion: "v9" }),
     ]);
-    expect(screen.getByText("1 份待对齐")).toBeInTheDocument();
     expect(screen.getByText("已对齐 · 待整合")).toBeInTheDocument();
+    expect(screen.getByText("未对齐")).toBeInTheDocument();
   });
 });
