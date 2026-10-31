@@ -1,0 +1,28 @@
+# 多人协作版的流程配置（样例；复制成 config/workflow.yaml 才生效）
+#
+# 本文件在 P2 起才会被程序读取；当前版本忽略它（没有它 = 本地单机模式）。
+# 共享盘地址是**配置项**：填 UNC（\\server\share）或本地绝对路径（本机演练用）；
+# 留空 = 本地模式（不发布、不整合共享数据）。
+share:
+  root: ''
+  poll_seconds: 30
+  probe_timeout_seconds: 5
+  consolidate_lock_ttl_minutes: 30
+
+# 对齐（sync）：Supply Chain 把本机数据对齐到共享盘最新版本后才允许整合
+sync:
+  auto: true                  # 自动对齐；可在参数设定里关闭
+  require_before_consolidate: true
+
+consolidation:
+  on_new_version_during_run: warn   # warn | auto_rerun | block
+  skip_unchanged: true
+
+# 邮件在 P7 才实现；先占位，transport 保持 disabled。
+recipients:
+  ra_receivers: []            # 整合结果接收人（可多个，后续在参数设定里维护）
+  supply_chain: []
+  admins: []
+
+email:
+  transport: disabled         # disabled | smtp | graph | outbox

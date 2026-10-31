@@ -1,0 +1,27 @@
+# 多人协作版的人员名单（样例；复制成 config/users.yaml 才生效）
+#
+# 本文件在 P1 起才会被程序读取；当前版本忽略它（没有它 = 单机模式，全权限）。
+# role 只能是：ra | eama | udi | supply_chain | admin
+# 登录时按 role 决定能做什么；Admin 需要密码（密码写死在程序里）。
+# 这里不记录域账号：登录只记录各电脑自己的操作系统用户名。
+users:
+  - name: "张三"
+    role: "ra"
+    email: "zhangsan@example.com"
+    note: "RA 组（RA 信息）"
+  - name: "李四"
+    role: "eama"
+    email: "lisi@example.com"
+    note: "EAMA（产品类别 + 医保代码）"
+  - name: "王五"
+    role: "udi"
+    email: "wangwu@example.com"
+    note: "Global UDI Team"
+  - name: "赵六"
+    role: "supply_chain"
+    email: "zhaoliu@example.com"
+    note: "Supply Chain（整合）"
+  - name: "管理员"
+    role: "admin"
+    email: "admin@example.com"
+    note: "Admin（登录需要密码）"
