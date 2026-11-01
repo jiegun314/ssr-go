@@ -10,6 +10,22 @@ import (
 	"testing"
 )
 
+// TestTheLoginShowsTheSSRLogo 固定"登录页顶部有 SSR 图标"：
+// 图来自 public/logo.png（随 dist 一起打包），必须有 alt（读屏软件可读）。
+func TestTheLoginShowsTheSSRLogo(t *testing.T) {
+	screen := readFrontendSource(t, "src/components/LoginScreen.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+	if !strings.Contains(screen, `className="login-logo" src="/logo.png" alt="SSR"`) {
+		t.Error("登录页顶部应当有 SSR logo（/logo.png + alt=SSR）")
+	}
+	logo := cssBlock(t, styles, ".login-logo {")
+	for _, wanted := range []string{"width: 72px;", "height: 72px;"} {
+		if !strings.Contains(logo, wanted) {
+			t.Errorf("登录页 logo 的尺寸应当是 72×72（缺 %s），实际块：\n%s", wanted, logo)
+		}
+	}
+}
+
 func TestTheAdminLoginTileIsRedWithWhiteText(t *testing.T) {
 	screen := readFrontendSource(t, "src/components/LoginScreen.tsx")
 	styles := readFrontendSource(t, "src/styles.css")

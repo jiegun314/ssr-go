@@ -79,6 +79,7 @@ export function LoginScreen({ roles, username, onLogin, busy }: LoginScreenProps
   return (
     <div className="login-screen">
       <div className="login-panel">
+        <img className="login-logo" src="/logo.png" alt="SSR" />
         <div className="login-welcome">Welcome, {username}</div>
         <Typography.Text type="secondary" className="login-subtitle">
           请选择登录身份

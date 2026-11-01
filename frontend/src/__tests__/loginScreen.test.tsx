@@ -74,3 +74,12 @@ describe("登录页", () => {
     expect(onLogin).toHaveBeenCalledWith("admin", "SsrAdmin@2026");
   });
 });
+
+describe("登录页的 SSR 图标", () => {
+  it("顶部显示 logo（public/logo.png）", () => {
+    renderLogin();
+    const logo = screen.getByAltText("SSR");
+    expect(logo).toBeInTheDocument();
+    expect(logo.getAttribute("src")).toBe("/logo.png");
+  });
+});

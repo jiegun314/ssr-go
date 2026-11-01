@@ -1272,6 +1272,18 @@ body {
   border: 1px solid var(--module-border);
 }
 
+/* 登录页顶部的 SSR 图标（public/logo.png，256×256 的透明圆角图） */
+.login-logo {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 2px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(218, 41, 28, 0.18);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 .login-welcome {
   font-size: 20px;
   font-weight: 600;
