@@ -42,8 +42,8 @@ func TestTheFrontendTypesComeFromTheGeneratedModels(t *testing.T) {
 		t.Error("应当用 Data<> 去掉生成类上的 convertValues 方法")
 	}
 
-	// 只有 Go 侧没有对应结构体的两个类型留在前端手写
-	for _, handwritten := range []string{"export type AboutInfo = {", "export type SourceDefinition = {"} {
+	// 只有 Go 侧没有对应结构体的类型留在前端手写（AboutInfo 现在由 Go 结构体生成）
+	for _, handwritten := range []string{"export type SourceDefinition = {"} {
 		if !strings.Contains(types, handwritten) {
 			t.Errorf("前端自有类型应当保留在手写区：%s", handwritten)
 		}

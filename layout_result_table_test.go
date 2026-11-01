@@ -19,8 +19,22 @@ func TestTheResultTableUsesAntdDefaults(t *testing.T) {
 	theme := readFrontendSource(t, "src/theme.ts")
 
 	for name, source := range map[string]string{"Panels.tsx": panels, "Modals.tsx": modals} {
-		if strings.Contains(source, "bordered") {
-			t.Errorf("%s 的结果表不该用 bordered（antd Table 默认无边框）", name)
+		// 关于窗口的 Descriptions 可以用 bordered；这里只约束 <Table ...> 自身的属性
+		for index := 0; index < len(source); {
+			start := strings.Index(source[index:], "<Table")
+			if start < 0 {
+				break
+			}
+			start += index
+			end := strings.Index(source[start:], ">")
+			if end < 0 {
+				break
+			}
+			tag := source[start : start+end]
+			if strings.Contains(tag, "bordered") {
+				t.Errorf("%s 的结果表不该用 bordered（antd Table 默认无边框）", name)
+			}
+			index = start + end
 		}
 		if !strings.Contains(source, `size="small"`) {
 			t.Errorf("%s 的结果表应当用 antd 的小尺寸密度", name)

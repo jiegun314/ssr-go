@@ -10,8 +10,9 @@ import (
 	"testing"
 )
 
-// TestTheDisplayDialogsKeepTheirFixedSize 固定两个展示型窗口（关于 / 附加窗口）：
-// 都用 antd Modal（默认自带的右上角 X、遮罩可关）、尺寸固定 323×323。
+// TestTheDisplayDialogsKeepTheirFixedSize 固定两个展示型窗口：
+// 附加窗口 323×323；关于窗口是 560 宽的信息窗（图标 / 路径表 / 技术栈）。
+// 两者都用 antd Modal（默认自带的右上角 X、遮罩可关）。
 func TestTheDisplayDialogsKeepTheirFixedSize(t *testing.T) {
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -20,7 +21,7 @@ func TestTheDisplayDialogsKeepTheirFixedSize(t *testing.T) {
 		`className="about-window"`,  // 关于窗口
 		`className="hidden-window"`, // 附加窗口
 		"maskClosable",              // 点遮罩也能关
-		"width={323}",
+		"width={560}",
 	} {
 		if !strings.Contains(modals, wanted) {
 			t.Errorf("Modals.tsx 里缺少展示型窗口的契约：%s", wanted)
@@ -33,6 +34,7 @@ func TestTheDisplayDialogsKeepTheirFixedSize(t *testing.T) {
 	for _, wanted := range []string{
 		".about-window {",
 		".hidden-window {",
+		"width: 560px !important;",
 		"width: 323px !important;",
 		"height: 323px;",
 		"object-fit: cover", // 附加窗口的图片要铺满
@@ -114,14 +116,18 @@ func TestAllDialogsUseAntdDefaults(t *testing.T) {
 	if !strings.Contains(main, "autoInsertSpace: false") {
 		t.Error("要关掉 antd 在两个汉字之间插空格的默认行为")
 	}
-	// 5) 展示型窗口的内容区仍然固定 323 高、内容纵向居中
-	for _, wanted := range []string{"justify-content: center", "height: 323px"} {
-		if !strings.Contains(styles, wanted) {
-			t.Errorf("关于窗口内容区样式缺少：%s", wanted)
-		}
+	// 5) 关于窗口：名称用品牌红、路径表整宽、技术栈左对齐
+	name := cssBlock(t, styles, ".about-name {")
+	if !strings.Contains(name, "color: var(--brand-red);") {
+		t.Errorf("关于窗口的产品名应当用品牌红，实际块：\n%s", name)
 	}
-	if !strings.Contains(styles, "margin-top: 16px") {
-		t.Error("图标与下方文字之间要留出间距")
+	table := cssBlock(t, styles, ".about-table {")
+	if !strings.Contains(table, "width: 100%;") {
+		t.Errorf("路径信息表应当占满窗口宽度，实际块：\n%s", table)
+	}
+	tech := cssBlock(t, styles, ".about-tech {")
+	if !strings.Contains(tech, "text-align: left;") {
+		t.Errorf("技术栈应当左对齐，实际块：\n%s", tech)
 	}
 }
 

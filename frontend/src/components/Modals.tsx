@@ -6,6 +6,7 @@
 
 import {
   Button,
+  Descriptions,
   Flex,
   Input,
   Modal,
@@ -405,7 +406,7 @@ export function AboutModal({ open, info, onIconClick, onClose }: AboutModalProps
       open={open}
       centered
       footer={null}
-      width={323}
+      width={560}
       maskClosable
       onCancel={onClose}
       destroyOnHidden
@@ -413,17 +414,31 @@ export function AboutModal({ open, info, onIconClick, onClose }: AboutModalProps
       <div className="about-body">
         <img
           className="about-icon"
-          src="logo.png"
+          src="/logo.png"
           alt="SingleSourceReady"
           title="关于"
           onClick={onIconClick}
         />
-        <Typography.Title className="name" level={5}>
-          SingleSource Ready (SSR)
-        </Typography.Title>
-        <Typography.Text className="version" type="secondary" title={info?.detail ?? ""}>
+        <div className="about-name">{info?.name ?? "SingleSourceReady"}</div>
+        <div className="about-tagline">{info?.tagline ?? ""}</div>
+        <div className="about-chinese">{info?.chineseName ?? ""}</div>
+        <div className="about-version" title={info?.detail ?? ""}>
           {info?.version ?? ""}
-        </Typography.Text>
+        </div>
+        <Descriptions className="about-table" size="small" bordered column={1}>
+          <Descriptions.Item label="数据目录">{info?.dataDir || "—"}</Descriptions.Item>
+          <Descriptions.Item label="参数文件">{info?.configDir || "—"}</Descriptions.Item>
+          <Descriptions.Item label="数据库">{info?.database || "—"}</Descriptions.Item>
+          <Descriptions.Item label="运行环境">{info?.runtime || "—"}</Descriptions.Item>
+        </Descriptions>
+        <div className="about-tech">
+          <div className="about-tech-title">技术方案</div>
+          <ul>
+            {(info?.techStack ?? []).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
         <Typography.Paragraph className="intro" type="secondary">
           {ABOUT_INTRO}
         </Typography.Paragraph>

@@ -1,5 +1,35 @@
 export namespace main {
 	
+	export class AboutInfo {
+	    name: string;
+	    tagline: string;
+	    chineseName: string;
+	    version: string;
+	    detail: string;
+	    dataDir: string;
+	    configDir: string;
+	    database: string;
+	    runtime: string;
+	    techStack: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new AboutInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.tagline = source["tagline"];
+	        this.chineseName = source["chineseName"];
+	        this.version = source["version"];
+	        this.detail = source["detail"];
+	        this.dataDir = source["dataDir"];
+	        this.configDir = source["configDir"];
+	        this.database = source["database"];
+	        this.runtime = source["runtime"];
+	        this.techStack = source["techStack"];
+	    }
+	}
 	export class ImportState {
 	    source: string;
 	    state: string;

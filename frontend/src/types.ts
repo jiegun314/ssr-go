@@ -81,11 +81,7 @@ export type DiagnosticsResult = Data<main.DiagnosticsResult>;
 
 /* ---------- 以下为前端自有类型（Go 侧没有对应结构体） ---------- */
 
-export type AboutInfo = {
-  name: string;
-  version: string;
-  detail: string;
-};
+export type AboutInfo = Data<main.AboutInfo>;
 
 /** 四个来源的界面定义（顺序与标题是界面口径，不是后端数据）。 */
 export type SourceDefinition = {

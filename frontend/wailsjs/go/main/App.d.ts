@@ -3,7 +3,7 @@
 import {main} from '../models';
 import {share} from '../models';
 
-export function About():Promise<Record<string, string>>;
+export function About():Promise<main.AboutInfo>;
 
 export function AlignAll():Promise<main.AlignResult>;
 

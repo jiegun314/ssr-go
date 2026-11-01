@@ -1148,7 +1148,7 @@ body {
 
 /* ---------- 关于 / 附加窗口 ---------- */
 
-/* 两个展示型窗口都固定 323×323（与原版一致），内容铺满，关闭按钮用 antd 自带的。 */
+/* 附加窗口固定 323×323（与原版一致）；关于窗口改成信息型宽窗（图标 + 路径表 + 技术栈）。 */
 .about-window .ant-modal-content,
 .hidden-window .ant-modal-content {
   padding: 0;
@@ -1156,7 +1156,7 @@ body {
 }
 
 .about-window {
-  width: 323px !important;
+  width: 560px !important;
 }
 
 .hidden-window {
@@ -1167,36 +1167,85 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 内容整体在 323×323 的窗口里纵向居中，而不是堆在上方 */
-  justify-content: center;
-  gap: 8px;
-  padding: 24px;
-  text-align: center;
-  height: 323px;
+  gap: 6px;
+  padding: 28px 28px 22px;
+  max-height: calc(100vh - 160px);
   overflow: auto;
+  text-align: center;
 }
 
 .about-body .about-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px; /* borderRadiusLG */
+  width: 72px;
+  height: 72px;
+  margin-bottom: 6px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(218, 41, 28, 0.18);
+  cursor: pointer;
+}
+.about-name {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--brand-red);
 }
 
-.about-body .name {
-  /* 图标与下方文字之间留出更多呼吸空间 */
-  margin-top: 16px;
-  margin-bottom: 0;
+.about-tagline {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
 }
 
-.about-body .version {
+.about-chinese {
+  font-size: 15px;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.about-version {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* 路径信息表：标签列固定宽度，长路径允许折行 */
+.about-table {
+  width: 100%;
+  margin-top: 8px;
+  text-align: left;
+}
+
+.about-table .ant-descriptions-item-label {
+  width: 88px;
+  white-space: nowrap;
+}
+
+.about-table .ant-descriptions-item-content {
+  word-break: break-all;
+}
+
+.about-tech {
+  width: 100%;
+  margin-top: 4px;
+  text-align: left;
+}
+
+.about-tech-title {
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.about-tech ul {
   margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 20px;
+  color: rgba(0, 0, 0, 0.65);
 }
 
 /* 说明段：原文是四行（含换行），保留原样换行。
    原版 .ui 里这个 label 没写 alignment，Qt 的默认就是左对齐，所以这里也左对齐
    （图标 / 名称 / 版本仍然是居中的）。 */
 .about-body .intro {
-  margin: 0;
+  width: 100%;
+  margin: 6px 0 0;
   white-space: pre-wrap;
   text-align: left;
   font-size: 12px;

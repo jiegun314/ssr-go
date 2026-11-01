@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	stdruntime "runtime"
 	"strings"
 	"time"
 
@@ -504,8 +505,22 @@ func (app *App) ReviewLog(start string, end string, page int, pageSize int, quer
 	}
 }
 
-// About 是「关于」窗口需要的内容（版本 + tooltip 明细，§6.4）。
-func (app *App) About() map[string]string {
+// AboutInfo 是「关于」窗口的数据：版本、目录/数据库、运行环境与技术栈。
+type AboutInfo struct {
+	Name        string   `json:"name"`
+	Tagline     string   `json:"tagline"`
+	ChineseName string   `json:"chineseName"`
+	Version     string   `json:"version"`
+	Detail      string   `json:"detail"`
+	DataDir     string   `json:"dataDir"`
+	ConfigDir   string   `json:"configDir"`
+	Database    string   `json:"database"`
+	Runtime     string   `json:"runtime"`
+	TechStack   []string `json:"techStack"`
+}
+
+// About 是「关于」窗口需要的内容（版本、路径、运行环境、技术栈，§6.4）。
+func (app *App) About() AboutInfo {
 	version := ""
 	if app.loader != nil {
 		if setting, err := app.loader.LoadSetting(); err == nil {
@@ -513,11 +528,25 @@ func (app *App) About() map[string]string {
 		}
 	}
 	info := buildinfo.ReadBuildInfo(buildinfo.Options{AppVersion: version})
-	return map[string]string{
-		"name":    "SingleSourceReady",
-		"version": "Version: " + info.Version,
-		"detail":  info.Detail(),
+	about := AboutInfo{
+		Name:        "SingleSourceReady",
+		Tagline:     "Single Source Ready · UDI Data Consolidation Platform",
+		ChineseName: "UDI 数据整合与单源数据准备平台",
+		Version:     "版本 " + info.Version,
+		Detail:      info.Detail(),
+		Runtime:     stdruntime.Version() + " · " + stdruntime.GOOS + "/" + stdruntime.GOARCH,
+		TechStack: []string{
+			"Go + Wails v2 + SQLite（modernc，纯 Go、无 CGO）",
+			"Excelize 读写 Excel；四份 YAML 配置驱动",
+			"前端 React 18 + Ant Design 5 + Vite",
+		},
 	}
+	if app.loader != nil {
+		about.ConfigDir = app.loader.Resolver.ConfigDir
+		about.DataDir = filepath.Dir(app.loader.Resolver.ConfigDir)
+	}
+	about.Database = app.wiredDatabasePath
+	return about
 }
 
 // ShowAbout 由菜单「关于」调用：把版本信息推给前端弹窗。
