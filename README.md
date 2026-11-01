@@ -106,9 +106,20 @@ Excel 来源 ×4 → （配置校验：表头 / 必填 / 条件必填 / 值归�
 - **记录导出**：按起止日期回顾操作日志（每页 100 行、可分页、可导出 `operation_log_imported_data.xlsx`），
   时长任务期间显示载入图层。
 
+### 多人协作（3.0）
+
+- 按组别登录（RA / EAMA / Global UDI Team / Supply Chain / Admin）：权限矩阵在后端强制，
+  越权操作在界面隐藏并写审计；
+- 配置共享盘后：**导入即发布** → Supply Chain「数据对齐」→ 整合 → 生成文件并归档到
+  `consolidated/<id>/`；未对齐时整合置灰；
+- 状态、待整合、最后整合时间显示在底部状态栏与「数据对齐」；无整合权限的身份只读；
+- 「记录导出」全量同步；「运行状态」可查共享盘、审计、清理旧版本、导出诊断包；
+- 详细设计见 [`docs/design/multiuser-workflow.md`](docs/design/multiuser-workflow.md)，
+  EAMA 试点手册见 [`docs/pilot/eama-pilot.md`](docs/pilot/eama-pilot.md)。
+
 ### 其它
 
-- 「关于」窗口显示图标、名称、版本（悬停看 commit 与构建时间）；
+- 「关于」窗口显示图标、名称、版本、数据/参数目录、运行环境与技术栈；
 - 命令行提供无界面能力：批量导入/整合/导出、生成日志列、旧库对齐、生成样本与空库、出发布包。
 
 ---
