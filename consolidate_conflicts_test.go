@@ -39,6 +39,18 @@ func TestConsolidateReturnsAlignedConflictCells(t *testing.T) {
 	if result.Failed {
 		t.Fatalf("整合失败：%s", result.Message)
 	}
+	if len(result.RowConflicts) != len(result.Rows) {
+		t.Fatalf("RowConflicts 有 %d 行; want %d（与 Rows 同序）", len(result.RowConflicts), len(result.Rows))
+	}
+	reasonRows := 0
+	for _, reason := range result.RowConflicts {
+		if reason != "" {
+			reasonRows++
+		}
+	}
+	if reasonRows == 0 {
+		t.Fatal("有冲突时 RowConflicts 应当有非空的行级原因")
+	}
 	if len(result.Conflicts) != len(result.Rows) {
 		t.Fatalf("Conflicts 有 %d 行; want %d（与 Rows 同序）",
 			len(result.Conflicts), len(result.Rows))

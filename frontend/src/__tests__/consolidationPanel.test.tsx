@@ -71,11 +71,13 @@ describe("数据整合结果表", () => {
     const search = screen.getByLabelText("查找表格内容");
 
     await user.type(search, "监护");
+    await user.click(screen.getByRole("button", { name: "查找" }));
     expect(visibleCells()).toHaveLength(1);
     expect(visibleCells()[0]).toContain("DI-002");
 
     await user.clear(search);
     await user.type(search, "di-003");
+    await user.click(screen.getByRole("button", { name: "查找" }));
     expect(visibleCells()).toHaveLength(1);
     expect(visibleCells()[0]).toContain("DI-003");
   });
@@ -85,6 +87,7 @@ describe("数据整合结果表", () => {
     renderPanel();
     await user.click(screen.getByRole("button", { name: /合格/ }));
     await user.type(screen.getByLabelText("查找表格内容"), "注射泵");
+    await user.click(screen.getByRole("button", { name: "查找" }));
     // 注射泵是缺失行，与"合格"筛选叠加后应为空
     expect(visibleCells()).toHaveLength(0);
     expect(screen.getByText("没有找到匹配的数据")).toBeInTheDocument();
@@ -294,6 +297,7 @@ describe("数据整合结果表的分页", () => {
     expect(visibleCells()[0]).toContain("DI-101");
 
     await user.type(screen.getByLabelText("查找表格内容"), "DI-001");
+    await user.click(screen.getByRole("button", { name: "查找" }));
     const cells = visibleCells();
     expect(cells.length).toBeGreaterThan(0);
     expect(cells[0]).toContain("DI-001");
@@ -349,15 +353,6 @@ describe("冲突的定位", () => {
         />
       </AntApp>,
     );
-
-  it("有冲突时出现「定位冲突」，点击后只看冲突行", async () => {
-    renderWithConflict();
-    const locate = screen.getByRole("button", { name: "定位冲突" });
-    await userEvent.click(locate);
-    const rows = Array.from(document.querySelectorAll(".ant-table-tbody .ant-table-row"));
-    expect(rows).toHaveLength(1);
-    expect(rows[0].textContent).toContain("Conflict");
-  });
 
   it("冲突所在的列表头有小圆点", () => {
     renderWithConflict();

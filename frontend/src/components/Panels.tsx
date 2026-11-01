@@ -290,6 +290,8 @@ type ConsolidationPanelProps = {
    * 空串 = 该格不冲突（见 AGENTS.md §11）。
    */
   conflicts?: string[][];
+  /** 行级冲突原因：与 rows 同形同序（空串 = 该行不冲突），用于冲突字段不在导出列时的悬浮提示 */
+  rowConflicts?: string[];
 };
 
 /** 结果表的一行：原始单元格 + 状态（状态筛选与行底色都要用，所以连下标一起包起来）。 */
@@ -299,6 +301,8 @@ type ConsolidationRow = {
   cells: string[];
   /** 与 cells 同下标的冲突提示（空串 = 不冲突）。 */
   notes: string[];
+  /** 行级冲突原因（空串 = 该行不冲突）：鼠标停在行内任何一格都浮出这段说明。 */
+  rowConflict: string;
 };
 
 export function ConsolidationPanel({
@@ -308,11 +312,13 @@ export function ConsolidationPanel({
   statuses,
   counts,
   conflicts,
+  rowConflicts,
 }: ConsolidationPanelProps) {
   // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（导出始终只看合格行，与筛选无关）
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  // 关键字：在整行任意单元格里做包含匹配（不区分大小写），与状态筛选叠加生效
-  const [query, setQuery] = useState("");
+  // 查找框：输入不算数，点「查找」或回车才应用（与回顾窗口口径一致）
+  const [searchText, setSearchText] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
   // 分页：默认 DEFAULT_PAGE_SIZE 行/页。列定义也记忆化 —— 数据量大时不必每次重算。
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -327,8 +333,9 @@ export function ConsolidationPanel({
         cells,
         // 提示与 cells 同下标（缺行/缺格一律按不冲突处理）
         notes: conflicts?.[index] ?? [],
+        rowConflict: rowConflicts?.[index] ?? "",
       })),
-    [rows, statuses, conflicts],
+    [rows, statuses, conflicts, rowConflicts],
   );
 
   // 出现过冲突提示的列（表头加小圆点，宽表里也能知道该往哪列找）
@@ -370,6 +377,14 @@ export function ConsolidationPanel({
               </Tooltip>
             );
           }
+          if (entry.rowConflict) {
+            // 冲突字段不在导出列里时没有"哪一格"可标：整行每格都挂原因，鼠标停在行内任意处即可看到
+            return (
+              <Tooltip title={entry.rowConflict} mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
+                <span className="cell-row-conflict">{value}</span>
+              </Tooltip>
+            );
+          }
           return value === "MISSING" ? (
             <Tooltip title="此格缺失，导出时为空">
               <span className="cell-missing">缺失</span>
@@ -381,7 +396,7 @@ export function ConsolidationPanel({
       })),
     [columns, conflictColumns],
   );
-  const needle = query.trim().toLowerCase();
+  const needle = appliedQuery.trim().toLowerCase();
   const visible = useMemo(
     () =>
       dataSource
@@ -418,12 +433,6 @@ export function ConsolidationPanel({
     }, 120);
   };
 
-  const locateConflict = () => {
-    setStatusFilter("Conflict");
-    setPage(1);
-    flashFirstConflict();
-  };
-
   const toggleStatus = (status: string) => {
     const turningOn = statusFilter !== status;
     setStatusFilter(turningOn ? status : null);
@@ -452,18 +461,38 @@ export function ConsolidationPanel({
       {/* 工具条：查找框与状态筛选片在**同一行** —— 查找框居左、状态片（3 个，出现冲突时 4 个）居右
           （控件都用 antd 默认样式）；查找是"输入即筛表格内容"，与状态筛选叠加生效 */}
       <div className="table-toolbar">
-        <Input
-          className="table-search"
-          allowClear
-          value={query}
-          aria-label="查找表格内容"
-          placeholder="查找表格内容"
-          prefix={<Search size={14} aria-hidden="true" />}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setPage(1);
-          }}
-        />
+        <div className="table-search-group">
+          <Input
+            className="table-search"
+            allowClear
+            value={searchText}
+            aria-label="查找表格内容"
+            placeholder="查找表格内容"
+            prefix={<Search size={14} aria-hidden="true" />}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSearchText(value);
+              // 点 × 清空 = 立即取消筛选（不用再点查找）
+              if (value === "") {
+                setAppliedQuery("");
+                setPage(1);
+              }
+            }}
+            onPressEnter={() => {
+              setAppliedQuery(searchText);
+              setPage(1);
+            }}
+          />
+          <Button
+            size="small"
+            icon={<Search size={14} />}
+            aria-label="查找"
+            onClick={() => {
+              setAppliedQuery(searchText);
+              setPage(1);
+            }}
+          />
+        </div>
         <div
           className="status-strip"
           id="consolidation-summary"
@@ -501,16 +530,7 @@ export function ConsolidationPanel({
               </Tooltip>
             ))}
           </div>
-          {chips.some((chip) => chip.status === "Conflict") ? (
-            <Button
-              size="small"
-              type="link"
-              className="locate-conflict"
-              onClick={locateConflict}
-            >
-              定位冲突
-            </Button>
-          ) : null}
+
         </div>
       </div>
       {rows.length === 0 ? (

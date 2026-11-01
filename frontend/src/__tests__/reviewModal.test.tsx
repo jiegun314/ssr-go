@@ -98,23 +98,25 @@ describe("数据回顾窗口的分页", () => {
 });
 
 describe("数据回顾窗口的查找", () => {
-  it("输入关键字后（300ms 防抖）回调 onSearch", async () => {
+  it("输入关键字后点「查找」才回调 onSearch", async () => {
     const user = userEvent.setup();
     const onSearch = vi.fn();
     renderModal(buildResult(), vi.fn(), onSearch);
     const input = screen.getByLabelText("查找表格内容");
     await user.type(input, "MAT-3");
-    await waitFor(() => expect(onSearch).toHaveBeenCalledWith("MAT-3"), { timeout: 2000 });
+    expect(onSearch).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "查找" }));
+    expect(onSearch).toHaveBeenCalledWith("MAT-3");
   });
 
-  it("查找框与结果表同一个提示文案与清空行为", async () => {
+  it("回车也能查找；清空立即恢复全量", async () => {
     const user = userEvent.setup();
     const onSearch = vi.fn();
     renderModal(buildResult(), vi.fn(), onSearch);
     const input = screen.getByLabelText("查找表格内容");
-    await user.type(input, "abc");
-    await waitFor(() => expect(onSearch).toHaveBeenCalledWith("abc"), { timeout: 2000 });
+    await user.type(input, "abc{Enter}");
+    expect(onSearch).toHaveBeenCalledWith("abc");
     await user.clear(input);
-    await waitFor(() => expect(onSearch).toHaveBeenLastCalledWith(""), { timeout: 2000 });
+    await waitFor(() => expect(onSearch).toHaveBeenLastCalledWith(""));
   });
 });

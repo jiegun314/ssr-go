@@ -265,17 +265,29 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 	if !strings.Contains(block, "background: #fff0f6;") || !strings.Contains(block, "inset 0 0 0 1px #ffadd2") {
 		t.Errorf("冲突格要有整格浅底与内侧描边，实际块：\n%s", block)
 	}
-	// 定位：列头圆点 + 定位按钮 + 闪烁动画
+	// 定位：列头圆点 + （点冲突片时的）闪烁；「定位冲突」按钮按用户要求已取消
 	for _, wanted := range []string{".conflict-dot {", ".cell-flash {", "conflict-flash"} {
 		if !strings.Contains(styles, wanted) {
 			t.Errorf("冲突定位缺少样式：%s", wanted)
 		}
 	}
-	if !strings.Contains(panels, "className=\"locate-conflict\"") {
-		t.Error("工具栏应当有「定位冲突」按钮（宽表里用它把冲突格滚进视野）")
+	if strings.Contains(panels, "locate-conflict") {
+		t.Error("「定位冲突」按钮已取消，不该再出现")
 	}
 	if !strings.Contains(panels, "conflict-dot") {
 		t.Error("有冲突的表头应当加小圆点")
+	}
+	// 冲突字段不在导出列时：整行挂行级原因（鼠标停在行内任意处可见）
+	if !strings.Contains(panels, "cell-row-conflict") || !strings.Contains(panels, "rowConflicts") {
+		t.Error("没有单元格级提示的冲突行应当挂行级原因")
+	}
+	// 所有表格查找：输入框旁边有小查找按钮，点按钮/回车才生效
+	if !strings.Contains(panels, "table-search-group") || !strings.Contains(panels, `aria-label="查找"`) {
+		t.Error("整合表的查找应当有独立的小查找按钮")
+	}
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	if !strings.Contains(modals, "table-search-group") || !strings.Contains(modals, `aria-label="查找"`) {
+		t.Error("回顾窗口的查找应当有独立的小查找按钮")
 	}
 	triangle := cssBlock(t, styles, ".cell-conflict::after {")
 	if !strings.Contains(triangle, "border-top: 6px solid") {

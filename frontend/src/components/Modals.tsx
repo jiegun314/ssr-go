@@ -21,7 +21,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import type { DataNode } from "antd/es/tree";
 import { FileDown, Search } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 import type { AboutInfo, ReviewResult, SettingsChange, SettingsNode, SettingsTab } from "../types";
@@ -59,14 +59,9 @@ type ReviewModalProps = {
 };
 
 export function ReviewModal({ open, result, exporting, onPage, onSearch, onExport, onClose }: ReviewModalProps) {
-  // 搜索框：输入 300ms 后触发一次后端筛选（分页在筛选后的结果上做）
+  // 查找框：输入不触发，点「查找」或回车才查（点 × 清空时立即恢复全量）
   const [query, setQuery] = useState("");
-  useEffect(() => {
-    const timer = window.setTimeout(() => onSearch(query), 300);
-    return () => window.clearTimeout(timer);
-    // 只在关键字变化时触发；onSearch 的引用变化不该重复查询
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  const applySearch = () => onSearch(query.trim());
   const columns: ColumnsType<string[]> = (result?.columns ?? []).map((title, index) => ({
     title,
     dataIndex: index,
@@ -120,15 +115,23 @@ export function ReviewModal({ open, result, exporting, onPage, onSearch, onExpor
       destroyOnHidden
     >
       <div className="review-toolbar">
-        <Input
-          className="table-search"
-          allowClear
-          value={query}
-          aria-label="查找表格内容"
-          placeholder="查找表格内容"
-          prefix={<Search size={14} aria-hidden="true" />}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+        <div className="table-search-group">
+          <Input
+            className="table-search"
+            allowClear
+            value={query}
+            aria-label="查找表格内容"
+            placeholder="查找表格内容"
+            prefix={<Search size={14} aria-hidden="true" />}
+            onChange={(event) => {
+              const value = event.target.value;
+              setQuery(value);
+              if (value === "") onSearch("");
+            }}
+            onPressEnter={applySearch}
+          />
+          <Button size="small" icon={<Search size={14} />} aria-label="查找" onClick={applySearch} />
+        </div>
       </div>
       <div className="tblwrap">
         <Table<string[]>

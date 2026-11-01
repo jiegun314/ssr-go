@@ -1716,3 +1716,28 @@ body {
 .cell-flash {
   animation: conflict-flash 1.4s ease-out 1;
 }
+
+/* ---------- 表格查找：输入框 + 小查找按钮（点按钮/回车才生效） ---------- */
+.table-search-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.table-search-group .table-search {
+  flex: 0 1 240px;
+  min-width: 150px;
+}
+
+/* 回顾窗口的查找条：左对齐、正常宽度（不要铺满整个弹窗） */
+.review-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-toolbar .table-search-group .table-search {
+  width: 240px;
+  flex: 0 0 240px;
+}

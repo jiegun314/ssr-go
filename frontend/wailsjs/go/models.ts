@@ -132,6 +132,7 @@ export namespace main {
 	    statuses: string[];
 	    conflicts: string[][];
 	    notice: string;
+	    rowConflicts: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ConsolidateResult(source);
@@ -148,6 +149,7 @@ export namespace main {
 	        this.statuses = source["statuses"];
 	        this.conflicts = source["conflicts"];
 	        this.notice = source["notice"];
+	        this.rowConflicts = source["rowConflicts"];
 	    }
 	}
 	export class DiagnosticsResult {

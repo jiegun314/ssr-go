@@ -201,6 +201,9 @@ type Outcome struct {
 	// ConflictNotes 是冲突的**单元格级**提示：与 Rows 同形同序（同一行、同一列索引），
 	// 列顺序 = Config.FieldNames，空串 = 该格不冲突。行级冲突仍看 ConflictData。
 	ConflictNotes [][]string
+	// RowConflicts 是**行级**冲突原因：与 Rows 同形同序，空串 = 该行不冲突。
+	// 冲突字段没有映射到任何导出列时，只能靠它告诉用户"这一行为什么冲突"。
+	RowConflicts []string
 }
 
 // Service 执行一次整合。
@@ -676,6 +679,7 @@ func (service *Service) consolidateRows(
 		ChangedData:   []string{},
 		ConflictData:  []string{},
 		ConflictNotes: [][]string{},
+		RowConflicts:  []string{},
 	}
 	base := data.keyed[service.Config.BaseSource]
 	if base == nil {
@@ -764,9 +768,10 @@ func (service *Service) consolidateRows(
 			if err != nil {
 				return outcome, err
 			}
-			// ConflictNotes 与 Rows 同形同序：两处一起追加，索引才对得上
+			// ConflictNotes / RowConflicts 与 Rows 同形同序：一起追加，索引才对得上
 			outcome.Rows = append(outcome.Rows, changedetect.Row{Key: resultKey, Values: row})
 			outcome.ConflictNotes = append(outcome.ConflictNotes, service.conflictNotesRow(notes))
+			outcome.RowConflicts = append(outcome.RowConflicts, strings.Join(conflictDetails, "\n"))
 		}
 	}
 	return outcome, nil

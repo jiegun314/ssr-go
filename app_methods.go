@@ -272,6 +272,9 @@ type ConsolidateResult struct {
 	Conflicts [][]string `json:"conflicts"`
 	// Notice 是"整合期间有新版本发布"之类的提示（空串 = 无）。
 	Notice string `json:"notice"`
+	// RowConflicts 是行级冲突原因（与 Rows 同形同序，空串 = 该行不冲突）：
+	// 冲突字段没映射到导出列时，用它告诉用户"这一行为什么冲突"。
+	RowConflicts []string `json:"rowConflicts"`
 }
 
 // Consolidate 跑整合并回传结果表（§5.4）。
@@ -334,7 +337,7 @@ func (app *App) consolidateOnce(force bool) ConsolidateResult {
 	}
 	return ConsolidateResult{
 		Log: app.logText(), Columns: columns, Rows: rows,
-		Statuses: statuses, Conflicts: conflicts,
+		Statuses: statuses, Conflicts: conflicts, RowConflicts: outcome.RowConflicts,
 	}
 }
 
