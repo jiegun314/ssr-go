@@ -4,7 +4,20 @@
 //   标题是次级标题色 + 右上角自带 X；底栏按钮右对齐（不再做红底白字标题条、
 //   也不再为了"像 QDialog"去掉 X 再自绘居中按钮）。
 
-import { Button, Flex, Input, Modal, Pagination, Segmented, Space, Table, Tabs, Tree, Typography } from "antd";
+import {
+  Button,
+  Flex,
+  Input,
+  Modal,
+  Pagination,
+  Segmented,
+  Space,
+  Table,
+  Tabs,
+  Tooltip,
+  Tree,
+  Typography,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { DataNode } from "antd/es/tree";
 import { FileDown, Search } from "lucide-react";
@@ -59,7 +72,13 @@ export function ReviewModal({ open, result, exporting, onPage, onSearch, onExpor
     dataIndex: index,
     key: String(index),
     render: (value: string) =>
-      value === "MISSING" ? <span className="cell-MISSING">{value}</span> : value,
+      value === "MISSING" ? (
+        <Tooltip title="此格缺失，导出时为空">
+          <span className="cell-missing">缺失</span>
+        </Tooltip>
+      ) : (
+        value
+      ),
   }));
 
   return (

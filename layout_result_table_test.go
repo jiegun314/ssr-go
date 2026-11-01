@@ -255,11 +255,29 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 		t.Errorf("冲突格要撑满整格，鼠标不必精确停在文字上，实际块：\n%s", block)
 	}
 	if !strings.Contains(block, "font-weight: 600;") {
-		t.Errorf("冲突格要与 cell-MISSING 一样加粗，实际块：\n%s", block)
+		t.Errorf("冲突格要加粗，实际块：\n%s", block)
 	}
 	colors := themeColors(t, theme, "export const STATUS_COLORS")
 	if !strings.Contains(strings.ToLower(block), colors["Conflict"]) {
 		t.Errorf("冲突格要用状态色 Conflict（%s），实际块：\n%s", colors["Conflict"], block)
+	}
+	// 清晰定位：整格浅底 + 内侧描边 + 右上角小三角
+	if !strings.Contains(block, "background: #fff0f6;") || !strings.Contains(block, "inset 0 0 0 1px #ffadd2") {
+		t.Errorf("冲突格要有整格浅底与内侧描边，实际块：\n%s", block)
+	}
+	triangle := cssBlock(t, styles, ".cell-conflict::after {")
+	if !strings.Contains(triangle, "border-top: 6px solid") {
+		t.Errorf("冲突格右上角要有小三角标记，实际块：\n%s", triangle)
+	}
+	// 缺失格：12px 小胶囊，不再是加粗大写 MISSING
+	missing := cssBlock(t, styles, ".cell-missing {")
+	for _, wanted := range []string{"font-size: 12px;", "background: #fff1f0;", "border: 1px solid #ffccc7;"} {
+		if !strings.Contains(missing, wanted) {
+			t.Errorf("缺失格标记应当是 12px 小胶囊（缺 %s），实际块：\n%s", wanted, missing)
+		}
+	}
+	if strings.Contains(panels, ".cell-MISSING") {
+		t.Error("缺失格不该再用加粗大写 MISSING 的旧样式")
 	}
 }
 

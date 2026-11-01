@@ -537,18 +537,45 @@ body {
   box-shadow: inset 3px 0 0 #c41d7f;
 }
 
-.cell-MISSING {
-  font-weight: 600;
+/* 缺失格：小号「缺失」标记（不抢眼；导出时该格为空） */
+.cell-missing {
+  display: inline-block;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 18px;
   color: #cf1322;
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  border-radius: 2px;
 }
 
 /* 冲突的单元格：与状态色 Conflict 同色（theme.ts 的 STATUS_COLORS，antd magenta-6）。
    提示走 antd Tooltip（见 Panels.tsx），span 撑满整格，鼠标不必精确停在文字上。 */
 .cell-conflict {
+  position: relative;
   display: block;
+  /* 负外边距 = 抵消单元格的内边距，让底色/描边铺满整格（antd small 表是 8px） */
+  margin: -8px;
+  padding: 8px;
+  box-sizing: border-box;
   font-weight: 600;
   color: #c41d7f;
+  background: #fff0f6;
+  box-shadow: inset 0 0 0 1px #ffadd2;
+  border-radius: 2px;
   cursor: help;
+}
+
+/* 右上角小三角（Excel 批注式提示）：一眼看出"是这一格" */
+.cell-conflict::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 6px solid #c41d7f;
+  border-left: 6px solid transparent;
 }
 
 /* ---------- 操作日志 ---------- */

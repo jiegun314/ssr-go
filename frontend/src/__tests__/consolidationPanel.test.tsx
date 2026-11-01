@@ -116,7 +116,7 @@ describe("数据整合结果表", () => {
 });
 
 // 冲突单元格的标记（AGENTS.md §11 第 5 步）：只有带提示的格套 .cell-conflict，
-// 提示文案原样进 title；没有提示的格保持原样（MISSING 仍然只套 .cell-MISSING）。
+// 提示文案原样进 title；没有提示的格保持原样（缺失格显示小号「缺失」标记）。
 const CONFLICT_NOTE = "UDI团队信息：000MAT-001+DI-001 有多个候选值：10, 999";
 
 describe("数据整合结果表的冲突单元格", () => {
@@ -155,12 +155,12 @@ describe("数据整合结果表的冲突单元格", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent(CONFLICT_NOTE);
   });
 
-  it("没有提示的格保持原样：MISSING 只套 cell-MISSING", () => {
+  it("缺失格显示小号「缺失」标记，不套冲突样式", () => {
     renderWithConflicts();
 
-    const missing = document.querySelectorAll(".cell-MISSING");
+    const missing = document.querySelectorAll(".cell-missing");
     expect(missing).toHaveLength(1);
-    expect(missing[0]).toHaveTextContent("MISSING");
+    expect(missing[0]).toHaveTextContent("缺失");
     expect(missing[0]).not.toHaveClass("cell-conflict");
   });
 

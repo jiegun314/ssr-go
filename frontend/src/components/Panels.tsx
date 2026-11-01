@@ -336,7 +336,13 @@ export function ConsolidationPanel({
               </Tooltip>
             );
           }
-          return value === "MISSING" ? <span className="cell-MISSING">{value}</span> : value;
+          return value === "MISSING" ? (
+            <Tooltip title="此格缺失，导出时为空">
+              <span className="cell-missing">缺失</span>
+            </Tooltip>
+          ) : (
+            value
+          );
         },
       })),
     [columns],
