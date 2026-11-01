@@ -5,7 +5,7 @@
 
 import { App as AntApp, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -28,7 +28,7 @@ const buildResult = (overrides: Partial<ReviewResult> = {}): ReviewResult =>
     ...overrides,
   }) as ReviewResult;
 
-const renderModal = (result: ReviewResult, onPage = vi.fn()) =>
+const renderModal = (result: ReviewResult, onPage = vi.fn(), onSearch = vi.fn()) =>
   render(
     <ConfigProvider locale={zhCN}>
       <AntApp>
@@ -37,6 +37,7 @@ const renderModal = (result: ReviewResult, onPage = vi.fn()) =>
           result={result}
           exporting={false}
           onPage={onPage}
+          onSearch={onSearch}
           onExport={vi.fn()}
           onClose={vi.fn()}
         />
@@ -93,5 +94,27 @@ describe("数据回顾窗口的分页", () => {
     expect(twoHundred).toBeTruthy();
     await user.click(twoHundred as HTMLElement);
     expect(onPage).toHaveBeenCalledWith(1, 200);
+  });
+});
+
+describe("数据回顾窗口的查找", () => {
+  it("输入关键字后（300ms 防抖）回调 onSearch", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    renderModal(buildResult(), vi.fn(), onSearch);
+    const input = screen.getByLabelText("查找表格内容");
+    await user.type(input, "MAT-3");
+    await waitFor(() => expect(onSearch).toHaveBeenCalledWith("MAT-3"), { timeout: 2000 });
+  });
+
+  it("查找框与结果表同一个提示文案与清空行为", async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    renderModal(buildResult(), vi.fn(), onSearch);
+    const input = screen.getByLabelText("查找表格内容");
+    await user.type(input, "abc");
+    await waitFor(() => expect(onSearch).toHaveBeenCalledWith("abc"), { timeout: 2000 });
+    await user.clear(input);
+    await waitFor(() => expect(onSearch).toHaveBeenLastCalledWith(""), { timeout: 2000 });
   });
 });

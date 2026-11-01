@@ -40,7 +40,7 @@ func TestReviewLogFiltersByTimeRangeAndPages(t *testing.T) {
 	}
 
 	// ① 区间只覆盖 1 月的两条
-	result := app.ReviewLog("2025/12/31 00:00:00", "2026/01/31 23:59:59", 1, 100)
+	result := app.ReviewLog("2025/12/31 00:00:00", "2026/01/31 23:59:59", 1, 100, "")
 	if result.Total != 2 || len(result.Rows) != 2 {
 		t.Errorf("1 月区间：Total=%d rows=%d; want 2/2（日志：%s）", result.Total, len(result.Rows), result.Log)
 	}
@@ -49,13 +49,13 @@ func TestReviewLogFiltersByTimeRangeAndPages(t *testing.T) {
 	}
 
 	// ② 结束时间取当天 23:59:59 时，当天 10:00 的记录必须在内（这是之前漏掉的那类 bug）
-	boundary := app.ReviewLog("2026/01/20 00:00:00", "2026/01/20 23:59:59", 1, 100)
+	boundary := app.ReviewLog("2026/01/20 00:00:00", "2026/01/20 23:59:59", 1, 100, "")
 	if boundary.Total != 1 {
 		t.Errorf("当天 23:59:59 为终点时应包含当天记录，Total=%d", boundary.Total)
 	}
 
 	// ③ 分页：每页 1 行 → 第 2 页仍有 1 行
-	page2 := app.ReviewLog("2025/12/31 00:00:00", "2026/01/31 23:59:59", 2, 1)
+	page2 := app.ReviewLog("2025/12/31 00:00:00", "2026/01/31 23:59:59", 2, 1, "")
 	if page2.Total != 2 || page2.PageCount != 2 || len(page2.Rows) != 1 || page2.Page != 2 {
 		t.Errorf("分页结果不对：Total=%d PageCount=%d Page=%d rows=%d",
 			page2.Total, page2.PageCount, page2.Page, len(page2.Rows))
@@ -111,7 +111,7 @@ func TestReviewLogFindsTheRecordWrittenToday(t *testing.T) {
 	// 界面侧的计算方式：起始＝一年前的今天 00:00:00，结束＝今天 23:59:59（斜杠格式）
 	start := now.AddDate(-1, 0, 0).Format("2006/01/02") + " 00:00:00"
 	end := now.Format("2006/01/02") + " 23:59:59"
-	result := app.ReviewLog(start, end, 1, 100)
+	result := app.ReviewLog(start, end, 1, 100, "")
 	if result.Total != 1 || len(result.Rows) != 1 {
 		t.Fatalf("默认时间窗（%s → %s）应当查到刚写入的那条记录，实际 Total=%d rows=%d；日志：%s",
 			start, end, result.Total, len(result.Rows), result.Log)
@@ -159,7 +159,7 @@ func TestReviewCleanedSourceReadsTheCleanTable(t *testing.T) {
 		t.Fatalf("样本应当导入成功：%+v", imported)
 	}
 
-	raw := app.ReviewSource("ra_input", 1, 100)
+	raw := app.ReviewSource("ra_input", 1, 100, "")
 	if raw.Failed {
 		t.Fatalf("数据回顾失败：%s", raw.Message)
 	}
@@ -167,7 +167,7 @@ func TestReviewCleanedSourceReadsTheCleanTable(t *testing.T) {
 		t.Fatalf("原文回顾应当 6 行 / 27 列，实际 %d 行 / %d 列", raw.Total, len(raw.Columns))
 	}
 
-	cleaned := app.ReviewCleanedSource("ra_input", 1, 100)
+	cleaned := app.ReviewCleanedSource("ra_input", 1, 100, "")
 	if cleaned.Failed {
 		t.Fatalf("清洗后回顾失败：%s", cleaned.Message)
 	}

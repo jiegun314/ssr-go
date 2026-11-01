@@ -98,20 +98,20 @@ export function RecheckShare() {
   return window['go']['main']['App']['RecheckShare']();
 }
 
-export function ReviewAudit(arg1, arg2) {
-  return window['go']['main']['App']['ReviewAudit'](arg1, arg2);
+export function ReviewAudit(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ReviewAudit'](arg1, arg2, arg3);
 }
 
-export function ReviewCleanedSource(arg1, arg2, arg3) {
-  return window['go']['main']['App']['ReviewCleanedSource'](arg1, arg2, arg3);
+export function ReviewCleanedSource(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ReviewCleanedSource'](arg1, arg2, arg3, arg4);
 }
 
-export function ReviewLog(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['ReviewLog'](arg1, arg2, arg3, arg4);
+export function ReviewLog(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['ReviewLog'](arg1, arg2, arg3, arg4, arg5);
 }
 
-export function ReviewSource(arg1, arg2, arg3) {
-  return window['go']['main']['App']['ReviewSource'](arg1, arg2, arg3);
+export function ReviewSource(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ReviewSource'](arg1, arg2, arg3, arg4);
 }
 
 export function SaveConfigurationFile(arg1, arg2) {

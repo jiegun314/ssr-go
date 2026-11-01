@@ -7,8 +7,8 @@
 import { Button, Flex, Input, Modal, Pagination, Segmented, Space, Table, Tabs, Tree, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { DataNode } from "antd/es/tree";
-import { FileDown } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { FileDown, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 import type { AboutInfo, ReviewResult, SettingsChange, SettingsNode, SettingsTab } from "../types";
@@ -39,11 +39,21 @@ type ReviewModalProps = {
   result: ReviewResult | null;
   exporting: boolean;
   onPage: (page: number, pageSize: number) => void;
+  /** 关键字筛选：任一列包含即命中（与数据整合结果表的查找同一个口径） */
+  onSearch: (query: string) => void;
   onExport: () => void;
   onClose: () => void;
 };
 
-export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewModalProps) {
+export function ReviewModal({ open, result, exporting, onPage, onSearch, onExport, onClose }: ReviewModalProps) {
+  // 搜索框：输入 300ms 后触发一次后端筛选（分页在筛选后的结果上做）
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(() => onSearch(query), 300);
+    return () => window.clearTimeout(timer);
+    // 只在关键字变化时触发；onSearch 的引用变化不该重复查询
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
   const columns: ColumnsType<string[]> = (result?.columns ?? []).map((title, index) => ({
     title,
     dataIndex: index,
@@ -66,7 +76,7 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
       // 底栏仍是「导出在最左、翻页居中、关闭在最右」这一行。
       footer={
         <Flex align="center" gap={8}>
-          <Button icon={<FileDown size={16} />} onClick={onExport}>
+          <Button icon={<FileDown size={16} />} loading={exporting} onClick={onExport}>
             导出
           </Button>
           <Flex flex="1 1 auto" justify="center">
@@ -90,6 +100,17 @@ export function ReviewModal({ open, result, onPage, onExport, onClose }: ReviewM
       }
       destroyOnHidden
     >
+      <div className="review-toolbar">
+        <Input
+          className="table-search"
+          allowClear
+          value={query}
+          aria-label="查找表格内容"
+          placeholder="查找表格内容"
+          prefix={<Search size={14} aria-hidden="true" />}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </div>
       <div className="tblwrap">
         <Table<string[]>
           size="small"

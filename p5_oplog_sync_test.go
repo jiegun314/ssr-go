@@ -40,7 +40,7 @@ func TestOperationLogSyncsAcrossMachines(t *testing.T) {
 	}
 
 	exportOn(machineA)
-	first := machineA.ReviewLog("", "", 1, 1000)
+	first := machineA.ReviewLog("", "", 1, 1000, "")
 	if first.Failed || first.Total == 0 {
 		t.Fatalf("A 导出后应当有记录：%+v", first)
 	}
@@ -53,7 +53,7 @@ func TestOperationLogSyncsAcrossMachines(t *testing.T) {
 	if login := machineB.Login("", ""); !login.Failed {
 		// 单机模式登录直接返回当前身份（不失败），这里无需断言
 	}
-	second := machineB.ReviewLog("", "", 1, 1000)
+	second := machineB.ReviewLog("", "", 1, 1000, "")
 	if second.Failed {
 		t.Fatalf("B 读记录失败：%+v", second)
 	}
@@ -65,16 +65,16 @@ func TestOperationLogSyncsAcrossMachines(t *testing.T) {
 	// （日志时间精确到秒：等一下，确保这次的记录与 A 的不同，能看出"追加"）
 	time.Sleep(1100 * time.Millisecond)
 	exportOn(machineB)
-	afterB := machineB.ReviewLog("", "", 1, 1000)
+	afterB := machineB.ReviewLog("", "", 1, 1000, "")
 	if afterB.Total <= first.Total {
 		t.Fatalf("B 导出后记录应当变多：%d", afterB.Total)
 	}
-	afterA := machineA.ReviewLog("", "", 1, 1000)
+	afterA := machineA.ReviewLog("", "", 1, 1000, "")
 	if afterA.Total != afterB.Total {
 		t.Fatalf("A 应当看到与 B 相同的全量记录：A=%d B=%d", afterA.Total, afterB.Total)
 	}
 	// 重复同步不应当重复追加
-	again := machineA.ReviewLog("", "", 1, 1000)
+	again := machineA.ReviewLog("", "", 1, 1000, "")
 	if again.Total != afterA.Total {
 		t.Fatalf("重复同步不应当增加记录：%d → %d", afterA.Total, again.Total)
 	}

@@ -51,13 +51,13 @@ export function Quit():Promise<void>;
 
 export function RecheckShare():Promise<share.Status>;
 
-export function ReviewAudit(arg1:number,arg2:number):Promise<main.ReviewResult>;
+export function ReviewAudit(arg1:number,arg2:number,arg3:string):Promise<main.ReviewResult>;
 
-export function ReviewCleanedSource(arg1:string,arg2:number,arg3:number):Promise<main.ReviewResult>;
+export function ReviewCleanedSource(arg1:string,arg2:number,arg3:number,arg4:string):Promise<main.ReviewResult>;
 
-export function ReviewLog(arg1:string,arg2:string,arg3:number,arg4:number):Promise<main.ReviewResult>;
+export function ReviewLog(arg1:string,arg2:string,arg3:number,arg4:number,arg5:string):Promise<main.ReviewResult>;
 
-export function ReviewSource(arg1:string,arg2:number,arg3:number):Promise<main.ReviewResult>;
+export function ReviewSource(arg1:string,arg2:number,arg3:number,arg4:string):Promise<main.ReviewResult>;
 
 export function SaveConfigurationFile(arg1:string,arg2:string):Promise<main.SettingsSaveResult>;
 

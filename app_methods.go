@@ -447,7 +447,7 @@ func (app *App) Export(fileName string, target string) ExportResult {
 // ReviewLog 按时间区间读操作日志，并像来源回顾一样分页（§5.6）。
 //
 // 运行日志只在第 1 页写一行，与现状实现的开窗时机一致。
-func (app *App) ReviewLog(start string, end string, page int, pageSize int) ReviewResult {
+func (app *App) ReviewLog(start string, end string, page int, pageSize int, query string) ReviewResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
@@ -469,6 +469,7 @@ func (app *App) ReviewLog(start string, end string, page int, pageSize int) Revi
 		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	columns := app.log.TableColumns()
+	rows = filterReviewRows(rows, columns, query)
 	pageCount := (len(rows) + pageSize - 1) / pageSize
 	if pageCount == 0 {
 		pageCount = 1
@@ -543,32 +544,32 @@ type ReviewResult struct {
 //
 // 医保编码来源同样可以回顾 —— 这是 #3 的修复：现状实现里那个分支被注释掉了。
 // 运行日志只在打开回顾窗口（第 1 页）时写一行，与现状实现的开窗时机一致。
-func (app *App) ReviewSource(source string, page int, pageSize int) ReviewResult {
+func (app *App) ReviewSource(source string, page int, pageSize int, query string) ReviewResult {
 	app.mu.Lock()
 	err := app.authorizeSource(source, false)
 	app.mu.Unlock()
 	if err != nil {
 		return ReviewResult{Failed: true, Title: "无权限", Message: userMessage(err)}
 	}
-	return app.reviewPaged(source, page, pageSize)
+	return app.reviewPaged(source, page, pageSize, query)
 }
 
 // ReviewCleanedSource 是「查看清洗后数据」：同一个来源的清洗表（只有声明了 clean 的来源才有）。
 //
 // 与 ReviewSource 共用同一套分页与回顾窗口，只是读的表与列不同：
 // 数据回顾看原文表，这里看整合实际读取的清洗表，方便核对合并结果。
-func (app *App) ReviewCleanedSource(source string, page int, pageSize int) ReviewResult {
+func (app *App) ReviewCleanedSource(source string, page int, pageSize int, query string) ReviewResult {
 	app.mu.Lock()
 	err := app.authorizeSource(source, false)
 	app.mu.Unlock()
 	if err != nil {
 		return ReviewResult{Failed: true, Title: "无权限", Message: userMessage(err)}
 	}
-	return app.reviewPaged(source+cleanedReviewSuffix, page, pageSize)
+	return app.reviewPaged(source+cleanedReviewSuffix, page, pageSize, query)
 }
 
 // reviewPaged 是来源回顾的分页主体；reviewKey 可以带「清洗后」后缀。
-func (app *App) reviewPaged(reviewKey string, page int, pageSize int) ReviewResult {
+func (app *App) reviewPaged(reviewKey string, page int, pageSize int, query string) ReviewResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
@@ -585,6 +586,7 @@ func (app *App) reviewPaged(reviewKey string, page int, pageSize int) ReviewResu
 	if err != nil {
 		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: userMessage(err)}
 	}
+	rows = filterMatrix(rows, query)
 	pageCount := (len(rows) + pageSize - 1) / pageSize
 	if pageCount == 0 {
 		pageCount = 1
@@ -610,6 +612,42 @@ func (app *App) reviewPaged(reviewKey string, page int, pageSize int) ReviewResu
 		Columns: columns, Rows: rows[begin:finish],
 		Total: len(rows), Page: page, PageSize: pageSize, PageCount: pageCount,
 	}
+}
+
+// filterReviewRows 按关键字过滤（任一列的文本包含即命中，不区分大小写）。
+func filterReviewRows(rows []store.Row, columns []string, query string) []store.Row {
+	query = strings.TrimSpace(strings.ToLower(query))
+	if query == "" {
+		return rows
+	}
+	filtered := make([]store.Row, 0, len(rows))
+	for _, row := range rows {
+		for _, column := range columns {
+			if strings.Contains(strings.ToLower(row[column]), query) {
+				filtered = append(filtered, row)
+				break
+			}
+		}
+	}
+	return filtered
+}
+
+// filterMatrix 是 [][]string 版本的同一口径（回顾窗口的表格行）。
+func filterMatrix(rows [][]string, query string) [][]string {
+	query = strings.TrimSpace(strings.ToLower(query))
+	if query == "" {
+		return rows
+	}
+	filtered := make([][]string, 0, len(rows))
+	for _, row := range rows {
+		for _, value := range row {
+			if strings.Contains(strings.ToLower(value), query) {
+				filtered = append(filtered, row)
+				break
+			}
+		}
+	}
+	return filtered
 }
 
 // reviewData 返回一个回顾对象的列与全部数据。

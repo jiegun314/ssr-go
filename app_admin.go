@@ -16,7 +16,7 @@ import (
 var AuditColumns = []string{"时间", "操作人", "角色", "用户名", "机器", "动作", "对象", "说明", "结果"}
 
 // ReviewAudit 分页读审计（SC/Admin；最新的在前）。
-func (app *App) ReviewAudit(page int, pageSize int) ReviewResult {
+func (app *App) ReviewAudit(page int, pageSize int, query string) ReviewResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
@@ -52,6 +52,7 @@ func (app *App) ReviewAudit(page int, pageSize int) ReviewResult {
 			row["action"], row["target"], row["detail"], row["result"],
 		})
 	}
+	table = filterMatrix(table, query)
 	pageCount := (len(table) + pageSize - 1) / pageSize
 	if pageCount == 0 {
 		pageCount = 1

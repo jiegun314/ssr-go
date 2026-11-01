@@ -19,7 +19,7 @@ func TestReviewAuditShowsNewestFirstAndIsAdminOnly(t *testing.T) {
 	if result := app.ImportSource("ra_input", filepath.Join("testdata", "sample-valid", "ra_input.xlsx")); result.Failed {
 		t.Fatalf("导入失败：%+v", result)
 	}
-	review := app.ReviewAudit(1, 100)
+	review := app.ReviewAudit(1, 100, "")
 	if review.Failed {
 		t.Fatalf("读审计失败：%+v", review)
 	}
@@ -39,7 +39,7 @@ func TestReviewAuditShowsNewestFirstAndIsAdminOnly(t *testing.T) {
 	if login := usersApp.Login("ra", ""); login.Failed {
 		t.Fatalf("登录失败：%+v", login)
 	}
-	denied := usersApp.ReviewAudit(1, 100)
+	denied := usersApp.ReviewAudit(1, 100, "")
 	if !denied.Failed || !strings.Contains(denied.Message, "没有这个操作的权限") {
 		t.Fatalf("RA 不该能看审计：%+v", denied)
 	}

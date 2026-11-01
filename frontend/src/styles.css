@@ -1646,3 +1646,8 @@ body {
 .align-status-none {
   color: rgba(0, 0, 0, 0.35);
 }
+
+/* 回顾窗口的查找条：与表格留 8px（口径同结果表的工具条） */
+.review-toolbar {
+  padding: 0 0 8px;
+}

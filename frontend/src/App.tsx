@@ -66,6 +66,7 @@ const ICON_CLICK_WINDOW_MS = 5000;
 
 type ReviewSession = {
   kind: "source" | "cleaned-source" | "log" | "audit";
+  query?: string;
   source: string;
   fileType: string;
   start: string;
@@ -362,14 +363,15 @@ export default function App() {
   const loadReviewPage = useCallback(async (page: number, pageSize: number = REVIEW_PAGE_SIZE) => {
     const session = reviewSession.current;
     if (!session) return;
+    const query = session.query ?? "";
     const result =
       session.kind === "log"
-        ? await call<ReviewResult>("ReviewLog", session.start, session.end, page, pageSize)
+        ? await call<ReviewResult>("ReviewLog", session.start, session.end, page, pageSize, query)
         : session.kind === "audit"
-          ? await call<ReviewResult>("ReviewAudit", page, pageSize)
+          ? await call<ReviewResult>("ReviewAudit", page, pageSize, query)
           : session.kind === "cleaned-source"
-            ? await call<ReviewResult>("ReviewCleanedSource", session.source, page, pageSize)
-            : await call<ReviewResult>("ReviewSource", session.source, page, pageSize);
+            ? await call<ReviewResult>("ReviewCleanedSource", session.source, page, pageSize, query)
+            : await call<ReviewResult>("ReviewSource", session.source, page, pageSize, query);
     if (!result) return;
     setLog(result.log);
     if (result.failed) {
@@ -381,7 +383,7 @@ export default function App() {
 
   const openSourceReview = useCallback(
     async (source: string) => {
-      reviewSession.current = { kind: "source", source, fileType: source, start: "", end: "" };
+      reviewSession.current = { kind: "source", source, fileType: source, start: "", end: "", query: "" };
       await loadReviewPage(1);
       setReviewOpen(true);
     },
@@ -390,7 +392,7 @@ export default function App() {
 
   const openCleanedReview = useCallback(
     async (source: string) => {
-      reviewSession.current = { kind: "cleaned-source", source, fileType: source, start: "", end: "" };
+      reviewSession.current = { kind: "cleaned-source", source, fileType: source, start: "", end: "", query: "" };
       await loadReviewPage(1);
       setReviewOpen(true);
     },
@@ -398,7 +400,7 @@ export default function App() {
   );
 
   const openAuditReview = useCallback(async () => {
-    reviewSession.current = { kind: "audit", source: "", fileType: "", start: "", end: "" };
+    reviewSession.current = { kind: "audit", source: "", fileType: "", start: "", end: "", query: "" };
     await loadReviewPage(1);
     setReviewOpen(true);
   }, [loadReviewPage]);
@@ -416,6 +418,16 @@ export default function App() {
     [refreshOverview],
   );
 
+  const handleReviewSearch = useCallback(
+    (query: string) => {
+      const session = reviewSession.current;
+      if (!session) return;
+      session.query = query;
+      void loadReviewPage(1);
+    },
+    [loadReviewPage],
+  );
+
   const openLogReview = useCallback(async () => {
     // 选中的起止两天都完整包含：起始补 00:00:00、结束补 23:59:59
     reviewSession.current = {
@@ -424,6 +436,7 @@ export default function App() {
       fileType: "operation_log",
       start: toLogTime(startDate, false),
       end: toLogTime(endDate, true),
+      query: "",
     };
     await loadReviewPage(1);
     setReviewOpen(true);
@@ -879,6 +892,7 @@ export default function App() {
         result={review}
         exporting={false}
         onPage={loadReviewPage}
+        onSearch={handleReviewSearch}
         onExport={handleReviewExport}
         onClose={() => setReviewOpen(false)}
       />
