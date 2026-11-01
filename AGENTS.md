@@ -264,7 +264,7 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
      验证：前端行为测试（标记 + 悬停出提示）+ `make check` 退出码 0。
 - 前端类型的来源：`frontend/src/types.ts` 从生成的 `frontend/wailsjs/go/models.ts` **派生**
   （`Data<>` 剥掉生成类上的 `convertValues`，需要收窄的用 `Omit` + 交叉类型补联合类型），
-  只有 Go 侧没有的 `AboutInfo` 与纯前端的 `SourceDefinition` 手写。
+  只有纯前端的 `SourceDefinition` 手写（`AboutInfo` 已由 Go 结构体生成）。
   改 Go 结构体后重新生成模型即可，前端不必同步字段清单（`tsc --noEmit` 会立刻发现不一致）。
 - 根目录 `package main` 偏重：`App` 与 Wails 绑定方法都在根，搬迁受 `window.go.main.App` 命名空间约束。
 - 日志级别的口径已合一：标签以 Go 的 `logLevelLabels` 为真源（`log_test.go` 逐条比对 `log.ts`），
