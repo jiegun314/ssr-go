@@ -454,7 +454,9 @@ export function HiddenModal({ open, onClose }: HiddenModalProps) {
       centered
       footer={null}
       width={323}
-      maskClosable
+      // 附加窗口只认右上角的 X：点遮罩 / 按 Esc 都不关（避免它刚出现就被同一次点击的余波关掉）
+      maskClosable={false}
+      keyboard={false}
       onCancel={onClose}
       destroyOnHidden
     >

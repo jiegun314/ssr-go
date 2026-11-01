@@ -146,6 +146,29 @@ func TestAllDialogsUseAntdDefaults(t *testing.T) {
 	}
 }
 
+// TestTheHiddenWindowOnlyClosesFromItsCloseButton 固定附加窗口的关闭方式：
+// 点遮罩、按 Esc 都不关，只有右上角的 X 会关（否则它一出现就会被同一次点击的余波关掉）。
+func TestTheHiddenWindowOnlyClosesFromItsCloseButton(t *testing.T) {
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+	start := strings.Index(modals, "export function HiddenModal")
+	if start < 0 {
+		t.Fatal("没找到 HiddenModal")
+	}
+	body := modals[start:]
+	end := strings.Index(body, "/* ----------")
+	if end >= 0 {
+		body = body[:end]
+	}
+	for _, wanted := range []string{"maskClosable={false}", "keyboard={false}"} {
+		if !strings.Contains(body, wanted) {
+			t.Errorf("附加窗口应当设置 %s（只能点 X 关闭）", wanted)
+		}
+	}
+	if !strings.Contains(body, "onCancel={onClose}") {
+		t.Error("附加窗口的关闭按钮应当走 onClose")
+	}
+}
+
 // TestTheMessageDialogShowsStructuredDetails 固定提示弹窗的形态：
 // 标题前一个状态图标（成功绿对勾 / 失败红警示），结果摊成 antd 默认的键值表
 // （信息类别 / 导入数量），数量带千分位；失败时保留原来的多行原因文本。

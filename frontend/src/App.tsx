@@ -605,14 +605,15 @@ export default function App() {
     const result = recordIconClick(iconClicks.current, Date.now());
     iconClicks.current = result.times;
     if (!result.triggered) return;
-    setAboutOpen(false);
-    setHiddenOpen(true);
     // 声音在同一个点击回调里播放：属于用户手势，不会被自动播放策略拦下
     const voice = voiceRef.current;
     if (voice) {
       voice.currentTime = 0;
       void voice.play().catch(() => undefined);
     }
+    setAboutOpen(false);
+    // 下一帧再打开：同一次点击的后续事件不会落到新出现的遮罩上（否则窗口会"闪一下就没了"）
+    window.setTimeout(() => setHiddenOpen(true), 0);
   }, []);
 
   const closeHidden = useCallback(() => {
