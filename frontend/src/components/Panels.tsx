@@ -317,10 +317,44 @@ export function ConsolidationPanel({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
+
+
+  const dataSource: ConsolidationRow[] = useMemo(
+    () =>
+      rows.map((cells, index) => ({
+        key: String(index),
+        status: statuses[index] ?? "Ready",
+        cells,
+        // 提示与 cells 同下标（缺行/缺格一律按不冲突处理）
+        notes: conflicts?.[index] ?? [],
+      })),
+    [rows, statuses, conflicts],
+  );
+
+  // 出现过冲突提示的列（表头加小圆点，宽表里也能知道该往哪列找）
+  const conflictColumns = useMemo(() => {
+    const set = new Set<number>();
+    for (const entry of dataSource) {
+      entry.notes.forEach((note, index) => {
+        if (note) set.add(index);
+      });
+    }
+    return set;
+  }, [dataSource]);
+
   const tableColumns: ColumnsType<ConsolidationRow> = useMemo(
     () =>
       columns.map((title, index) => ({
-        title,
+        title: conflictColumns.has(index) ? (
+          <Tooltip title="此列有冲突单元格" mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
+            <span className="th-title">
+              {title}
+              <span className="conflict-dot" aria-label="此列有冲突" />
+            </span>
+          </Tooltip>
+        ) : (
+          title
+        ),
         key: String(index),
         ellipsis: false,
         render: (_: unknown, entry: ConsolidationRow) => {
@@ -345,19 +379,7 @@ export function ConsolidationPanel({
           );
         },
       })),
-    [columns],
-  );
-
-  const dataSource: ConsolidationRow[] = useMemo(
-    () =>
-      rows.map((cells, index) => ({
-        key: String(index),
-        status: statuses[index] ?? "Ready",
-        cells,
-        // 提示与 cells 同下标（缺行/缺格一律按不冲突处理）
-        notes: conflicts?.[index] ?? [],
-      })),
-    [rows, statuses, conflicts],
+    [columns, conflictColumns],
   );
   const needle = query.trim().toLowerCase();
   const visible = useMemo(
@@ -381,9 +403,34 @@ export function ConsolidationPanel({
   // 重新整合（rows 换了）之后回到第一页：否则可能停在一个已经空的页上
   useEffect(() => setPage(1), [rows]);
 
-  const toggleStatus = (status: string) => {
-    setStatusFilter((current) => (current === status ? null : status));
+  // 把第一个冲突格滚进视野并闪一下（宽表 + 多页时，这是"找得到"的关键）
+  const flashFirstConflict = () => {
+    window.setTimeout(() => {
+      const cell = document.querySelector<HTMLElement>(
+        ".result-row.status-Conflict .cell-conflict",
+      );
+      if (!cell) return;
+      if (typeof cell.scrollIntoView === "function") {
+        cell.scrollIntoView({ block: "center", inline: "center" });
+      }
+      cell.classList.add("cell-flash");
+      window.setTimeout(() => cell.classList.remove("cell-flash"), 1400);
+    }, 120);
+  };
+
+  const locateConflict = () => {
+    setStatusFilter("Conflict");
     setPage(1);
+    flashFirstConflict();
+  };
+
+  const toggleStatus = (status: string) => {
+    const turningOn = statusFilter !== status;
+    setStatusFilter(turningOn ? status : null);
+    setPage(1);
+    if (turningOn && status === "Conflict") {
+      flashFirstConflict();
+    }
   };
 
   // 三个状态片（出现冲突时多一个）：等宽、与左右按钮同高、点击筛选。
@@ -454,6 +501,16 @@ export function ConsolidationPanel({
               </Tooltip>
             ))}
           </div>
+          {chips.some((chip) => chip.status === "Conflict") ? (
+            <Button
+              size="small"
+              type="link"
+              className="locate-conflict"
+              onClick={locateConflict}
+            >
+              定位冲突
+            </Button>
+          ) : null}
         </div>
       </div>
       {rows.length === 0 ? (

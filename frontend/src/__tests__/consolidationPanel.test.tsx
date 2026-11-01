@@ -111,7 +111,7 @@ describe("数据整合结果表", () => {
         />
       </AntApp>,
     );
-    expect(screen.getByRole("button", { name: /冲突/ }).textContent).toContain("3");
+    expect(screen.getByRole("button", { name: /^冲突\s*3$/ }).textContent).toContain("3");
   });
 });
 
@@ -205,7 +205,10 @@ describe("数据整合结果表的状态筛选片", () => {
     const user = userEvent.setup();
     renderWithFourChips();
 
-    await user.hover(screen.getByRole("button", { name: /冲突/ }));
+    const conflictChip = Array.from(document.querySelectorAll(".status-chip")).find((chip) =>
+      (chip.textContent ?? "").includes("冲突"),
+    ) as HTMLElement;
+    await user.hover(conflictChip);
     expect(await screen.findByText(/同一键的多条来源记录内容不一致/)).toBeInTheDocument();
 
     await user.hover(screen.getByRole("button", { name: /缺失/ }));
@@ -324,5 +327,46 @@ describe("只读（没有整合权限）", () => {
   it("有整合权限时不显示只读说明", () => {
     renderPanel(false);
     expect(screen.queryByText(/这里只能查看/)).toBeNull();
+  });
+});
+
+describe("冲突的定位", () => {
+  const renderWithConflict = () =>
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={["status", ...COLUMNS]}
+          rows={[
+            ["Ready", "DI-001", "超声探头", "12345"],
+            ["Conflict", "DI-002", "监护仪", "999"],
+          ]}
+          statuses={["Ready", "Conflict"]}
+          counts={{ Ready: 1, Incomplete: 0, Duplicate: 0, Conflict: 1 }}
+          conflicts={[
+            ["", "", "", ""],
+            ["", "", CONFLICT_NOTE, ""],
+          ]}
+        />
+      </AntApp>,
+    );
+
+  it("有冲突时出现「定位冲突」，点击后只看冲突行", async () => {
+    renderWithConflict();
+    const locate = screen.getByRole("button", { name: "定位冲突" });
+    await userEvent.click(locate);
+    const rows = Array.from(document.querySelectorAll(".ant-table-tbody .ant-table-row"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain("Conflict");
+  });
+
+  it("冲突所在的列表头有小圆点", () => {
+    renderWithConflict();
+    // sticky 表头会渲染一份克隆，所以圆点至少一个
+    expect(document.querySelectorAll(".conflict-dot").length).toBeGreaterThanOrEqual(1);
+    // 冲突列是 Product Name（第二列）：它的表头（含 sticky 克隆）应当带圆点
+    const headers = Array.from(document.querySelectorAll("th")).filter((th) =>
+      (th.textContent ?? "").includes("Product Name"),
+    );
+    expect(headers.some((th) => th.querySelector(".conflict-dot") !== null)).toBe(true);
   });
 });

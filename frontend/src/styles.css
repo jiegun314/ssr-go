@@ -1678,3 +1678,41 @@ body {
 .review-toolbar {
   padding: 0 0 8px;
 }
+
+/* ---------- 冲突定位：表头小圆点 + 「定位冲突」按钮 + 闪一下 ---------- */
+
+.th-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.conflict-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c41d7f;
+}
+
+.status-strip .locate-conflict.ant-btn {
+  margin-left: 8px;
+  padding-inline: 4px;
+  color: #c41d7f;
+}
+
+/* 定位后让冲突格闪一下（1.4s 后由 JS 移除 class） */
+@keyframes conflict-flash {
+  0% {
+    background: #ffd6e7;
+    box-shadow: inset 0 0 0 2px #c41d7f;
+  }
+  100% {
+    background: #fff0f6;
+    box-shadow: inset 0 0 0 1px #ffadd2;
+  }
+}
+
+.cell-flash {
+  animation: conflict-flash 1.4s ease-out 1;
+}

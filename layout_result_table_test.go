@@ -265,6 +265,18 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 	if !strings.Contains(block, "background: #fff0f6;") || !strings.Contains(block, "inset 0 0 0 1px #ffadd2") {
 		t.Errorf("冲突格要有整格浅底与内侧描边，实际块：\n%s", block)
 	}
+	// 定位：列头圆点 + 定位按钮 + 闪烁动画
+	for _, wanted := range []string{".conflict-dot {", ".cell-flash {", "conflict-flash"} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("冲突定位缺少样式：%s", wanted)
+		}
+	}
+	if !strings.Contains(panels, "className=\"locate-conflict\"") {
+		t.Error("工具栏应当有「定位冲突」按钮（宽表里用它把冲突格滚进视野）")
+	}
+	if !strings.Contains(panels, "conflict-dot") {
+		t.Error("有冲突的表头应当加小圆点")
+	}
 	triangle := cssBlock(t, styles, ".cell-conflict::after {")
 	if !strings.Contains(triangle, "border-top: 6px solid") {
 		t.Errorf("冲突格右上角要有小三角标记，实际块：\n%s", triangle)
