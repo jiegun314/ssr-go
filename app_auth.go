@@ -205,6 +205,7 @@ func (app *App) checkShare() share.Status {
 		app.session.ShareReady = status.Healthy
 		app.session.ShareDetail = status.Detail
 	}
+	app.ensureShareLayout(status)
 	result := "ok"
 	if !status.Healthy {
 		result = "failed"

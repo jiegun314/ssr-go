@@ -47,6 +47,9 @@ func TestReviewAuditShowsNewestFirstAndIsAdminOnly(t *testing.T) {
 
 func TestCleanupShareVersionsKeepsLatestAndProtected(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "share")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := share.EnsureLayout(root); err != nil {
 		t.Fatal(err)
 	}

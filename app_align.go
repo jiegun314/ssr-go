@@ -376,6 +376,7 @@ func (app *App) refreshShareStatus() share.Status {
 		app.session.ShareReady = status.Healthy
 		app.session.ShareDetail = status.Detail
 	}
+	app.ensureShareLayout(status)
 	return status
 }
 
@@ -398,4 +399,21 @@ func (app *App) shareState() (*share.State, error) {
 		return &share.State{Sources: map[string]*share.SourceVersion{}}, nil
 	}
 	return share.LoadState(app.shareConfig.Root)
+}
+
+// ensureShareLayout 在共享盘第一次检查通过后补齐程序自己的目录骨架（只做一次）：
+//
+//	published/{ra,eama,udi}、state、consolidated、audit
+//
+// 根目录必须由 IT 预先建好；这里失败只记警告，不阻塞其他操作（下一次检查会重试）。
+func (app *App) ensureShareLayout(status share.Status) {
+	if !app.shareConfig.Enabled() || !status.Healthy || app.shareLayoutDone {
+		return
+	}
+	if err := share.EnsureLayout(app.shareConfig.Root); err != nil {
+		app.appendLog(LogWarning, "共享盘目录骨架创建失败（下次检查会重试）："+err.Error())
+		return
+	}
+	app.shareLayoutDone = true
+	app.appendLog(LogInfo, "已创建共享盘目录骨架："+app.shareConfig.Root)
 }

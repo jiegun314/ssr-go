@@ -93,6 +93,11 @@
   版本号 = 时间戳 + 内容哈希前 8 位；发布是"先写快照、后改状态、全程原子 rename"。
   发布前会复查共享盘：不健康就**拒绝导入**（避免"以为传上去了"），审计记 deny；
   没配 `share.root` = 本地模式，不发布也不拦。实现见 `internal/publish` 与 `app_publish.go`。
+  **部署口径**：`share.root` 的根目录必须由 IT 预先建好（程序不替用户创建根目录，路径写错时
+  会明确报"共享盘不可达"）；第一次检查通过后程序自动补齐骨架目录
+  `published/{ra,eama,udi}`、`state`、`consolidated`、`audit`（每个进程只做一次），
+  `state/state.json`、`published/` 下的版本文件、`consolidated/<id>/`、`log/` 分别在第一次发布、
+  第一次导出、第一次日志同步时生成。
 - **对齐与整合门禁（P3）**：配了共享盘时，SC 的本地数据要先"对齐"（读 `state.json` 取最新版本 →
   `publish.Fetch` 拉快照 → 校验 sha256 与行数 → **整表覆盖导入** → 记本地 `synced_versions` →
   RA 还要 `importer.RebuildCleaned` 重建清洗表）。整合前校验"四份都已对齐"

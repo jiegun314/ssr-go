@@ -79,6 +79,8 @@ type App struct {
 	shareStatus share.Status
 	// lastLogSync 是上一次操作日志同步的时间（轮询时节流用）。
 	lastLogSync time.Time
+	// shareLayoutDone 表示本进程已经补齐过共享盘骨架（首次健康检查后只做一次）。
+	shareLayoutDone bool
 }
 
 // ImportState 是一个来源的界面状态（对应现有界面的状态标签与圆点）。

@@ -77,6 +77,12 @@ func ValidRoot(root string) bool {
 
 // EnsureLayout 建出共享盘目录骨架（published/{ra,eama,udi}、state、consolidated、audit）。
 func EnsureLayout(root string) error {
+	// 根目录是 IT 预置的共享位置：不存在时不要替用户"猜"着创建（可能是路径写错），
+	// 只负责在它下面补齐程序自己的骨架目录。
+	info, err := os.Stat(root)
+	if err != nil || !info.IsDir() {
+		return fmt.Errorf("共享盘根目录不存在或不是目录：%s", root)
+	}
 	directories := []string{
 		filepath.Join(root, "published", "ra"),
 		filepath.Join(root, "published", "eama"),

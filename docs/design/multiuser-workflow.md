@@ -254,6 +254,9 @@ share:
   root: '\\\\corp\\ssr'      # UNC 优先；也允许本地绝对路径（测试用）
 ```
 
+- 部署：`share.root` 根目录由 IT 预置；第一次检查通过后程序自动补齐
+  `published/{ra,eama,udi}`、`state`、`consolidated`、`audit`，其余文件按首次使用生成
+  （`state.json`/版本文件/`consolidated/<id>/`/`log/`）。
 - 「参数设定 → 共享盘」页可改（Admin）：P5 已实现（编辑 `workflow.yaml`，`share.root` 留空 = 本地模式；
   保存后重开程序生效，连接状态用状态栏的「重新检查」验证）；收件人列表也在这一页签里增删。
 - 操作日志（「记录导出」）所有人可见：并集写入回顾表并同步到 `<share>/log/`（P5 追加，见 `app_oplog.go`）。
