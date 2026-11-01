@@ -241,6 +241,8 @@ const STATUS_HINTS: Record<string, string> = {
 };
 
 type ConsolidationPanelProps = {
+  /** 当前身份没有整合权限：数据窗口只读（灰调由卡片样式负责） */
+  locked?: boolean;
   columns: string[];
   rows: string[][];
   statuses: string[];
@@ -262,6 +264,7 @@ type ConsolidationRow = {
 };
 
 export function ConsolidationPanel({
+  locked = false,
   columns,
   rows,
   statuses,
@@ -350,6 +353,11 @@ export function ConsolidationPanel({
 
   return (
     <>
+      {locked ? (
+        <div className="consolidation-locked-hint">
+          当前身份没有整合权限：这里只能查看，不能整合或导出。
+        </div>
+      ) : null}
       {/* 工具条：查找框与状态筛选片在**同一行** —— 查找框居左、状态片（3 个，出现冲突时 4 个）居右
           （控件都用 antd 默认样式）；查找是"输入即筛表格内容"，与状态筛选叠加生效 */}
       <div className="table-toolbar">

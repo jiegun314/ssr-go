@@ -23,7 +23,7 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 		`canAlign`,
 		`importableSources={importableSources}`,
 		`viewableSources={viewableSources}`,
-		`disabled={!can("consolidate") || shareBlocked || !allAligned}`,
+		`disabled={shareBlocked || !allAligned}`,
 		`最后整合：`,
 	} {
 		if !strings.Contains(app, wanted) {

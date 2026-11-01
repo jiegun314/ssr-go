@@ -20,10 +20,16 @@ const ROWS = [
 const STATUSES = ["Ready", "Ready", "Incomplete"];
 const COUNTS = { Ready: 2, Incomplete: 1, Duplicate: 0 };
 
-const renderPanel = () =>
+const renderPanel = (locked = false) =>
   render(
     <AntApp>
-      <ConsolidationPanel columns={COLUMNS} rows={ROWS} statuses={STATUSES} counts={COUNTS} />
+      <ConsolidationPanel
+        columns={COLUMNS}
+        rows={ROWS}
+        statuses={STATUSES}
+        counts={COUNTS}
+        locked={locked}
+      />
     </AntApp>,
   );
 
@@ -304,5 +310,19 @@ describe("数据整合结果表的分页", () => {
     expect(
       search!.compareDocumentPosition(strip!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+});
+
+describe("只读（没有整合权限）", () => {
+  it("数据窗口顶部显示只读说明", () => {
+    renderPanel(true);
+    expect(
+      screen.getByText("当前身份没有整合权限：这里只能查看，不能整合或导出。"),
+    ).toBeInTheDocument();
+  });
+
+  it("有整合权限时不显示只读说明", () => {
+    renderPanel(false);
+    expect(screen.queryByText(/这里只能查看/)).toBeNull();
   });
 });

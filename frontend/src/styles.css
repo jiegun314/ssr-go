@@ -193,6 +193,12 @@ body {
   align-items: center;
 }
 
+/* 标题与右侧动作（强制重跑/生成文件）之间留出间隔，两个动作之间也隔开 */
+.consolidation-card > .ant-card-head .ant-card-extra {
+  gap: 8px;
+  margin-inline-start: 16px;
+}
+
 /* 标题块要放开 overflow，否则 antd 的 textEllipsis 会把居中的按钮裁掉 */
 .consolidation-card > .ant-card-head .ant-card-head-title {
   overflow: visible;
@@ -1577,4 +1583,34 @@ body {
 .consolidation-force.ant-btn {
   height: 28px;
   padding-inline: 8px;
+}
+
+/* ---------- 数据整合：没有整合权限时整卡灰掉（只读） ---------- */
+
+.card.consolidation-card-locked > .ant-card-head {
+  background: #f5f5f5;
+  border-bottom-color: var(--module-border);
+}
+
+.card.consolidation-card-locked > .ant-card-head .ant-card-head-title,
+.card.consolidation-card-locked > .ant-card-head .consolidation-name {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.card.consolidation-card-locked > .ant-card-body {
+  opacity: 0.55;
+}
+
+.consolidation-card-locked .consolidation-locked-tag.ant-tag {
+  margin-inline-end: 0;
+  background: #fff;
+  border-color: #d9d9d9;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* 只读提示：数据窗口顶部的一行浅灰说明 */
+.consolidation-locked-hint {
+  padding: 2px 0 6px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
 }

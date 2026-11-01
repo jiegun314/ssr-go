@@ -35,7 +35,7 @@ func TestTheLeftColumnHoldsImportAndLog(t *testing.T) {
 	importIndex := strings.Index(app, `title="数据导入"`)
 	logIndex := strings.Index(app, "<LogPanel text={log} />")
 	toggleIndex := strings.Index(app, "left-toggle")
-	tableIndex := strings.Index(app, `className="card grow consolidation-card"`)
+	tableIndex := strings.Index(app, `card grow consolidation-card`)
 	recordIndex := strings.Index(app, `className="card record-card"`)
 	if !(importIndex < recordIndex && recordIndex < logIndex && logIndex < toggleIndex && toggleIndex < tableIndex) {
 		t.Errorf("App.tsx 顺序应当是 数据导入 → 记录导出 → 操作日志 → 分隔按钮 → 数据整合，实际 %d/%d/%d/%d/%d",

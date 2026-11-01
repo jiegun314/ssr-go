@@ -225,6 +225,14 @@ export default function App() {
     !overview?.enabled ||
     overview.sources.every((item) => Boolean(item.remoteVersion) && item.aligned);
 
+  /** 只有 SC/Admin 能整合；其他身份的数据整合模块整卡灰掉（只读） */
+  const canConsolidate = can("consolidate");
+  const forceTitle = shareBlocked
+    ? "共享盘异常：处理后再重跑"
+    : !allAligned
+      ? "还有数据未对齐：先在「数据对齐」里对齐"
+      : "数据没变也重新整合并导出";
+
   const refreshOverview = useCallback(async () => {
     const next = await call<ShareOverview>("ShareOverview");
     if (!next) return;
@@ -711,69 +719,76 @@ export default function App() {
               </Card>
             ) : null}
             <Card
-              className="card grow consolidation-card"
+              className={`card grow consolidation-card${canConsolidate ? "" : " consolidation-card-locked"}`}
               size="small"
               title={
                 // 标题栏：模块名在左，「整合」主按钮在整条标题栏正中（绝对定位居中，见 styles.css）
                 <>
                   <span className="consolidation-name">数据整合</span>
-                  <Tooltip
-                    title={
-                      shareBlocked
-                        ? "共享盘异常：处理后再整合"
-                        : !can("consolidate")
-                          ? "当前身份没有整合权限"
+                  {canConsolidate ? (
+                    <Tooltip
+                      title={
+                        shareBlocked
+                          ? "共享盘异常：处理后再整合"
                           : !allAligned
                             ? "还有数据未对齐：先在「数据对齐」里对齐"
                             : "整合数据"
-                    }
-                  >
-                    <Button
-                      className="consolidation-force"
-                      icon={<RefreshCw size={16} />}
-                      disabled={!can("consolidate") || shareBlocked || !allAligned || busy !== null}
-                      title="数据没变也重新整合并导出"
-                      onClick={handleConsolidateForce}
+                      }
                     >
-                      强制重跑
-                    </Button>
-                    <Button
-                      className="consolidation-run"
-                      type="primary"
-                      icon={<Merge size={16} />}
-                      disabled={!can("consolidate") || shareBlocked || !allAligned}
-                      onClick={handleConsolidate}
-                    >
-                      整合
-                    </Button>
-                  </Tooltip>
+                      <Button
+                        className="consolidation-run"
+                        type="primary"
+                        icon={<Merge size={16} />}
+                        disabled={shareBlocked || !allAligned}
+                        onClick={handleConsolidate}
+                      >
+                        整合
+                      </Button>
+                    </Tooltip>
+                  ) : null}
                 </>
               }
               extra={
-                // 生成文件：与「整合」同一形式（白底、红字、图标 + 文字、28px 高），留在标题栏右侧；
-                // 没有合格行时禁用并给出原因
-                <Tooltip
-                  title={
-                    !can("export")
-                      ? "当前身份没有导出权限"
-                      : readyCount === 0
-                        ? "还没有可导出的行（只有合格的行会导出）"
-                        : "生成文件"
-                  }
-                >
-                  <Button
-                    className="consolidation-export"
-                    aria-label="生成文件"
-                    icon={<FileDown size={16} />}
-                    disabled={!can("export") || readyCount === 0}
-                    onClick={handleExport}
-                  >
-                    生成文件
-                  </Button>
-                </Tooltip>
+                // 右侧动作：强制重跑 + 生成文件；没有整合权限的身份只显示「只读」
+                canConsolidate ? (
+                  <>
+                    <Tooltip title={forceTitle}>
+                      <Button
+                        className="consolidation-force"
+                        icon={<RefreshCw size={16} />}
+                        disabled={shareBlocked || !allAligned || busy !== null}
+                        onClick={handleConsolidateForce}
+                      >
+                        强制重跑
+                      </Button>
+                    </Tooltip>
+                    <Tooltip
+                      title={
+                        !can("export")
+                          ? "当前身份没有导出权限"
+                          : readyCount === 0
+                            ? "还没有可导出的行（只有合格的行会导出）"
+                            : "生成文件"
+                      }
+                    >
+                      <Button
+                        className="consolidation-export"
+                        aria-label="生成文件"
+                        icon={<FileDown size={16} />}
+                        disabled={!can("export") || readyCount === 0}
+                        onClick={handleExport}
+                      >
+                        生成文件
+                      </Button>
+                    </Tooltip>
+                  </>
+                ) : (
+                  <Tag className="consolidation-locked-tag">只读</Tag>
+                )
               }
             >
               <ConsolidationPanel
+                locked={!canConsolidate}
                 columns={columns}
                 rows={rows}
                 statuses={statuses}

@@ -71,7 +71,7 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 	for _, wanted := range []string{
 		`className="card"`,
 		`title="数据导入"`,
-		`className="card grow consolidation-card"`,
+		`card grow consolidation-card`,
 		`className="consolidation-name"`,
 		`className="card record-card"`,
 		`title="记录导出"`,
