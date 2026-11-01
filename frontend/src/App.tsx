@@ -34,6 +34,7 @@ import {
 } from "./components/Panels";
 import { AlignPanel } from "./components/AlignPanel";
 import { StatusModal } from "./components/StatusModal";
+import { recordIconClick } from "./iconClicks";
 import { LoginScreen } from "./components/LoginScreen";
 import { AboutModal, HiddenModal, ReviewModal, SettingsModal } from "./components/Modals";
 import type {
@@ -61,8 +62,7 @@ import type {
 } from "./types";
 
 /** 关于窗口图标上的点击计数：阈值与时间窗沿用原版，属行为契约，不要改这两个数值。 */
-const ICON_CLICK_COUNT = 8;
-const ICON_CLICK_WINDOW_MS = 5000;
+
 
 type ReviewSession = {
   kind: "source" | "cleaned-source" | "log" | "audit";
@@ -602,11 +602,9 @@ export default function App() {
   }, []);
 
   const handleIconClick = useCallback(() => {
-    const now = Date.now();
-    iconClicks.current = iconClicks.current.filter((time) => now - time < ICON_CLICK_WINDOW_MS);
-    iconClicks.current.push(now);
-    if (iconClicks.current.length < ICON_CLICK_COUNT) return;
-    iconClicks.current = [];
+    const result = recordIconClick(iconClicks.current, Date.now());
+    iconClicks.current = result.times;
+    if (!result.triggered) return;
     setAboutOpen(false);
     setHiddenOpen(true);
     // 声音在同一个点击回调里播放：属于用户手势，不会被自动播放策略拦下

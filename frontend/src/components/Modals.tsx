@@ -38,13 +38,10 @@ import { SettingsForm } from "./SettingsForm";
 const REVIEW_GAP_X = 97;
 const REVIEW_GAP_Y = 102;
 
-const ABOUT_INTRO = `SS Ready provides data validation, cleansing, 
-mapping and consolidation capabilities for UDI 
-master data preparation for SingleSource.
+const ABOUT_SUMMARY =
+  "SS Ready provides data validation, cleansing, mapping and consolidation capabilities for UDI master data preparation for SingleSource.";
 
-Developed by
-Greater China Supply Chain & RA Team
-© 2026 JJMT`;
+const ABOUT_CREDITS = "Developed by Greater China Supply Chain & RA Team © 2026 JJMT";
 
 /* ---------- 数据回顾 ---------- */
 
@@ -421,7 +418,7 @@ export function AboutModal({ open, info, onIconClick, onClose }: AboutModalProps
         />
         <div className="about-name">{info?.name ?? "SingleSourceReady"}</div>
         <div className="about-tagline">{info?.tagline ?? ""}</div>
-        <div className="about-chinese">{info?.chineseName ?? ""}</div>
+        <div className="about-summary">{ABOUT_SUMMARY}</div>
         <div className="about-version" title={info?.detail ?? ""}>
           {info?.version ?? ""}
         </div>
@@ -439,9 +436,7 @@ export function AboutModal({ open, info, onIconClick, onClose }: AboutModalProps
             ))}
           </ul>
         </div>
-        <Typography.Paragraph className="intro" type="secondary">
-          {ABOUT_INTRO}
-        </Typography.Paragraph>
+        <div className="about-credits">{ABOUT_CREDITS}</div>
       </div>
     </Modal>
   );

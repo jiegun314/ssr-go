@@ -73,12 +73,27 @@ func TestTheAboutWindowKeepsTheOriginalIntro(t *testing.T) {
 			t.Errorf("关于窗口的说明文字缺少原版内容：%q", wanted)
 		}
 	}
-	intro := cssBlock(t, styles, ".about-body .intro {")
-	if !strings.Contains(intro, "white-space: pre-wrap;") {
-		t.Error("说明段要保留原版的换行")
+	// 说明与致谢都不再手动换行：一段 natural 折行的文本（不能是 pre-wrap）
+	for _, wanted := range []string{".about-summary {", ".about-credits {"} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("缺少关于窗口的样式块：%s", wanted)
+		}
 	}
-	if !strings.Contains(intro, "text-align: left;") {
-		t.Errorf("说明段应当左对齐，实际样式块：\n%s", intro)
+	for _, block := range []string{".about-summary {", ".about-credits {"} {
+		if strings.Contains(cssBlock(t, styles, block), "white-space: pre-wrap;") {
+			t.Errorf("%s 不该再用 pre-wrap（说明/致谢不手动换行）", block)
+		}
+	}
+	if !strings.Contains(modals, "SS Ready provides data validation, cleansing, mapping and consolidation capabilities") {
+		t.Error("说明应当是完整一句、不手动换行")
+	}
+	if !strings.Contains(modals, "Developed by Greater China Supply Chain & RA Team © 2026 JJMT") {
+		t.Error("致谢应当是一整行、不手动换行")
+	}
+	// 图标是"隐藏入口"：鼠标移上去不能变成手型
+	icon := cssBlock(t, styles, ".about-body .about-icon {")
+	if strings.Contains(icon, "cursor: pointer") {
+		t.Errorf("关于窗口的图标不应显示手型光标，实际块：\n%s", icon)
 	}
 }
 

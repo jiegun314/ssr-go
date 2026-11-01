@@ -4,6 +4,7 @@
 import { App as AntApp, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AboutModal } from "../components/Modals";
@@ -22,21 +23,26 @@ const info = {
   techStack: ["Go + Wails v2 + SQLite（modernc，纯 Go、无 CGO）", "前端 React 18 + Ant Design 5 + Vite"],
 } as unknown as AboutInfo;
 
-const renderAbout = () =>
+const renderAbout = () => {
+  const onIconClick = vi.fn();
   render(
     <ConfigProvider locale={zhCN}>
       <AntApp>
-        <AboutModal open info={info} onIconClick={vi.fn()} onClose={vi.fn()} />
+        <AboutModal open info={info} onIconClick={onIconClick} onClose={vi.fn()} />
       </AntApp>
     </ConfigProvider>,
   );
+  return { onIconClick };
+};
 
 describe("关于窗口", () => {
   it("显示产品名、副标题、中文名与版本", () => {
     renderAbout();
     expect(screen.getByText("SingleSourceReady")).toBeInTheDocument();
     expect(screen.getByText(/Single Source Ready · UDI Data Consolidation Platform/)).toBeInTheDocument();
-    expect(screen.getByText("UDI 数据整合与单源数据准备平台")).toBeInTheDocument();
+    expect(
+      screen.getByText(/SS Ready provides data validation, cleansing/),
+    ).toBeInTheDocument();
     expect(screen.getByText("版本 2.3.13+23.g61a087b")).toBeInTheDocument();
   });
 
@@ -54,5 +60,16 @@ describe("关于窗口", () => {
     expect(screen.getByText("技术方案")).toBeInTheDocument();
     expect(screen.getByText(/Go \+ Wails v2 \+ SQLite/)).toBeInTheDocument();
     expect(screen.getByText(/React 18 \+ Ant Design 5/)).toBeInTheDocument();
+  });
+});
+
+describe("关于窗口的图标", () => {
+  it("图标可点击（每次点击都回调，由外层决定何时切换窗口）", async () => {
+    const { onIconClick } = renderAbout();
+    const icon = screen.getByAltText("SingleSourceReady");
+    for (let index = 0; index < 8; index += 1) {
+      await userEvent.click(icon);
+    }
+    expect(onIconClick).toHaveBeenCalledTimes(8);
   });
 });
