@@ -239,11 +239,17 @@ export default function App() {
       ? "还有数据未对齐：先在「数据对齐」里对齐"
       : "数据没变也重新整合并导出";
 
+  // 自动对齐开关只按配置初始化一次：否则每轮询一次就把用户的手动开关重置回配置值
+  const autoAlignInitialized = useRef(false);
+
   const refreshOverview = useCallback(async () => {
     const next = await call<ShareOverview>("ShareOverview");
     if (!next) return;
     setOverview(next);
-    setAutoAlign(next.autoAlign ?? true);
+    if (!autoAlignInitialized.current) {
+      autoAlignInitialized.current = true;
+      setAutoAlign(next.autoAlign ?? true);
+    }
     if (next.status) setShare(next.status);
   }, []);
 

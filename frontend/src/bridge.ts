@@ -46,6 +46,10 @@ export const BUSY_TEXT: Record<string, string> = {
   SelectExportTarget: "正在选择保存位置",
   SelectReviewExportTarget: "正在选择保存位置",
   ClearImportedData: "正在清空导入数据...",
+  AlignAll: "正在对齐数据...",
+  AlignSource: "正在对齐数据...",
+  CleanupShareVersions: "正在清理旧版本...",
+  ExportDiagnostics: "正在导出诊断包...",
   ConfigurationDocument: "正在加载配置...",
   SaveConfigurationFile: "正在保存配置...",
   BackupDatabase: "正在备份数据库...",
@@ -117,8 +121,14 @@ const nextFrame = (): Promise<void> =>
 export async function call<T>(method: string, ...args: unknown[]): Promise<T | undefined> {
   const app = bridge();
   if (!app || typeof app[method] !== "function") return undefined;
-  publishBusy(BUSY_TEXT[method] ?? "正在处理...");
-  await nextFrame();
+  // 只有登记在 BUSY_TEXT 里的长任务才显示载入图层（并先等两帧）。
+  // 状态轮询（ShareOverview）这类高频调用必须静默：否则每次轮询都会闪一次遮罩，
+  // 看起来就像"界面每隔几秒刷新一次"。
+  const busyText = BUSY_TEXT[method];
+  if (busyText) {
+    publishBusy(busyText);
+    await nextFrame();
+  }
   try {
     return (await app[method](...args)) as T;
   } catch (error) {
@@ -126,7 +136,7 @@ export async function call<T>(method: string, ...args: unknown[]): Promise<T | u
     console.error(`${method} failed`, error);
     return undefined;
   } finally {
-    publishBusy(null);
+    if (busyText) publishBusy(null);
   }
 }
 
