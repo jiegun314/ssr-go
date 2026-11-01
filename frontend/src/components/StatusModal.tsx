@@ -117,7 +117,7 @@ export function StatusModal({
               <Descriptions.Item label="时间">{last.at}</Descriptions.Item>
               <Descriptions.Item label="操作人">{last.by}</Descriptions.Item>
               <Descriptions.Item label="合格 / 缺失">
-                {last.counts.ready ?? last.counts.ready} / {last.counts.missing}
+                {last.counts.ready} / {last.counts.missing}
               </Descriptions.Item>
               <Descriptions.Item label="重复 / 冲突">
                 {last.counts.duplicate} / {last.counts.conflict}

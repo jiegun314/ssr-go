@@ -88,7 +88,8 @@ func (app *App) ShareOverview() ShareOverview {
 		overview.PollSeconds = 30
 	}
 	overview.Status = app.refreshShareStatus()
-	if !app.shareConfig.Enabled() {
+	if app.session == nil || !app.shareConfig.Enabled() {
+		// 未登录（或本地模式）：不下发任何来源明细
 		return overview
 	}
 	state, err := share.LoadState(app.shareConfig.Root)
@@ -154,6 +155,10 @@ func (app *App) AlignSource(source string) AlignResult {
 	defer app.endOperation()
 	if err := app.authorize(auth.ActionAlign); err != nil {
 		return AlignResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
+	}
+	if status := app.refreshShareStatus(); app.shareConfig.Enabled() && !status.Healthy {
+		return AlignResult{Failed: true, Title: "共享盘异常",
+			Message: "共享盘不可用，无法对齐。请检查连接后点状态栏的「重新检查」。", Log: app.logText()}
 	}
 	version, err := app.alignSource(source)
 	if err != nil {

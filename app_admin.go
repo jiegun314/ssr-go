@@ -32,9 +32,17 @@ func (app *App) ReviewAudit(page int, pageSize int) ReviewResult {
 	if page < 1 {
 		page = 1
 	}
-	rows, err := app.repo.AuditRows()
-	if err != nil {
-		return ReviewResult{Failed: true, Title: "错误", Message: userMessage(err), Log: app.logText()}
+	exists, existsErr := app.repo.TableExists("audit_log")
+	if existsErr != nil {
+		return ReviewResult{Failed: true, Title: "错误", Message: userMessage(existsErr), Log: app.logText()}
+	}
+	rows := []map[string]string{}
+	if exists {
+		loaded, err := app.repo.AuditRows()
+		if err != nil {
+			return ReviewResult{Failed: true, Title: "错误", Message: userMessage(err), Log: app.logText()}
+		}
+		rows = loaded
 	}
 	table := make([][]string, 0, len(rows))
 	for index := len(rows) - 1; index >= 0; index-- {

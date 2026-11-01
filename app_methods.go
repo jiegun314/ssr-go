@@ -118,8 +118,15 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 		if publishErr != nil {
 			app.audit("publish", source, "发布失败："+publishErr.Error(), "failed")
 			app.appendLog(LogError, "发布到共享盘失败："+publishErr.Error())
+			// 数据在本机，但没发布：状态标签要如实写，避免看起来"已经导入并生效"
+			app.importStates[source] = ImportState{
+				Source: source, State: "failed", Label: "已导入，未发布",
+				Tooltip:  "数据只在本机；发布失败，请检查共享盘后重新导入",
+				RowCount: state.RowCount, ImportTime: state.ImportTime,
+			}
 			return ImportResult{
-				Source: source, FileName: filepath.Base(path), RowCount: state.RowCount, State: state,
+				Source: source, FileName: filepath.Base(path), RowCount: state.RowCount,
+				State: app.importStates[source],
 				Log:   app.logText(),
 				Title: "导入成功，发布失败",
 				Message: fmt.Sprintf("%s导入成功（只保存在本机），但发布到共享盘失败。\n"+

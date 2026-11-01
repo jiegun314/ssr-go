@@ -111,8 +111,9 @@
   展示共享盘状态、四份来源的版本/发布时间/发布人/行数与本机对齐情况、最后一次整合（含结果文件）、
   整合锁（谁在整合）；「查看审计」走 `ReviewAudit`（最新的在前、分页），数据来自本地 `audit_log`；
   「清理」走 `CleanupShareVersions`（只 Admin）：每个来源保留最新 N 个版本，且当前版本、
-  `last_consolidation` 用到的版本与整合目录永远保留。参数设定的「人员名单」页签编辑 `users.yaml`，
-  文件不存在时给模板（保存即创建，启用登录页）。
+  `last_consolidation` 用到的版本与整合目录永远保留。参数设定新增两个页签：**「共享盘」**编辑
+  `workflow.yaml`（`share.root` 留空 = 本地模式，相对路径会被校验拦下）、**「人员名单」**编辑
+  `users.yaml`；两份文件不存在时给模板，保存即创建（重开程序生效）。
 - **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
   （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
   `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行

@@ -23,13 +23,14 @@ func TestConfigurationDocumentReturnsFourTrees(t *testing.T) {
 	app.loader = loader
 
 	tabs := app.ConfigurationDocument()
-	if len(tabs) != 5 {
-		t.Fatalf("页签数量 = %d; want 5", len(tabs))
+	if len(tabs) != 6 {
+		t.Fatalf("页签数量 = %d; want 6", len(tabs))
 	}
-	expectedTitles := []string{"基础设置", "导入映射", "整合映射", "日志列", "人员名单"}
+	expectedTitles := []string{"基础设置", "导入映射", "整合映射", "日志列", "共享盘", "人员名单"}
 	expectedKeys := []string{
 		config.SettingFile, config.ImportMappingFile,
-		config.ConsolidationMappingFile, config.LogColumnsFile, config.UsersFile,
+		config.ConsolidationMappingFile, config.LogColumnsFile,
+		config.WorkflowFile, config.UsersFile,
 	}
 	for index, tab := range tabs {
 		if tab.Title != expectedTitles[index] || tab.Key != expectedKeys[index] {
@@ -39,9 +40,9 @@ func TestConfigurationDocumentReturnsFourTrees(t *testing.T) {
 		if tab.Path == "" || !strings.HasSuffix(tab.Path, tab.Key) {
 			t.Errorf("%s 的路径不对：%q", tab.Key, tab.Path)
 		}
-		if tab.Key == config.UsersFile {
-			// 人员名单可能还不存在（单机模式）：给模板原文，没有树是预期的
-			if tab.Raw == "" || !strings.Contains(tab.Raw, "users:") {
+		if tab.Key == config.UsersFile || tab.Key == config.WorkflowFile {
+			// 这两份是可选的：不存在时给模板原文，没有树是预期的
+			if tab.Raw == "" {
 				t.Errorf("%s 没有给出模板原文", tab.Key)
 			}
 			continue

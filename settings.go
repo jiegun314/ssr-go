@@ -57,9 +57,32 @@ func settingsTabs() []SettingsTab {
 		{Key: config.ImportMappingFile, Title: "导入映射", Note: "来源、列定义、必填与条件必填、值归一"},
 		{Key: config.ConsolidationMappingFile, Title: "整合映射", Note: "匹配规则、去重规则、导出列与变更描述"},
 		{Key: config.LogColumnsFile, Title: "日志列", Note: "生成物：由导出模板表头生成，请勿手改"},
+		{Key: config.WorkflowFile, Title: "共享盘", Note: "多人协作版：share.root（留空 = 本地模式）、对齐与整合策略；保存后重开程序生效"},
 		{Key: config.UsersFile, Title: "人员名单", Note: "多人协作版：姓名 / 角色 / 邮箱；保存后启用登录页"},
 	}
 }
+
+// workflowTemplate 是"还没有 workflow.yaml"时给「共享盘」页签的初始内容（保存即创建）。
+const workflowTemplate = `# 多人协作版的流程配置（保存后重开程序生效；share.root 留空 = 本地模式）
+share:
+  # UNC（\\server\share）或本地绝对路径；例如 /Users/you/ssr-share
+  root: ''
+  poll_seconds: 30
+  probe_timeout_seconds: 5
+  consolidate_lock_ttl_minutes: 30
+sync:
+  auto: true
+  require_before_consolidate: true
+consolidation:
+  on_new_version_during_run: warn   # warn | auto_rerun | block
+  skip_unchanged: true
+recipients:
+  ra_receivers: []
+  supply_chain: []
+  admins: []
+email:
+  transport: disabled               # disabled | smtp | graph | outbox
+`
 
 // usersTemplate 是"还没有 users.yaml"时给「人员名单」页签的初始内容（保存即创建）。
 const usersTemplate = `# 多人协作版的人员名单（保存后启用登录页；删除本文件 = 单机模式）
@@ -110,10 +133,16 @@ func (app *App) ConfigurationDocument() []SettingsTab {
 		tabs[index].Path = path
 		content, err := os.ReadFile(path)
 		if err != nil {
-			if tabs[index].Key == config.UsersFile && os.IsNotExist(err) {
+			if os.IsNotExist(err) && tabs[index].Key == config.UsersFile {
 				// 还没有人员名单（单机模式）：给一份模板，保存即创建并启用多人登录
 				tabs[index].Raw = usersTemplate
 				tabs[index].Note = "文件不存在（当前是单机模式）：保存后会启用登录页。"
+				continue
+			}
+			if os.IsNotExist(err) && tabs[index].Key == config.WorkflowFile {
+				// 还没有流程配置（本地模式）：给一份模板，保存即创建
+				tabs[index].Raw = workflowTemplate
+				tabs[index].Note = "文件不存在（当前是本地模式）：填好 share.root 保存后重开程序。"
 				continue
 			}
 			tabs[index].Note = fmt.Sprintf("无法读取 %s：%s", path, err.Error())
