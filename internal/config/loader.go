@@ -594,6 +594,27 @@ func ValidateWorkflow(document map[string]any) error {
 	if root != "" && !strings.HasPrefix(root, `\\`) && !filepath.IsAbs(root) {
 		return fmt.Errorf("workflow.yaml 的 share.root 必须是绝对路径或 UNC：%s", root)
 	}
+	recipients, _ := document["recipients"].(map[string]any)
+	for key, value := range recipients {
+		list, _ := value.([]any)
+		for _, item := range list {
+			address, _ := item.(string)
+			address = strings.TrimSpace(address)
+			if address == "" {
+				continue
+			}
+			if !strings.Contains(address, "@") || strings.ContainsAny(address, " \t") {
+				return fmt.Errorf("workflow.yaml 的 recipients.%s 里有不合法的邮箱：%s", key, address)
+			}
+		}
+	}
+	email, _ := document["email"].(map[string]any)
+	transport, _ := email["transport"].(string)
+	switch strings.TrimSpace(transport) {
+	case "", "disabled", "smtp", "graph", "outbox":
+	default:
+		return fmt.Errorf("workflow.yaml 的 email.transport 只能是 disabled / smtp / graph / outbox：%s", transport)
+	}
 	consolidation, _ := document["consolidation"].(map[string]any)
 	strategy, _ := consolidation["on_new_version_during_run"].(string)
 	switch strings.TrimSpace(strategy) {

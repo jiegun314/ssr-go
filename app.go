@@ -77,6 +77,8 @@ type App struct {
 	singleUser  bool
 	shareConfig share.Config
 	shareStatus share.Status
+	// lastLogSync 是上一次操作日志同步的时间（轮询时节流用）。
+	lastLogSync time.Time
 }
 
 // ImportState 是一个来源的界面状态（对应现有界面的状态标签与圆点）。

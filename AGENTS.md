@@ -113,7 +113,13 @@
   「清理」走 `CleanupShareVersions`（只 Admin）：每个来源保留最新 N 个版本，且当前版本、
   `last_consolidation` 用到的版本与整合目录永远保留。参数设定新增两个页签：**「共享盘」**编辑
   `workflow.yaml`（`share.root` 留空 = 本地模式，相对路径会被校验拦下）、**「人员名单」**编辑
-  `users.yaml`；两份文件不存在时给模板，保存即创建（重开程序生效）。
+  `users.yaml`；两份文件不存在时给模板，保存即创建（重开程序生效）。「共享盘」页签里的
+  `recipients.ra_receivers` / `supply_chain` / `admins` 是收件人列表（可增删，邮箱格式校验）。
+- **记录导出全量同步**：「记录导出」所有人可见，所以操作日志要与共享盘合并成全量：
+  本机 `operation_log`（未变判定用）保持原样，并集写进回顾表 `operation_log_all`
+  （`ReviewLog` 读它），并集再发布到 `<share>/log/operation_log.csv` + manifest（sha256/行数校验）；
+  登录、轮询（60 秒）、打开记录导出、导出成功后都会同步，全程在 `state.lock` 里合并。
+  这样"别人导出的记录"不会被误当成"本机已导出"而把整份数据判成重复。
 - **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
   （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
   `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行

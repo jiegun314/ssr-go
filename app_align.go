@@ -114,6 +114,13 @@ func (app *App) ShareOverview() ShareOverview {
 			overview.LastConsolidation.By = last.By.Name + "（" + auth.Label(auth.Role(last.By.Role)) + "）"
 		}
 	}
+	// 记录导出是所有人可见的全量数据：轮询时顺带同步操作日志（60 秒节流）
+	if app.shareConfig.Enabled() && time.Since(app.lastLogSync) > 60*time.Second {
+		app.lastLogSync = time.Now()
+		if err := app.syncOperationLog(); err != nil {
+			app.appendLog(LogWarning, "操作日志同步失败："+err.Error())
+		}
+	}
 	if running := state.ConsolidationRunning; running != nil {
 		overview.Running = &RunningInfo{
 			Owner: running.Owner.Name, Role: auth.Label(auth.Role(running.Owner.Role)), Since: running.Since,

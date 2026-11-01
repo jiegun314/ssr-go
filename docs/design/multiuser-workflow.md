@@ -255,7 +255,8 @@ share:
 ```
 
 - 「参数设定 → 共享盘」页可改（Admin）：P5 已实现（编辑 `workflow.yaml`，`share.root` 留空 = 本地模式；
-  保存后重开程序生效，连接状态用状态栏的「重新检查」验证）。
+  保存后重开程序生效，连接状态用状态栏的「重新检查」验证）；收件人列表也在这一页签里增删。
+- 操作日志（「记录导出」）所有人可见：并集写入回顾表并同步到 `<share>/log/`（P5 追加，见 `app_oplog.go`）。
 - 未配置（空串）→ **本地模式**：不发布、不整合共享数据，只能导入与本地导出（保证离线可用与回归测试）。
 - 每台电脑各自配置；建议部署时由安装包/管理员一次性写入。
 
@@ -578,7 +579,7 @@ email:
 | P2 发布与状态 | ✅ 已完成 | `internal/publish`（全量 CSV + manifest + 原子写）、`share.State`（state.json + `state.lock`）、导入后自动发布、导入前共享盘闸门、状态栏「重新检查」 |
 | P3 状态与对齐 | ✅ 已完成 | `synced_versions` 本地表、`publish.Fetch`（sha256/行数校验）、`AlignSource`/`AlignAll`、`ShareOverview`（按角色可见性）、SC 对齐面板、待整合徽标、最后整合时间、30 秒轮询、整合前对齐门禁、整合后写 `last_consolidation` |
 | P4 整合改造 | ✅ 已完成 | `consolidate.lock` 租约（O_EXCL + running 记录 + 30 分钟回收）、导出归档到 `consolidated/<id>/` + `summary.json` + `state.result`、整合期间新版本策略（warn / auto_rerun / block） |
-| P5 管理与运维 | ✅ 已完成 | 运行状态弹窗（共享盘/四份来源/最后整合/整合锁）、审计查看（ReviewAudit，分页，SC/Admin）、旧版本清理（保留 N + 当前与最后整合版本）、参数设定里的「人员名单」页签（保存即创建 users.yaml） |
+| P5 管理与运维 | ✅ 已完成（含追加） | 运行状态弹窗（共享盘/四份来源/最后整合/整合锁）、审计查看（ReviewAudit，分页，SC/Admin）、旧版本清理（保留 N + 当前与最后整合版本）、参数设定里的「人员名单」页签（保存即创建 users.yaml） |
 
 ## 17. 建议实施步骤
 

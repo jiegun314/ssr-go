@@ -30,6 +30,11 @@ type OperationLog struct {
 	Now func() string
 }
 
+// ReviewLogTable 是全量回顾表（本机日志与共享盘日志的并集，仅用于「记录导出」显示）。
+// 它与 OperationLog.TableName 分开：未变判定/追加只认本机日志，避免把"别人导出的记录"
+// 当成"本机已经导出过"而把整份数据判成重复。
+const ReviewLogTable = "operation_log_all"
+
 // OperationLogOptions 是构造 OperationLog 的显式参数（都由配置读出来）。
 type OperationLogOptions struct {
 	TableName      string
@@ -107,10 +112,14 @@ func (log *OperationLog) ReadByTime(startTime string, endTime string) ([]Row, er
 	filtered := []Row{}
 	for _, row := range rows {
 		stamp := row[log.TimeColumn]
-		// Python 版用 BETWEEN 比较字符串，闭区间
-		if stamp >= startTime && stamp <= endTime {
-			filtered = append(filtered, row)
+		// 空边界 = 不限（界面上没填起止时间时显示全部）
+		if startTime != "" && stamp < startTime {
+			continue
 		}
+		if endTime != "" && stamp > endTime {
+			continue
+		}
+		filtered = append(filtered, row)
 	}
 	return log.complete(filtered), nil
 }

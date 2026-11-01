@@ -99,6 +99,10 @@ func (app *App) Login(role string, password string) LoginResult {
 		Username: username, Machine: auth.CurrentMachine(), At: auth.Now(),
 	}
 	status := app.checkShare()
+	// 登录后把操作日志与共享盘合并一次：换一台电脑也能看到全量的「记录导出」
+	if err := app.syncOperationLog(); err != nil {
+		app.appendLog(LogWarning, "登录后同步操作日志失败："+err.Error())
+	}
 	app.audit("login", string(selectedRole), fmt.Sprintf("组别=%s 共享盘=%s", auth.Label(selectedRole), status.Detail), "ok")
 	app.appendLog(LogInfo, fmt.Sprintf("已登录：%s（%s）", auth.Label(selectedRole), username))
 	return LoginResult{Log: app.logText(), Session: app.sessionInfo()}

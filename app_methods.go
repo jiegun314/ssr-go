@@ -412,6 +412,8 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	}
 	if err := app.service.RecordConsolidationResult(now); err != nil {
 		app.appendLog(LogError, "记录整合结果失败："+err.Error())
+	} else if syncErr := app.syncOperationLog(); syncErr != nil {
+		app.appendLog(LogWarning, "操作日志同步失败（下次打开记录导出时会重试）："+syncErr.Error())
 	}
 	app.appendLog(LogSuccess, "整合结果已导出到 "+target)
 	app.audit("export", target, "整合结果", "ok")
@@ -456,7 +458,11 @@ func (app *App) ReviewLog(start string, end string, page int, pageSize int) Revi
 	if page < 1 {
 		page = 1
 	}
-	rows, err := app.log.ReadByTime(start, end)
+	// 记录导出所有人可见：读之前先把本机日志与共享盘合并成全量
+	if err := app.syncOperationLog(); err != nil {
+		app.appendLog(LogWarning, "操作日志同步失败（本次显示本机数据）："+err.Error())
+	}
+	rows, err := app.reviewLogRows(start, end)
 	if err != nil {
 		return ReviewResult{Log: app.logText(), Failed: true, Title: "错误", Message: userMessage(err)}
 	}

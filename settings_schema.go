@@ -84,6 +84,34 @@ func settingsPolicyFor(fileKey string) settingsPolicy {
 			fileReadOnly: "生成物：由导出模板表头生成，请勿手改（要改请改导出模板后重新生成）",
 		}
 
+	case config.WorkflowFile:
+		return settingsPolicy{
+			rules: []settingsRule{
+				{match: "share.root", label: "共享盘地址",
+					note: "UNC（\\server\\share）或本地绝对路径；留空 = 本地模式。保存后重开程序生效"},
+				{match: "share.poll_seconds", label: "状态刷新间隔（秒）"},
+				{match: "share.probe_timeout_seconds", label: "共享盘检查超时（秒）"},
+				{match: "share.consolidate_lock_ttl_minutes", label: "整合锁回收（分钟）"},
+				{match: "sync.auto", label: "自动对齐"},
+				{match: "sync.require_before_consolidate", label: "整合前必须全部已对齐"},
+				{match: "consolidation.on_new_version_during_run", label: "整合期间有新版本",
+					control: "select", options: []string{"warn", "auto_rerun", "block"}},
+				{match: "consolidation.skip_unchanged", label: "跳过未变化的行"},
+				{match: "recipients.ra_receivers", label: "RA 数据接收人",
+					note: "整合结果邮件的收件人，可添加多个（每行一个邮箱）"},
+				{match: "recipients.supply_chain", label: "Supply Chain 收件人",
+					note: "有部门更新数据时的通知收件人"},
+				{match: "recipients.admins", label: "管理员收件人"},
+				{match: "email.transport", label: "邮件通道",
+					control: "select", options: []string{"disabled", "smtp", "graph", "outbox"}},
+			},
+			listEdit: map[string]bool{
+				"recipients.ra_receivers": true,
+				"recipients.supply_chain": true,
+				"recipients.admins":       true,
+			},
+		}
+
 	case config.SettingFile:
 		return settingsPolicy{
 			rules: []settingsRule{
