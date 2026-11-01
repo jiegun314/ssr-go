@@ -579,6 +579,7 @@ email:
 | P2 发布与状态 | ✅ 已完成 | `internal/publish`（全量 CSV + manifest + 原子写）、`share.State`（state.json + `state.lock`）、导入后自动发布、导入前共享盘闸门、状态栏「重新检查」 |
 | P3 状态与对齐 | ✅ 已完成 | `synced_versions` 本地表、`publish.Fetch`（sha256/行数校验）、`AlignSource`/`AlignAll`、`ShareOverview`（按角色可见性）、SC 对齐面板、待整合徽标、最后整合时间、30 秒轮询、整合前对齐门禁、整合后写 `last_consolidation` |
 | P4 整合改造 | ✅ 已完成 | `consolidate.lock` 租约（O_EXCL + running 记录 + 30 分钟回收）、导出归档到 `consolidated/<id>/` + `summary.json` + `state.result`、整合期间新版本策略（warn / auto_rerun / block） |
+| P6 试点与加固 | ✅ 工具与材料就绪（试点进行中） | 诊断包（版本/日志/审计/共享盘状态/脱敏配置 zip）、强制重跑（`ConsolidateForce`：未变化行也导出）、断盘提示前移、并发发布覆盖审计、[EAMA 试点手册](pilot/eama-pilot.md) |
 | P5 管理与运维 | ✅ 已完成（含追加） | 运行状态弹窗（共享盘/四份来源/最后整合/整合锁）、审计查看（ReviewAudit，分页，SC/Admin）、旧版本清理（保留 N + 当前与最后整合版本）、参数设定里的「人员名单」页签（保存即创建 users.yaml） |
 
 ## 17. 建议实施步骤
@@ -593,7 +594,7 @@ email:
 | **P3 状态、可见性与对齐面板** | 轮询/刷新、按角色的可见性（自己明细 / 他人只显示时间）、待整合徽标、最后整合时间；SC 的对齐面板（本地 vs 共享盘 + 差异 + 立即/全部/自动对齐）、`synced_versions` | RA/EAMA/UDI 看不到他人明细；SC 未对齐时整合置灰，对齐后解锁 | 1.5 周 |
 | **P4 整合改造与门禁** | 整合前校验已对齐 + 钉版本、三重校验、`consolidate.lock`、导出落 `consolidated/<id>`、写 `last_consolidation`、期间新版本策略 | 未对齐拒绝整合；对齐后可整合；结果可追溯到四个版本 | 1.5 周 |
 | **P5 管理与运维** | Admin 运行状态页、人员维护、强制重跑、旧版本清理、断网演练、文档 | 能回答"谁在什么时候发了/整合了哪个版本" | 1 周 |
-| **P6 试点与加固** | 一个部门试点、SMB 断线/离线、共享盘 ACL 建议、培训材料 | 试点一周无错发/漏发 | 1 周 |
+| **P6 试点与加固** | 一个部门试点（EAMA）、SMB 断线/离线、共享盘 ACL 建议、培训材料、诊断包、强制重跑 | 试点一周无错发/漏发 | 1 周 |
 | **P7 邮件（延后）** | 传输适配（smtp/graph/outbox）、两个事件、收件人选项页（多收件人）、去重/重试/审计 | 上传通知到 SC+Admin；整合附件到多收件人；同版本不重发 | 1 周 |
 
 不包含邮件时约 **7 周**（单人节奏）；P7 待邮件方案确认后追加约 1 周。

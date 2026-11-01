@@ -77,6 +77,7 @@ export type ShareOverview = Omit<Data<main.ShareOverview>, "sources" | "lastCons
 };
 export type AlignResult = Data<main.AlignResult>;
 export type CleanupResult = Data<main.CleanupResult>;
+export type DiagnosticsResult = Data<main.DiagnosticsResult>;
 
 /* ---------- 以下为前端自有类型（Go 侧没有对应结构体） ---------- */
 

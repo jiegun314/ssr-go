@@ -108,6 +108,28 @@ export namespace main {
 	        this.notice = source["notice"];
 	    }
 	}
+	export class DiagnosticsResult {
+	    failed: boolean;
+	    title: string;
+	    message: string;
+	    log: string;
+	    path: string;
+	    entries: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DiagnosticsResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.failed = source["failed"];
+	        this.title = source["title"];
+	        this.message = source["message"];
+	        this.log = source["log"];
+	        this.path = source["path"];
+	        this.entries = source["entries"];
+	    }
+	}
 	export class ExportResult {
 	    log: string;
 	    title: string;

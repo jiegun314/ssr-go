@@ -19,9 +19,13 @@ export function ConfigurationDocument():Promise<Array<main.SettingsTab>>;
 
 export function Consolidate():Promise<main.ConsolidateResult>;
 
+export function ConsolidateForce():Promise<main.ConsolidateResult>;
+
 export function CopyToClipboard(arg1:string):Promise<boolean>;
 
 export function Export(arg1:string,arg2:string):Promise<main.ExportResult>;
+
+export function ExportDiagnostics():Promise<main.DiagnosticsResult>;
 
 export function ExportReviewData(arg1:string,arg2:string):Promise<main.ExportResult>;
 

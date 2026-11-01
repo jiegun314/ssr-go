@@ -20,6 +20,9 @@ func TestTheStatusModalHasTheAdminSections(t *testing.T) {
 		`can("share:write")`,
 		`call<CleanupResult>("CleanupShareVersions"`,
 		`call<ReviewResult>("ReviewAudit"`,
+		`call<ConsolidateResult>("ConsolidateForce")`,
+		`强制重跑`,
+		`call<DiagnosticsResult>("ExportDiagnostics")`,
 	} {
 		if !strings.Contains(app, wanted) {
 			t.Errorf("App.tsx 缺少：%s", wanted)
@@ -32,6 +35,7 @@ func TestTheStatusModalHasTheAdminSections(t *testing.T) {
 		"清理",
 		"查看审计",
 		"重新检查",
+		"导出诊断包",
 	} {
 		if !strings.Contains(modal, wanted) {
 			t.Errorf("运行状态弹窗缺少：%s", wanted)

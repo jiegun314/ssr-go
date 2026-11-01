@@ -9,6 +9,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jiegun314/ssr-go/internal/auth"
 	"github.com/jiegun314/ssr-go/internal/buildinfo"
@@ -65,6 +66,11 @@ func (app *App) publishSource(source string, originalPath string) (string, error
 			cleanedRows = len(cleaned)
 		}
 	}
+	// 并发发布：记下发布前 state 里这一来源的版本（有人刚发过就提示覆盖）
+	var previous *share.SourceVersion
+	if state, err := share.LoadState(app.shareConfig.Root); err == nil {
+		previous = state.Sources[source]
+	}
 	snapshot, err := publish.Publish(publish.Options{
 		Root:         app.shareConfig.Root,
 		Source:       source,
@@ -80,6 +86,17 @@ func (app *App) publishSource(source string, originalPath string) (string, error
 	}
 	if snapshot.OriginalWarning != "" {
 		app.appendLog(LogWarning, snapshot.OriginalWarning)
+	}
+	// 10 分钟内别人刚发过同一来源：明确记一笔"覆盖"，事后可审计
+	if previous != nil && previous.Version != "" && previous.Version != snapshot.Version &&
+		previous.PublishedBy.Name != "" && previous.PublishedBy.Name != app.owner().Name {
+		if published, err := time.ParseInLocation("2006-01-02 15:04:05", previous.PublishedAt, time.Local); err == nil &&
+			time.Since(published) < 10*time.Minute {
+			message := fmt.Sprintf("%s：%s 刚发布的版本 %s 已被本次发布覆盖（新版本 %s）",
+				rule.ChineseName, previous.PublishedBy.Name, previous.Version, snapshot.Version)
+			app.appendLog(LogWarning, message)
+			app.audit("publish", source, message, "warning")
+		}
 	}
 	return snapshot.Version, nil
 }

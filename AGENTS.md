@@ -120,6 +120,11 @@
   （`ReviewLog` 读它），并集再发布到 `<share>/log/operation_log.csv` + manifest（sha256/行数校验）；
   登录、轮询（60 秒）、打开记录导出、导出成功后都会同步，全程在 `state.lock` 里合并。
   这样"别人导出的记录"不会被误当成"本机已导出"而把整份数据判成重复。
+- **试点与加固（P6）**：`ExportDiagnostics`（SC/Admin）把版本、日志、审计、共享盘状态与
+  **邮箱打码**后的配置打成 `output/diagnostics-*.zip`（不含数据库）；`ConsolidateForce` 是
+  "强制重跑"（未变化的行也不判重复，连同 `Change Description = 无变更` 一起导出，用于数据没变
+  但需要重新出一份）；整合/清理前先查共享盘，断盘时直接给中文提示；同一来源 10 分钟内被
+  别人发布覆盖时写日志与 `publish/warning` 审计。EAMA 试点手册见 `docs/pilot/eama-pilot.md`。
 - **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
   （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
   `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行

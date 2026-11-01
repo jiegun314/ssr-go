@@ -44,6 +44,7 @@ import type {
   ExportTarget,
   AlignResult,
   CleanupResult,
+  DiagnosticsResult,
   ImportResult,
   ImportState,
   InitialState,
@@ -114,6 +115,7 @@ export default function App() {
   const [autoAlign, setAutoAlign] = useState(true);
   const [statusOpen, setStatusOpen] = useState(false);
   const [cleaning, setCleaning] = useState(false);
+  const [exportingDiagnostics, setExportingDiagnostics] = useState(false);
 
   const [aboutOpen, setAboutOpen] = useState(false);
   const [about, setAbout] = useState<AboutInfo | null>(null);
@@ -424,29 +426,49 @@ export default function App() {
 
   /* ---------- 整合与导出 ---------- */
 
+  const applyConsolidateResult = useCallback(
+    (result: ConsolidateResult) => {
+      setLog(result.log);
+      if (result.failed) {
+        setMessage({ title: result.title, message: result.message, failed: result.failed });
+        return;
+      }
+      setColumns(result.columns ?? []);
+      setRows(result.rows ?? []);
+      setStatuses(result.statuses ?? []);
+      setConflicts(result.conflicts ?? []);
+      const summary: Record<string, number> = {};
+      for (const status of result.statuses ?? []) {
+        summary[status] = (summary[status] ?? 0) + 1;
+      }
+      setCounts(summary);
+      if (result.notice) {
+        setMessage({ title: "提示", message: result.notice, failed: false });
+      }
+      // 整合成功后「待整合」标志要消失、最后整合时间要更新
+      void refreshOverview();
+    },
+    [refreshOverview],
+  );
+
   const handleConsolidate = useCallback(async () => {
     const result = await call<ConsolidateResult>("Consolidate");
+    if (result) applyConsolidateResult(result);
+  }, [applyConsolidateResult]);
+
+  const handleConsolidateForce = useCallback(async () => {
+    const result = await call<ConsolidateResult>("ConsolidateForce");
+    if (result) applyConsolidateResult(result);
+  }, [applyConsolidateResult]);
+
+  const handleExportDiagnostics = useCallback(async () => {
+    setExportingDiagnostics(true);
+    const result = await call<DiagnosticsResult>("ExportDiagnostics");
+    setExportingDiagnostics(false);
     if (!result) return;
-    setLog(result.log);
-    if (result.failed) {
-      setMessage({ title: result.title, message: result.message, failed: result.failed });
-      return;
-    }
-    setColumns(result.columns ?? []);
-    setRows(result.rows ?? []);
-    setStatuses(result.statuses ?? []);
-    setConflicts(result.conflicts ?? []);
-    const summary: Record<string, number> = {};
-    for (const status of result.statuses ?? []) {
-      summary[status] = (summary[status] ?? 0) + 1;
-    }
-    setCounts(summary);
-    if (result.notice) {
-      setMessage({ title: "提示", message: result.notice, failed: false });
-    }
-    // 整合成功后「待整合」标志要消失、最后整合时间要更新
-    void refreshOverview();
-  }, [refreshOverview]);
+    setLog(result.log ?? "");
+    setMessage({ title: result.title, message: result.message, failed: result.failed });
+  }, []);
 
   const handleExport = useCallback(async () => {
     const choice = await call<ExportTarget>("SelectExportTarget");
@@ -707,6 +729,15 @@ export default function App() {
                     }
                   >
                     <Button
+                      className="consolidation-force"
+                      icon={<RefreshCw size={16} />}
+                      disabled={!can("consolidate") || shareBlocked || !allAligned || busy !== null}
+                      title="数据没变也重新整合并导出"
+                      onClick={handleConsolidateForce}
+                    >
+                      强制重跑
+                    </Button>
+                    <Button
                       className="consolidation-run"
                       type="primary"
                       icon={<Merge size={16} />}
@@ -834,6 +865,8 @@ export default function App() {
         onRecheck={() => void handleRecheckShare()}
         onCleanup={(keep) => void handleCleanup(keep)}
         onReviewAudit={() => void openAuditReview()}
+        onExportDiagnostics={() => void handleExportDiagnostics()}
+        exportingDiagnostics={exportingDiagnostics}
         onClose={() => setStatusOpen(false)}
       />
       <SettingsModal

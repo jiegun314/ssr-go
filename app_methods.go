@@ -276,8 +276,8 @@ type ConsolidateResult struct {
 
 // Consolidate 跑整合并回传结果表（§5.4）。
 // consolidateOnce 是整合主体（调用方已加锁、已校验权限与对齐）。
-func (app *App) consolidateOnce() ConsolidateResult {
-	outcome, err := app.service.Consolidate()
+func (app *App) consolidateOnce(force bool) ConsolidateResult {
+	outcome, err := app.service.ConsolidateWith(force)
 	if err != nil {
 		app.audit("consolidate", "", "整合失败："+err.Error(), "failed")
 		app.appendLog(LogError, "数据整合失败："+err.Error())
@@ -436,6 +436,8 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	message := "整合结果已导出。"
 	if sharedPath != "" {
 		message += "\n已归档到共享盘：" + sharedPath
+	} else if app.shareConfig.Enabled() {
+		message += "\n共享盘不可用或还没有整合记录，结果未归档（文件已保存在本机）。"
 	}
 	return ExportResult{
 		Log: app.logText(), Title: "成功", Message: message, Path: target, SharedPath: sharedPath,

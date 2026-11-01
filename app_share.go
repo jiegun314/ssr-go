@@ -23,7 +23,12 @@ import (
 )
 
 // Consolidate 跑整合：权限 → 对齐门禁 → 共享盘租约 → 整合主体 → 期间新版本策略。
-func (app *App) Consolidate() ConsolidateResult {
+func (app *App) Consolidate() ConsolidateResult { return app.consolidate(false) }
+
+// ConsolidateForce 是"强制重跑"：未变化的行也一起整合/导出（数据没变但要重新出一份时用）。
+func (app *App) ConsolidateForce() ConsolidateResult { return app.consolidate(true) }
+
+func (app *App) consolidate(force bool) ConsolidateResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.beginOperation(); err != nil {
@@ -32,6 +37,13 @@ func (app *App) Consolidate() ConsolidateResult {
 	defer app.endOperation()
 	if err := app.authorize(auth.ActionConsolidate); err != nil {
 		return ConsolidateResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
+	}
+	// 先查共享盘：盘断了要直接说"共享盘不可用"，而不是让"未对齐"的检查先报错
+	if app.shareConfig.Enabled() {
+		if status := app.refreshShareStatus(); !status.Healthy {
+			return ConsolidateResult{Failed: true, Title: "共享盘异常",
+				Message: "共享盘不可用，暂不能整合。请检查连接后点状态栏的「重新检查」。", Log: app.logText()}
+		}
 	}
 	if err := app.requireAligned(); err != nil {
 		return ConsolidateResult{Failed: true, Title: "数据未对齐", Message: userMessage(err), Log: app.logText()}
@@ -51,7 +63,10 @@ func (app *App) Consolidate() ConsolidateResult {
 		app.audit("consolidate", "", "获取整合租约 "+lockID, "ok")
 	}
 	startVersions := app.shareVersions()
-	result := app.consolidateOnce()
+	result := app.consolidateOnce(force)
+	if force && !result.Failed {
+		result.Notice = "强制重跑：本次未变化的行也一并导出。"
+	}
 	if result.Failed || !app.shareConfig.Enabled() {
 		return result
 	}
@@ -61,7 +76,7 @@ func (app *App) Consolidate() ConsolidateResult {
 			result.Notice = "整合期间有新版本发布（block 策略）：本次结果只包含整合开始时的版本，请重新对齐后再整合。"
 		case "auto_rerun":
 			app.alignChangedSources()
-			retry := app.consolidateOnce()
+			retry := app.consolidateOnce(force)
 			retry.Notice = "整合期间有新版本发布，已自动对齐并重新整合一次。"
 			return retry
 		default:

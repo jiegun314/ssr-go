@@ -18,6 +18,8 @@ type StatusModalProps = {
   onRecheck: () => void;
   onCleanup: (keep: number) => void;
   onReviewAudit: () => void;
+  onExportDiagnostics: () => void;
+  exportingDiagnostics: boolean;
   onClose: () => void;
 };
 
@@ -29,6 +31,8 @@ export function StatusModal({
   onRecheck,
   onCleanup,
   onReviewAudit,
+  onExportDiagnostics,
+  exportingDiagnostics,
   onClose,
 }: StatusModalProps) {
   const [keep, setKeep] = useState(5);
@@ -164,6 +168,13 @@ export function StatusModal({
             </Button>
             <Button size="small" onClick={onReviewAudit}>
               查看审计
+            </Button>
+            <Button
+              size="small"
+              loading={exportingDiagnostics}
+              onClick={onExportDiagnostics}
+            >
+              导出诊断包
             </Button>
           </div>
         </section>

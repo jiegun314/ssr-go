@@ -224,7 +224,10 @@ func (service *Service) now() time.Time {
 }
 
 // Consolidate 跑完整流程并写 consolidation_staging（每次整体重写）。
-func (service *Service) Consolidate() (Outcome, error) {
+func (service *Service) Consolidate() (Outcome, error) { return service.ConsolidateWith(false) }
+
+// ConsolidateWith 是整合主体；force = 强制重跑（未变化的行也导出）。
+func (service *Service) ConsolidateWith(force bool) (Outcome, error) {
 	completeness := &validation.SourceCompleteness{
 		Loader:     service.Loader,
 		Repository: service.Repository,
@@ -252,6 +255,7 @@ func (service *Service) Consolidate() (Outcome, error) {
 	}
 	detector := changedetect.NewService(
 		service.Config.ChangeRule, service.Config.IdentityFields, latest)
+	detector.Force = force
 	duplicates, changed, err := detector.Apply(outcome.Rows)
 	if err != nil {
 		return Outcome{}, err

@@ -43,6 +43,7 @@ const renderModal = (canCleanup = true) => {
   const onRecheck = vi.fn();
   const onCleanup = vi.fn();
   const onReviewAudit = vi.fn();
+  const onExportDiagnostics = vi.fn();
   render(
     <ConfigProvider locale={zhCN}>
       <AntApp>
@@ -54,12 +55,14 @@ const renderModal = (canCleanup = true) => {
           onRecheck={onRecheck}
           onCleanup={onCleanup}
           onReviewAudit={onReviewAudit}
+          onExportDiagnostics={onExportDiagnostics}
+          exportingDiagnostics={false}
           onClose={vi.fn()}
         />
       </AntApp>
     </ConfigProvider>,
   );
-  return { onRecheck, onCleanup, onReviewAudit };
+  return { onRecheck, onCleanup, onReviewAudit, onExportDiagnostics };
 };
 
 describe("运行状态弹窗", () => {
@@ -81,6 +84,12 @@ describe("运行状态弹窗", () => {
     expect(onRecheck).toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "查看审计" }));
     expect(onReviewAudit).toHaveBeenCalled();
+  });
+
+  it("导出诊断包会回调", async () => {
+    const { onExportDiagnostics } = renderModal();
+    await userEvent.click(screen.getByRole("button", { name: "导出诊断包" }));
+    expect(onExportDiagnostics).toHaveBeenCalled();
   });
 
   it("清理按钮只有 Admin 可用，点击带上保留份数", async () => {

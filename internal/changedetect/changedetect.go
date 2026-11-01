@@ -66,6 +66,9 @@ type Row struct {
 //
 // 没有配置变更描述列时，比较退化成一件事：身份命中就标 Duplicate（不重复导出）。
 type Service struct {
+	// Force = 强制重跑：未变化的行也不判 Duplicate（仍写 Choose Action 与描述），
+	// 用于"数据没变但需要重新导出一次"的场景。
+	Force          bool
 	Rule           *Rule
 	IdentityFields []string
 	// Latest 是「身份 → 最新一条存储记录」。
@@ -152,7 +155,7 @@ func (service *Service) Apply(rows []Row) (duplicateCodes []string, changedCodes
 			continue
 		}
 		if field == "" {
-			if stored {
+			if stored && !service.Force {
 				row.Values["status"] = "Duplicate"
 				duplicateCodes = append(duplicateCodes, row.Key)
 			}
@@ -164,7 +167,7 @@ func (service *Service) Apply(rows []Row) (duplicateCodes []string, changedCodes
 		}
 		row.Values[field] = result.Description
 		switch {
-		case result.IsDuplicate():
+		case result.IsDuplicate() && !service.Force:
 			row.Values["status"] = "Duplicate"
 			duplicateCodes = append(duplicateCodes, row.Key)
 		case result.Kind == ModifiedRecord:

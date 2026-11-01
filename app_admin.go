@@ -94,6 +94,10 @@ func (app *App) CleanupShareVersions(keep int) CleanupResult {
 		return CleanupResult{Failed: true, Title: "未配置共享盘",
 			Message: "没有配置共享盘（workflow.yaml 的 share.root），没有可清理的版本。", Log: app.logText()}
 	}
+	if status := app.refreshShareStatus(); !status.Healthy {
+		return CleanupResult{Failed: true, Title: "共享盘异常",
+			Message: "共享盘不可用，暂不能清理。请检查连接后点状态栏的「重新检查」。", Log: app.logText()}
+	}
 	if keep < 1 {
 		keep = 5
 	}

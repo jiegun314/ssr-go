@@ -34,12 +34,20 @@ export function Consolidate() {
   return window['go']['main']['App']['Consolidate']();
 }
 
+export function ConsolidateForce() {
+  return window['go']['main']['App']['ConsolidateForce']();
+}
+
 export function CopyToClipboard(arg1) {
   return window['go']['main']['App']['CopyToClipboard'](arg1);
 }
 
 export function Export(arg1, arg2) {
   return window['go']['main']['App']['Export'](arg1, arg2);
+}
+
+export function ExportDiagnostics() {
+  return window['go']['main']['App']['ExportDiagnostics']();
 }
 
 export function ExportReviewData(arg1, arg2) {
