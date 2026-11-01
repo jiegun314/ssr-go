@@ -263,22 +263,13 @@ type ConsolidateResult struct {
 	// Conflicts 是单元格级的冲突提示（AGENTS.md §11）：与 Rows 同形同序
 	// （同一行、同一列下标 = Columns），空串 = 该格不冲突。
 	Conflicts [][]string `json:"conflicts"`
+	// Notice 是"整合期间有新版本发布"之类的提示（空串 = 无）。
+	Notice string `json:"notice"`
 }
 
 // Consolidate 跑整合并回传结果表（§5.4）。
-func (app *App) Consolidate() ConsolidateResult {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-	if err := app.beginOperation(); err != nil {
-		return ConsolidateResult{Failed: true, Title: "错误", Message: userMessage(err)}
-	}
-	defer app.endOperation()
-	if err := app.authorize(auth.ActionConsolidate); err != nil {
-		return ConsolidateResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
-	}
-	if err := app.requireAligned(); err != nil {
-		return ConsolidateResult{Failed: true, Title: "数据未对齐", Message: userMessage(err), Log: app.logText()}
-	}
+// consolidateOnce 是整合主体（调用方已加锁、已校验权限与对齐）。
+func (app *App) consolidateOnce() ConsolidateResult {
 	outcome, err := app.service.Consolidate()
 	if err != nil {
 		app.audit("consolidate", "", "整合失败："+err.Error(), "failed")
@@ -347,6 +338,8 @@ type ExportResult struct {
 	Message string `json:"message"`
 	Failed  bool   `json:"failed"`
 	Path    string `json:"path"`
+	// SharedPath 是归档到共享盘 consolidated/<id>/ 的相对路径（本地模式为空）。
+	SharedPath string `json:"sharedPath"`
 }
 
 // ExportTarget 是保存对话框的结果：默认文件名（= 导出目录里那份副本的名字，R20）
@@ -415,9 +408,28 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	}
 	app.appendLog(LogSuccess, "整合结果已导出到 "+target)
 	app.audit("export", target, "整合结果", "ok")
+	sharedPath := ""
+	archiveName := filepath.Base(target)
+	if archiveName == "" || archiveName == "." {
+		archiveName = filepath.Base(exported.FilePath)
+	}
+	if app.shareConfig.Enabled() {
+		path, archiveErr := app.archiveExport(exported.FilePath, archiveName)
+		if archiveErr != nil {
+			app.appendLog(LogWarning, "归档到共享盘失败："+archiveErr.Error())
+			app.audit("export", target, "归档失败："+archiveErr.Error(), "failed")
+		} else if path != "" {
+			sharedPath = path
+			app.appendLog(LogSuccess, "已归档到共享盘："+path)
+			app.audit("export", path, "已归档", "ok")
+		}
+	}
+	message := "整合结果已导出。"
+	if sharedPath != "" {
+		message += "\n已归档到共享盘：" + sharedPath
+	}
 	return ExportResult{
-		Log: app.logText(), Title: "成功",
-		Message: "整合结果已导出。", Path: target,
+		Log: app.logText(), Title: "成功", Message: message, Path: target, SharedPath: sharedPath,
 	}
 }
 

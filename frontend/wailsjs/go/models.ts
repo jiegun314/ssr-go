@@ -69,6 +69,7 @@ export namespace main {
 	    rows: string[][];
 	    statuses: string[];
 	    conflicts: string[][];
+	    notice: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ConsolidateResult(source);
@@ -84,6 +85,7 @@ export namespace main {
 	        this.rows = source["rows"];
 	        this.statuses = source["statuses"];
 	        this.conflicts = source["conflicts"];
+	        this.notice = source["notice"];
 	    }
 	}
 	export class ExportResult {
@@ -92,6 +94,7 @@ export namespace main {
 	    message: string;
 	    failed: boolean;
 	    path: string;
+	    sharedPath: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ExportResult(source);
@@ -104,6 +107,7 @@ export namespace main {
 	        this.message = source["message"];
 	        this.failed = source["failed"];
 	        this.path = source["path"];
+	        this.sharedPath = source["sharedPath"];
 	    }
 	}
 	export class ExportTarget {

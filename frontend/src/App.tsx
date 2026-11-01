@@ -407,7 +407,12 @@ export default function App() {
       summary[status] = (summary[status] ?? 0) + 1;
     }
     setCounts(summary);
-  }, []);
+    if (result.notice) {
+      setMessage({ title: "提示", message: result.notice, failed: false });
+    }
+    // 整合成功后「待整合」标志要消失、最后整合时间要更新
+    void refreshOverview();
+  }, [refreshOverview]);
 
   const handleExport = useCallback(async () => {
     const choice = await call<ExportTarget>("SelectExportTarget");

@@ -11,6 +11,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jiegun314/ssr-go/internal/auth"
 	"github.com/jiegun314/ssr-go/internal/consolidation"
@@ -306,13 +307,15 @@ func (app *App) recordConsolidation(counts map[string]int) {
 		}
 	}
 	now := auth.Now()
+	// 目录名只用安全字符（consolidated/<id>/）
+	id := time.Now().Format("20060102T150405")
 	err = share.WithStateLock(app.shareConfig.Root, func() error {
 		state, err := share.LoadState(app.shareConfig.Root)
 		if err != nil {
 			return err
 		}
 		state.LastConsolidation = &share.Consolidation{
-			ID: strings.ReplaceAll(now, " ", "T"), At: now, By: app.owner(), Versions: versions,
+			ID: id, At: now, By: app.owner(), Versions: versions,
 			Counts: share.Counts{
 				Ready:     counts[consolidation.StatusReady],
 				Missing:   counts[consolidation.StatusIncomplete],

@@ -101,6 +101,12 @@
   `ShareOverview` 负责按角色下发：RA/EAMA/UDI 只看自己来源的版本/行数/发布人，其他来源只给
   `published_at`（前端只显示"最后更新：…"）。实现见 `app_align.go`、`internal/publish.Fetch`、
   `internal/store/sync.go`。
+- **整合租约与结果归档（P4）**：共享盘模式下整合前抢 `state/consolidate.lock`（O_EXCL）并在
+  `state.json` 写 `consolidation_running`（谁、何时、心跳），第二个人会被拦下；运行崩溃留下的锁
+  30 分钟后可回收。整合期间有人发布时按 `consolidation.on_new_version_during_run` 处理：
+  `warn`（默认，写提示）/ `auto_rerun`（自动重对齐再整合一次）/ `block`（整合前 10 分钟内有发布就拒绝）。
+  导出成功后把文件复制到 `consolidated/<整合id>/` 并写 `summary.json`，再把相对路径写回
+  `state.last_consolidation.result`（`ExportResult.SharedPath` 回给界面）。
 - **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
   （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
   `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行

@@ -576,6 +576,7 @@ email:
 | P1 登录与权限 | ✅ 已完成（单机模式兼容） | `internal/auth`（角色/权限矩阵/Admin 哈希密码）、`internal/share`（共享盘检查骨架）、`audit_log`、登录页、底部状态栏、按角色显隐 |
 | P2 发布与状态 | ✅ 已完成 | `internal/publish`（全量 CSV + manifest + 原子写）、`share.State`（state.json + `state.lock`）、导入后自动发布、导入前共享盘闸门、状态栏「重新检查」 |
 | P3 状态与对齐 | ✅ 已完成 | `synced_versions` 本地表、`publish.Fetch`（sha256/行数校验）、`AlignSource`/`AlignAll`、`ShareOverview`（按角色可见性）、SC 对齐面板、待整合徽标、最后整合时间、30 秒轮询、整合前对齐门禁、整合后写 `last_consolidation` |
+| P4 整合改造 | ✅ 已完成 | `consolidate.lock` 租约（O_EXCL + running 记录 + 30 分钟回收）、导出归档到 `consolidated/<id>/` + `summary.json` + `state.result`、整合期间新版本策略（warn / auto_rerun / block） |
 
 ## 17. 建议实施步骤
 

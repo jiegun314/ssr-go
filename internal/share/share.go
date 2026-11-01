@@ -26,6 +26,8 @@ type Config struct {
 	ProbeTimeout             time.Duration
 	SyncAuto                 bool
 	RequireBeforeConsolidate bool
+	// OnNewVersion 是"整合期间有人发布"的策略：warn | auto_rerun | block。
+	OnNewVersion string
 }
 
 // Load 读 workflow.yaml；没有这个文件时返回零值（= 本地模式）。
@@ -36,12 +38,23 @@ func Load(loader *config.Loader) (Config, error) {
 	}
 	block, _ := document["share"].(map[string]any)
 	sync, _ := document["sync"].(map[string]any)
+	consolidation, _ := document["consolidation"].(map[string]any)
 	configValue := Config{
 		Root:                     strings.TrimSpace(text(block["root"])),
 		PollSeconds:              integer(block["poll_seconds"], 30),
 		ProbeTimeout:             time.Duration(integer(block["probe_timeout_seconds"], 5)) * time.Second,
 		SyncAuto:                 boolean(sync["auto"], true),
 		RequireBeforeConsolidate: boolean(sync["require_before_consolidate"], true),
+		OnNewVersion:             text(consolidation["on_new_version_during_run"]),
+	}
+	if configValue.OnNewVersion == "" {
+		configValue.OnNewVersion = "warn"
+	}
+	if configValue.OnNewVersion != "warn" && configValue.OnNewVersion != "auto_rerun" &&
+		configValue.OnNewVersion != "block" {
+		return Config{}, fmt.Errorf(
+			"workflow.yaml 的 consolidation.on_new_version_during_run 只能是 warn / auto_rerun / block：%s",
+			configValue.OnNewVersion)
 	}
 	if !ValidRoot(configValue.Root) {
 		return Config{}, fmt.Errorf(

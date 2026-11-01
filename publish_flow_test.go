@@ -21,6 +21,8 @@ func newShareApp(t *testing.T, shareRoot string) *App {
 	t.Helper()
 	workspace := t.TempDir()
 	copyDirectoryForTest(t, "config", filepath.Join(workspace, "config"))
+	// 导出要用的模板：项目根是 config 的父目录
+	copyDirectoryForTest(t, filepath.Join("data", "template"), filepath.Join(workspace, "data", "template"))
 	if shareRoot != "" {
 		workflow := "share:\n  root: '" + shareRoot + "'\nsync:\n  auto: true\nemail:\n  transport: disabled\n"
 		if err := os.WriteFile(
