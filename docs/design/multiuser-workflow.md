@@ -577,6 +577,7 @@ email:
 | P2 发布与状态 | ✅ 已完成 | `internal/publish`（全量 CSV + manifest + 原子写）、`share.State`（state.json + `state.lock`）、导入后自动发布、导入前共享盘闸门、状态栏「重新检查」 |
 | P3 状态与对齐 | ✅ 已完成 | `synced_versions` 本地表、`publish.Fetch`（sha256/行数校验）、`AlignSource`/`AlignAll`、`ShareOverview`（按角色可见性）、SC 对齐面板、待整合徽标、最后整合时间、30 秒轮询、整合前对齐门禁、整合后写 `last_consolidation` |
 | P4 整合改造 | ✅ 已完成 | `consolidate.lock` 租约（O_EXCL + running 记录 + 30 分钟回收）、导出归档到 `consolidated/<id>/` + `summary.json` + `state.result`、整合期间新版本策略（warn / auto_rerun / block） |
+| P5 管理与运维 | ✅ 已完成 | 运行状态弹窗（共享盘/四份来源/最后整合/整合锁）、审计查看（ReviewAudit，分页，SC/Admin）、旧版本清理（保留 N + 当前与最后整合版本）、参数设定里的「人员名单」页签（保存即创建 users.yaml） |
 
 ## 17. 建议实施步骤
 

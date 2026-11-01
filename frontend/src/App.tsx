@@ -2,7 +2,16 @@
 // 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
 import { Button, Card, Switch, Tag, Tooltip } from "antd";
-import { ChevronLeft, ChevronRight, FileDown, Merge, RefreshCw, Trash2, Users } from "lucide-react";
+import {
+  Activity,
+  ChevronLeft,
+  ChevronRight,
+  FileDown,
+  Merge,
+  RefreshCw,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -24,6 +33,7 @@ import {
   type MessageState,
 } from "./components/Panels";
 import { AlignPanel } from "./components/AlignPanel";
+import { StatusModal } from "./components/StatusModal";
 import { LoginScreen } from "./components/LoginScreen";
 import { AboutModal, HiddenModal, ReviewModal, SettingsModal } from "./components/Modals";
 import type {
@@ -33,6 +43,7 @@ import type {
   ExportResult,
   ExportTarget,
   AlignResult,
+  CleanupResult,
   ImportResult,
   ImportState,
   InitialState,
@@ -53,7 +64,7 @@ const ICON_CLICK_COUNT = 8;
 const ICON_CLICK_WINDOW_MS = 5000;
 
 type ReviewSession = {
-  kind: "source" | "cleaned-source" | "log";
+  kind: "source" | "cleaned-source" | "log" | "audit";
   source: string;
   fileType: string;
   start: string;
@@ -101,6 +112,8 @@ export default function App() {
   const [overview, setOverview] = useState<ShareOverview | null>(null);
   const [aligning, setAligning] = useState(false);
   const [autoAlign, setAutoAlign] = useState(true);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
 
   const [aboutOpen, setAboutOpen] = useState(false);
   const [about, setAbout] = useState<AboutInfo | null>(null);
@@ -333,9 +346,11 @@ export default function App() {
     const result =
       session.kind === "log"
         ? await call<ReviewResult>("ReviewLog", session.start, session.end, page, pageSize)
-        : session.kind === "cleaned-source"
-          ? await call<ReviewResult>("ReviewCleanedSource", session.source, page, pageSize)
-          : await call<ReviewResult>("ReviewSource", session.source, page, pageSize);
+        : session.kind === "audit"
+          ? await call<ReviewResult>("ReviewAudit", page, pageSize)
+          : session.kind === "cleaned-source"
+            ? await call<ReviewResult>("ReviewCleanedSource", session.source, page, pageSize)
+            : await call<ReviewResult>("ReviewSource", session.source, page, pageSize);
     if (!result) return;
     setLog(result.log);
     if (result.failed) {
@@ -361,6 +376,25 @@ export default function App() {
       setReviewOpen(true);
     },
     [loadReviewPage],
+  );
+
+  const openAuditReview = useCallback(async () => {
+    reviewSession.current = { kind: "audit", source: "", fileType: "", start: "", end: "" };
+    await loadReviewPage(1);
+    setReviewOpen(true);
+  }, [loadReviewPage]);
+
+  const handleCleanup = useCallback(
+    async (keep: number) => {
+      setCleaning(true);
+      const result = await call<CleanupResult>("CleanupShareVersions", keep);
+      setCleaning(false);
+      if (!result) return;
+      setLog(result.log ?? "");
+      setMessage({ title: result.title, message: result.message, failed: result.failed });
+      void refreshOverview();
+    },
+    [refreshOverview],
   );
 
   const openLogReview = useCallback(async () => {
@@ -735,6 +769,21 @@ export default function App() {
               最后整合：{overview.lastConsolidation.at}（{overview.lastConsolidation.by}）
             </span>
           ) : null}
+          {can("audit:any") ? (
+            <Tooltip title="运行状态">
+              <Button
+                className="status-recheck"
+                type="text"
+                size="small"
+                aria-label="运行状态"
+                icon={<Activity size={13} />}
+                onClick={() => {
+                  void refreshOverview();
+                  setStatusOpen(true);
+                }}
+              />
+            </Tooltip>
+          ) : null}
           {share?.mode === "share" ? (
             <Tooltip title="重新检查共享盘">
               <Button
@@ -776,6 +825,16 @@ export default function App() {
         onPage={loadReviewPage}
         onExport={handleReviewExport}
         onClose={() => setReviewOpen(false)}
+      />
+      <StatusModal
+        open={statusOpen}
+        report={overview}
+        cleaning={cleaning}
+        canCleanup={can("share:write")}
+        onRecheck={() => void handleRecheckShare()}
+        onCleanup={(keep) => void handleCleanup(keep)}
+        onReviewAudit={() => void openAuditReview()}
+        onClose={() => setStatusOpen(false)}
       />
       <SettingsModal
         open={settingsOpen}

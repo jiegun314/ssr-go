@@ -18,6 +18,10 @@ export function BackupDatabase() {
   return window['go']['main']['App']['BackupDatabase']();
 }
 
+export function CleanupShareVersions(arg1) {
+  return window['go']['main']['App']['CleanupShareVersions'](arg1);
+}
+
 export function ClearImportedData() {
   return window['go']['main']['App']['ClearImportedData']();
 }
@@ -84,6 +88,10 @@ export function Quit() {
 
 export function RecheckShare() {
   return window['go']['main']['App']['RecheckShare']();
+}
+
+export function ReviewAudit(arg1, arg2) {
+  return window['go']['main']['App']['ReviewAudit'](arg1, arg2);
 }
 
 export function ReviewCleanedSource(arg1, arg2, arg3) {

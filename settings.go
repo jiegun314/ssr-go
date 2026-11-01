@@ -57,8 +57,35 @@ func settingsTabs() []SettingsTab {
 		{Key: config.ImportMappingFile, Title: "导入映射", Note: "来源、列定义、必填与条件必填、值归一"},
 		{Key: config.ConsolidationMappingFile, Title: "整合映射", Note: "匹配规则、去重规则、导出列与变更描述"},
 		{Key: config.LogColumnsFile, Title: "日志列", Note: "生成物：由导出模板表头生成，请勿手改"},
+		{Key: config.UsersFile, Title: "人员名单", Note: "多人协作版：姓名 / 角色 / 邮箱；保存后启用登录页"},
 	}
 }
+
+// usersTemplate 是"还没有 users.yaml"时给「人员名单」页签的初始内容（保存即创建）。
+const usersTemplate = `# 多人协作版的人员名单（保存后启用登录页；删除本文件 = 单机模式）
+# role 只能是：ra | eama | udi | supply_chain | admin（Admin 登录需要密码）
+users:
+  - name: "张三"
+    role: "ra"
+    email: ""
+    note: ""
+  - name: "李四"
+    role: "eama"
+    email: ""
+    note: ""
+  - name: "王五"
+    role: "udi"
+    email: ""
+    note: ""
+  - name: "赵六"
+    role: "supply_chain"
+    email: ""
+    note: ""
+  - name: "管理员"
+    role: "admin"
+    email: ""
+    note: ""
+`
 
 // ConfigurationDocument 读四份 YAML，把每份解析成结构化树，
 // 供菜单「设置 → 参数设定」的四个页签显示（前端负责渲染成树状视图）。
@@ -83,6 +110,12 @@ func (app *App) ConfigurationDocument() []SettingsTab {
 		tabs[index].Path = path
 		content, err := os.ReadFile(path)
 		if err != nil {
+			if tabs[index].Key == config.UsersFile && os.IsNotExist(err) {
+				// 还没有人员名单（单机模式）：给一份模板，保存即创建并启用多人登录
+				tabs[index].Raw = usersTemplate
+				tabs[index].Note = "文件不存在（当前是单机模式）：保存后会启用登录页。"
+				continue
+			}
 			tabs[index].Note = fmt.Sprintf("无法读取 %s：%s", path, err.Error())
 			continue
 		}
@@ -275,13 +308,16 @@ func (app *App) SaveConfigurationFile(key string, content string) SettingsSaveRe
 			Message: "YAML 语法错误，未保存：\n" + err.Error()}
 	}
 	path := app.loader.Resolver.ConfigFile(key)
-	original, err := os.ReadFile(path)
-	if err != nil {
-		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
+	original, readErr := os.ReadFile(path)
+	exists := readErr == nil
+	if readErr != nil && !os.IsNotExist(readErr) {
+		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(readErr)}
 	}
 	backup := path + ".bak"
-	if err := os.WriteFile(backup, original, 0o644); err != nil {
-		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
+	if exists {
+		if err := os.WriteFile(backup, original, 0o644); err != nil {
+			return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
+		}
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return SettingsSaveResult{Failed: true, Title: "错误", Message: userMessage(err)}
@@ -292,7 +328,11 @@ func (app *App) SaveConfigurationFile(key string, content string) SettingsSaveRe
 		loadErr = reloaded.ValidateAll()
 	}
 	if err := loadErr; err != nil {
-		_ = os.WriteFile(path, original, 0o644)
+		if exists {
+			_ = os.WriteFile(path, original, 0o644)
+		} else {
+			_ = os.Remove(path)
+		}
 		return SettingsSaveResult{Failed: true, Title: "错误",
 			Message: "配置校验失败，已还原为保存前的内容：\n" + err.Error(), Backup: backup}
 	}

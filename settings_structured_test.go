@@ -297,8 +297,9 @@ func findSettingsNode(nodes []SettingsNode, path ...string) *SettingsNode {
 func TestSettingsTreeCarriesCommentsControlsAndReadOnlyReasons(t *testing.T) {
 	app, _ := newSettingsApp(t)
 	tabs := app.ConfigurationDocument()
-	if len(tabs) != 4 {
-		t.Fatalf("应当有四个页签，实际 %d", len(tabs))
+	// 四份业务配置 + 多人协作版的人员名单
+	if len(tabs) != 5 {
+		t.Fatalf("应当有五个页签，实际 %d", len(tabs))
 	}
 	byKey := map[string]SettingsTab{}
 	for _, tab := range tabs {

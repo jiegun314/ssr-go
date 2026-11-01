@@ -17,6 +17,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/jiegun314/ssr-go/internal/auth"
 	"github.com/jiegun314/ssr-go/internal/buildinfo"
 	"github.com/jiegun314/ssr-go/internal/paths"
 )
@@ -563,7 +564,43 @@ func (loader *Loader) ValidateAll() error {
 	if err != nil {
 		return err
 	}
-	return loader.ValidateLogColumns(definition, setting, consolidation)
+	if err := loader.ValidateLogColumns(definition, setting, consolidation); err != nil {
+		return err
+	}
+	// 多人协作版的两份可选配置：存在就校验（缺失 = 单机/本地模式）
+	users, err := loader.LoadUsers()
+	if err != nil {
+		return err
+	}
+	if _, err := auth.ParseUsers(users); err != nil {
+		return fmt.Errorf("users.yaml：%w", err)
+	}
+	workflow, err := loader.LoadWorkflow()
+	if err != nil {
+		return err
+	}
+	return ValidateWorkflow(workflow)
+}
+
+// ValidateWorkflow 校验 workflow.yaml：share.root 必须是绝对路径/UNC，
+// on_new_version_during_run 只能是 warn / auto_rerun / block。
+func ValidateWorkflow(document map[string]any) error {
+	if document == nil {
+		return nil
+	}
+	shareBlock, _ := document["share"].(map[string]any)
+	root, _ := shareBlock["root"].(string)
+	root = strings.TrimSpace(root)
+	if root != "" && !strings.HasPrefix(root, `\\`) && !filepath.IsAbs(root) {
+		return fmt.Errorf("workflow.yaml 的 share.root 必须是绝对路径或 UNC：%s", root)
+	}
+	consolidation, _ := document["consolidation"].(map[string]any)
+	strategy, _ := consolidation["on_new_version_during_run"].(string)
+	switch strings.TrimSpace(strategy) {
+	case "", "warn", "auto_rerun", "block":
+		return nil
+	}
+	return fmt.Errorf("workflow.yaml 的 consolidation.on_new_version_during_run 只能是 warn / auto_rerun / block：%s", strategy)
 }
 
 // --- 取值与断言的小工具（对应 Python 版的 dict.get / isinstance 组合） ---

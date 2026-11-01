@@ -43,6 +43,15 @@ type LastConsolidation struct {
 	At       string            `json:"at"`
 	By       string            `json:"by"`
 	Versions map[string]string `json:"versions"`
+	Result   string            `json:"result"`
+	Counts   share.Counts      `json:"counts"`
+}
+
+// RunningInfo 是"谁正在整合"（Admin 运行状态页用）。
+type RunningInfo struct {
+	Owner string `json:"owner"`
+	Role  string `json:"role"`
+	Since string `json:"since"`
 }
 
 // ShareOverview 是状态栏与对齐面板的数据源。
@@ -53,6 +62,7 @@ type ShareOverview struct {
 	AutoAlign         bool               `json:"autoAlign"`
 	PollSeconds       int                `json:"pollSeconds"`
 	Enabled           bool               `json:"enabled"`
+	Running           *RunningInfo       `json:"running"`
 }
 
 // AlignResult 是一次对齐（单份或全部）的结果。
@@ -97,9 +107,15 @@ func (app *App) ShareOverview() ShareOverview {
 		last = state.LastConsolidation
 		overview.LastConsolidation = &LastConsolidation{
 			At: last.At, By: last.By.Name, Versions: last.Versions,
+			Result: last.Result, Counts: last.Counts,
 		}
 		if last.By.Role != "" {
 			overview.LastConsolidation.By = last.By.Name + "（" + auth.Label(auth.Role(last.By.Role)) + "）"
+		}
+	}
+	if running := state.ConsolidationRunning; running != nil {
+		overview.Running = &RunningInfo{
+			Owner: running.Owner.Name, Role: auth.Label(auth.Role(running.Owner.Role)), Since: running.Since,
 		}
 	}
 	role := app.session.Role

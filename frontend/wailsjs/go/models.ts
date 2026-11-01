@@ -40,6 +40,26 @@ export namespace main {
 	        this.path = source["path"];
 	    }
 	}
+	export class CleanupResult {
+	    failed: boolean;
+	    title: string;
+	    message: string;
+	    log: string;
+	    deleted: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CleanupResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.failed = source["failed"];
+	        this.title = source["title"];
+	        this.message = source["message"];
+	        this.log = source["log"];
+	        this.deleted = source["deleted"];
+	    }
+	}
 	export class ClearResult {
 	    log: string;
 	    title: string;
@@ -197,6 +217,8 @@ export namespace main {
 	    at: string;
 	    by: string;
 	    versions: Record<string, string>;
+	    result: string;
+	    counts: share.Counts;
 	
 	    static createFrom(source: any = {}) {
 	        return new LastConsolidation(source);
@@ -207,7 +229,27 @@ export namespace main {
 	        this.at = source["at"];
 	        this.by = source["by"];
 	        this.versions = source["versions"];
+	        this.result = source["result"];
+	        this.counts = this.convertValues(source["counts"], share.Counts);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class SessionInfo {
 	    name: string;
@@ -323,6 +365,22 @@ export namespace main {
 	        this.page = source["page"];
 	        this.pageSize = source["pageSize"];
 	        this.pageCount = source["pageCount"];
+	    }
+	}
+	export class RunningInfo {
+	    owner: string;
+	    role: string;
+	    since: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RunningInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.owner = source["owner"];
+	        this.role = source["role"];
+	        this.since = source["since"];
 	    }
 	}
 	
@@ -503,6 +561,7 @@ export namespace main {
 	    autoAlign: boolean;
 	    pollSeconds: number;
 	    enabled: boolean;
+	    running?: RunningInfo;
 	
 	    static createFrom(source: any = {}) {
 	        return new ShareOverview(source);
@@ -516,6 +575,7 @@ export namespace main {
 	        this.autoAlign = source["autoAlign"];
 	        this.pollSeconds = source["pollSeconds"];
 	        this.enabled = source["enabled"];
+	        this.running = this.convertValues(source["running"], RunningInfo);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -588,6 +648,24 @@ export namespace main {
 
 export namespace share {
 	
+	export class Counts {
+	    ready: number;
+	    missing: number;
+	    duplicate: number;
+	    conflict: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Counts(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ready = source["ready"];
+	        this.missing = source["missing"];
+	        this.duplicate = source["duplicate"];
+	        this.conflict = source["conflict"];
+	    }
+	}
 	export class Status {
 	    mode: string;
 	    healthy: boolean;

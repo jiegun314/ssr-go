@@ -11,6 +11,8 @@ export function AlignSource(arg1:string):Promise<main.AlignResult>;
 
 export function BackupDatabase():Promise<main.BackupResult>;
 
+export function CleanupShareVersions(arg1:number):Promise<main.CleanupResult>;
+
 export function ClearImportedData():Promise<main.ClearResult>;
 
 export function ConfigurationDocument():Promise<Array<main.SettingsTab>>;
@@ -44,6 +46,8 @@ export function OpenExportDirectory():Promise<void>;
 export function Quit():Promise<void>;
 
 export function RecheckShare():Promise<share.Status>;
+
+export function ReviewAudit(arg1:number,arg2:number):Promise<main.ReviewResult>;
 
 export function ReviewCleanedSource(arg1:string,arg2:number,arg3:number):Promise<main.ReviewResult>;
 

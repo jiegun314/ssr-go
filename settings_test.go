@@ -23,13 +23,13 @@ func TestConfigurationDocumentReturnsFourTrees(t *testing.T) {
 	app.loader = loader
 
 	tabs := app.ConfigurationDocument()
-	if len(tabs) != 4 {
-		t.Fatalf("页签数量 = %d; want 4", len(tabs))
+	if len(tabs) != 5 {
+		t.Fatalf("页签数量 = %d; want 5", len(tabs))
 	}
-	expectedTitles := []string{"基础设置", "导入映射", "整合映射", "日志列"}
+	expectedTitles := []string{"基础设置", "导入映射", "整合映射", "日志列", "人员名单"}
 	expectedKeys := []string{
 		config.SettingFile, config.ImportMappingFile,
-		config.ConsolidationMappingFile, config.LogColumnsFile,
+		config.ConsolidationMappingFile, config.LogColumnsFile, config.UsersFile,
 	}
 	for index, tab := range tabs {
 		if tab.Title != expectedTitles[index] || tab.Key != expectedKeys[index] {
@@ -38,6 +38,13 @@ func TestConfigurationDocumentReturnsFourTrees(t *testing.T) {
 		}
 		if tab.Path == "" || !strings.HasSuffix(tab.Path, tab.Key) {
 			t.Errorf("%s 的路径不对：%q", tab.Key, tab.Path)
+		}
+		if tab.Key == config.UsersFile {
+			// 人员名单可能还不存在（单机模式）：给模板原文，没有树是预期的
+			if tab.Raw == "" || !strings.Contains(tab.Raw, "users:") {
+				t.Errorf("%s 没有给出模板原文", tab.Key)
+			}
+			continue
 		}
 		if len(tab.Tree) == 0 {
 			t.Errorf("%s 没有给出结构化树", tab.Key)
@@ -173,12 +180,17 @@ func TestConfigurationDocumentReportsUnreadableFile(t *testing.T) {
 	app := NewApp(nil)
 	app.loader = loader
 	tabs := app.ConfigurationDocument()
-	last := tabs[len(tabs)-1]
-	if !strings.Contains(last.Note, "无法读取") {
-		t.Errorf("读不到文件时的说明 = %q; want 含「无法读取」", last.Note)
+	var logTab SettingsTab
+	for _, tab := range tabs {
+		if tab.Key == config.LogColumnsFile {
+			logTab = tab
+		}
 	}
-	if len(last.Tree) != 0 {
-		t.Errorf("读不到文件时不该有树：%+v", last.Tree)
+	if !strings.Contains(logTab.Note, "无法读取") {
+		t.Errorf("读不到文件时的说明 = %q; want 含「无法读取」", logTab.Note)
+	}
+	if len(logTab.Tree) != 0 {
+		t.Errorf("读不到文件时不该有树：%+v", logTab.Tree)
 	}
 }
 

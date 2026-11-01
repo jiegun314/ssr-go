@@ -1527,3 +1527,48 @@ body {
   color: rgba(0, 0, 0, 0.45);
   white-space: nowrap;
 }
+
+/* ---------- 运行状态弹窗（P5，Admin/SC） ---------- */
+.status-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-section-title {
+  font-weight: 600;
+  color: var(--brand-red);
+}
+
+.status-section-body {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+  overflow-wrap: anywhere;
+}
+
+.status-result {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.status-maintenance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+}

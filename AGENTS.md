@@ -107,6 +107,12 @@
   `warn`（默认，写提示）/ `auto_rerun`（自动重对齐再整合一次）/ `block`（整合前 10 分钟内有发布就拒绝）。
   导出成功后把文件复制到 `consolidated/<整合id>/` 并写 `summary.json`，再把相对路径写回
   `state.last_consolidation.result`（`ExportResult.SharedPath` 回给界面）。
+- **运行状态、审计与旧版本清理（P5）**：状态栏的「运行状态」入口打开弹窗（SC/Admin 可见），
+  展示共享盘状态、四份来源的版本/发布时间/发布人/行数与本机对齐情况、最后一次整合（含结果文件）、
+  整合锁（谁在整合）；「查看审计」走 `ReviewAudit`（最新的在前、分页），数据来自本地 `audit_log`；
+  「清理」走 `CleanupShareVersions`（只 Admin）：每个来源保留最新 N 个版本，且当前版本、
+  `last_consolidation` 用到的版本与整合目录永远保留。参数设定的「人员名单」页签编辑 `users.yaml`，
+  文件不存在时给模板（保存即创建，启用登录页）。
 - **导入后生成清洗表 `clean`**（写在来源上；导入与整合共用这份配置）：原文照旧写进 `target_table`
   （`数据回顾` 读它），另按规则生成一张派生表（`clean.target_table`，**整合读它**，
   `consolidation_mapping` 不用改）。规则按顺序生效：`dedupe.by` 分组只留 `dedupe.latest_by` 最新的一行
