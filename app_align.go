@@ -67,12 +67,13 @@ type ShareOverview struct {
 
 // AlignResult 是一次对齐（单份或全部）的结果。
 type AlignResult struct {
-	Failed   bool     `json:"failed"`
-	Title    string   `json:"title"`
-	Message  string   `json:"message"`
-	Log      string   `json:"log"`
-	Aligned  []string `json:"aligned"`
-	Failures []string `json:"failures"`
+	Failed   bool                   `json:"failed"`
+	Title    string                 `json:"title"`
+	Message  string                 `json:"message"`
+	Log      string                 `json:"log"`
+	Aligned  []string               `json:"aligned"`
+	Failures []string               `json:"failures"`
+	Imports  map[string]ImportState `json:"imports"`
 }
 
 // ShareOverview 返回四个来源的对齐/待整合状态（前端轮询用）。
@@ -170,10 +171,10 @@ func (app *App) AlignSource(source string) AlignResult {
 	version, err := app.alignSource(source)
 	if err != nil {
 		app.audit("align", source, err.Error(), "failed")
-		return AlignResult{Failed: true, Title: "对齐失败", Message: userMessage(err), Log: app.logText()}
+		return AlignResult{Failed: true, Title: "对齐失败", Message: userMessage(err), Log: app.logText(), Imports: app.importStates}
 	}
 	return AlignResult{
-		Log: app.logText(), Aligned: []string{source},
+		Log: app.logText(), Aligned: []string{source}, Imports: app.importStates,
 		Title: "对齐完成", Message: fmt.Sprintf("%s已对齐到共享盘版本 %s。", app.importer.Rules[source].ChineseName, version),
 	}
 }
@@ -192,14 +193,14 @@ func (app *App) AlignAll() AlignResult {
 	status := app.refreshShareStatus()
 	if !status.Healthy {
 		return AlignResult{Failed: true, Title: "共享盘异常",
-			Message: "共享盘不可用，无法对齐：" + status.Detail, Log: app.logText()}
+			Message: "共享盘不可用，无法对齐：" + status.Detail, Log: app.logText(), Imports: app.importStates}
 	}
 	state, err := share.LoadState(app.shareConfig.Root)
 	if err != nil {
 		return AlignResult{Failed: true, Title: "对齐失败", Message: userMessage(err), Log: app.logText()}
 	}
 	synced, _ := app.repo.SyncedVersions()
-	result := AlignResult{Log: app.logText(), Title: "对齐完成"}
+	result := AlignResult{Log: app.logText(), Title: "对齐完成", Imports: app.importStates}
 	for _, source := range app.importer.Order {
 		remote := state.Sources[source]
 		if remote == nil {
@@ -216,6 +217,7 @@ func (app *App) AlignAll() AlignResult {
 		result.Aligned = append(result.Aligned, source)
 	}
 	result.Log = app.logText()
+	result.Imports = app.importStates
 	if len(result.Failures) > 0 {
 		result.Failed = true
 		result.Title = "部分对齐失败"

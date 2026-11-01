@@ -59,6 +59,11 @@ import type { ImportState, SourceStatus } from "../types";
 
 type ImportPanelProps = {
   states: Record<string, ImportState>;
+  /**
+   * 当前身份不能导入任何来源（Supply Chain）：来源卡片改成"取数状态"
+   * （已对齐 / 未对齐 / 未取数 / 共享盘尚未发布），不再出现"尚未导入"。
+   */
+  alignMode?: boolean;
   /** 当前身份能导入/发布的来源（决定"载入文件"按钮） */
   importableSources: string[];
   /** 当前身份能查看明细的来源（RA/EAMA/UDI 只有自己那份，SC/Admin 全部） */
@@ -88,6 +93,7 @@ function importBadge(state: string): BadgeProps["status"] {
 
 export function ImportPanel({
   states,
+  alignMode = false,
   importableSources,
   viewableSources,
   shareInfo,
@@ -103,6 +109,27 @@ export function ImportPanel({
         const canView = viewableSources.includes(source.key);
         const info = shareInfo?.[source.key];
         const current = states[source.key] ?? { state: "empty", label: "", tooltip: "" };
+        const localExists =
+          current.state === "imported" || current.state === "existing" || current.state === "failed";
+        // SC 的取数状态（shareInfo 由后端按角色下发，SC/Admin 能看到版本与时间）
+        const alignKind = !info?.remoteVersion
+          ? "none"
+          : !localExists
+            ? "missing"
+            : info.aligned
+              ? "aligned"
+              : "behind";
+        const alignText =
+          alignKind === "none"
+            ? "共享盘尚未发布"
+            : alignKind === "missing"
+              ? "未取数"
+              : alignKind === "aligned"
+                ? "已对齐"
+                : "未对齐（共享盘有新版）";
+        const alignHint = info?.remoteVersion
+          ? `共享盘版本：${info.remoteVersion}\n最后更新：${info.publishedAt || "—"}`
+          : "该来源还没有人发布到共享盘";
         return (
           <div key={source.key}>
             <div className="group">
@@ -120,55 +147,66 @@ export function ImportPanel({
                 ) : null}
               </div>
               <div className="actions">
-                {!canView ? (
+                {alignMode ? (
+                  <Tooltip title={alignHint}>
+                    <Typography.Text className={`status align-status-${alignKind}`}>
+                      {alignText}
+                      {info?.publishedAt ? ` · ${info.publishedAt.slice(0, 16)}` : ""}
+                    </Typography.Text>
+                  </Tooltip>
+                ) : !canView ? (
                   <Typography.Text className="status" type="secondary">
                     {info?.publishedAt ? `最后更新：${info.publishedAt}` : "尚未发布"}
                   </Typography.Text>
                 ) : (
                   <>
-                {canImport ? (
-                  <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
-                    <Button
-                      type="text"
-                      aria-label="载入文件"
-                      icon={<FileSpreadsheet size={16} />}
-                      disabled={locked}
-                      onClick={() => onImport(source.key)}
-                    />
-                  </Tooltip>
-                ) : null}
-                {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
-                <Typography.Text
-                  className="status"
-                  id={`status-${source.key}`}
-                  type="secondary"
-                  ellipsis={{ tooltip: current.tooltip || undefined }}
-                >
-                  {current.label || "尚未导入"}
-                </Typography.Text>
-                <Tooltip title="数据回顾">
-                  <Button
-                    type="text"
-                    aria-label="数据回顾"
-                    icon={<TableIcon size={16} />}
-                    disabled={current.state !== "imported" && current.state !== "existing"}
-                    onClick={() => onReview(source.key)}
-                  />
-                </Tooltip>
-                {/* 有清洗表的来源（RA 信息）：同一个窗口，读清洗表 —— 方便核对合并结果 */}
-                {CLEANED_SOURCES.includes(source.key) && (
-                  <Tooltip title="查看清洗后数据">
-                    <Button
-                      type="text"
-                      aria-label="查看清洗后数据"
-                      icon={<Filter size={16} />}
-                      disabled={current.state !== "imported" && current.state !== "existing"}
-                      onClick={() => onReviewCleaned(source.key)}
-                    />
-                  </Tooltip>
-                )}
+                    {canImport ? (
+                      <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
+                        <Button
+                          type="text"
+                          aria-label="载入文件"
+                          icon={<FileSpreadsheet size={16} />}
+                          disabled={locked}
+                          onClick={() => onImport(source.key)}
+                        />
+                      </Tooltip>
+                    ) : null}
+                    {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
+                    <Typography.Text
+                      className="status"
+                      id={`status-${source.key}`}
+                      type="secondary"
+                      ellipsis={{ tooltip: current.tooltip || undefined }}
+                    >
+                      {current.label || "尚未导入"}
+                    </Typography.Text>
                   </>
                 )}
+                {canView ? (
+                  <>
+                    <Tooltip title={localExists ? "数据回顾" : "本机还没有取到数据"}>
+                      <Button
+                        type="text"
+                        aria-label="数据回顾"
+                        icon={<TableIcon size={16} />}
+                        disabled={!localExists}
+                        onClick={() => onReview(source.key)}
+                      />
+                    </Tooltip>
+                    {/* 有清洗表的来源（RA 信息）：同一个窗口，读清洗表 —— 方便核对合并结果 */}
+                    {CLEANED_SOURCES.includes(source.key) && (
+                      <Tooltip title="查看清洗后数据">
+                        <Button
+                          type="text"
+                          aria-label="查看清洗后数据"
+                          icon={<Filter size={16} />}
+                          disabled={current.state !== "imported" && current.state !== "existing"}
+                          onClick={() => onReviewCleaned(source.key)}
+                        />
+                      </Tooltip>
+                    )}
+                  </>
+                ) : null}
               </div>
             </div>
           </div>

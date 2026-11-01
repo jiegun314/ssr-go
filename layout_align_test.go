@@ -25,6 +25,10 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 		`viewableSources={viewableSources}`,
 		`disabled={shareBlocked || !allAligned}`,
 		`最后整合：`,
+		// SC 不能导入：模块改叫「数据来源」，显示取数状态
+		`const alignMode = importableSources.length === 0`,
+		`title={alignMode ? "数据来源" : "数据导入"}`,
+		`alignMode={alignMode}`,
 	} {
 		if !strings.Contains(app, wanted) {
 			t.Errorf("App.tsx 缺少：%s", wanted)
@@ -58,11 +62,13 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 		t.Error("工具栏已合并进标题栏，面板里不该再有 align-toolbar")
 	}
 
-	// 导入区：看不到明细的来源只显示最后更新时间，且不渲染按钮
+	// 导入区：看不到明细的来源只显示最后更新时间，且不渲染按钮；SC 显示取数状态
 	for _, wanted := range []string{
 		`最后更新：${info.publishedAt}`,
 		`pending ? (`,
 		`canImport ? (`,
+		`align-status-${alignKind}`,
+		`共享盘尚未发布`,
 	} {
 		if !strings.Contains(panels, wanted) {
 			t.Errorf("Panels.tsx 缺少：%s", wanted)

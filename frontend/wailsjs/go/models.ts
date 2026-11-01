@@ -1,5 +1,27 @@
 export namespace main {
 	
+	export class ImportState {
+	    source: string;
+	    state: string;
+	    label: string;
+	    tooltip: string;
+	    rowCount: number;
+	    importTime: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.state = source["state"];
+	        this.label = source["label"];
+	        this.tooltip = source["tooltip"];
+	        this.rowCount = source["rowCount"];
+	        this.importTime = source["importTime"];
+	    }
+	}
 	export class AlignResult {
 	    failed: boolean;
 	    title: string;
@@ -7,6 +29,7 @@ export namespace main {
 	    log: string;
 	    aligned: string[];
 	    failures: string[];
+	    imports: Record<string, ImportState>;
 	
 	    static createFrom(source: any = {}) {
 	        return new AlignResult(source);
@@ -20,7 +43,26 @@ export namespace main {
 	        this.log = source["log"];
 	        this.aligned = source["aligned"];
 	        this.failures = source["failures"];
+	        this.imports = this.convertValues(source["imports"], ImportState, true);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class BackupResult {
 	    title: string;
@@ -164,28 +206,6 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.defaultName = source["defaultName"];
 	        this.target = source["target"];
-	    }
-	}
-	export class ImportState {
-	    source: string;
-	    state: string;
-	    label: string;
-	    tooltip: string;
-	    rowCount: number;
-	    importTime: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ImportState(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.source = source["source"];
-	        this.state = source["state"];
-	        this.label = source["label"];
-	        this.tooltip = source["tooltip"];
-	        this.rowCount = source["rowCount"];
-	        this.importTime = source["importTime"];
 	    }
 	}
 	export class ImportResult {

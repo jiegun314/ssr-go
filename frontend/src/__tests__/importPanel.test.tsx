@@ -29,6 +29,7 @@ const renderPanel = (
     importable?: string[];
     viewable?: string[];
     shareInfo?: Record<string, import("../types").SourceStatus>;
+    alignMode?: boolean;
   } = {},
 ) => {
   const onImport = vi.fn();
@@ -39,6 +40,7 @@ const renderPanel = (
       <AntApp>
         <ImportPanel
           states={states}
+          alignMode={options.alignMode}
           importableSources={options.importable ?? Object.keys(states)}
           viewableSources={options.viewable ?? Object.keys(states)}
           shareInfo={options.shareInfo}
@@ -125,5 +127,65 @@ describe("数据导入区的查看入口", () => {
     const row = sourceRow("RA信息");
     expect(within(row).getByLabelText("数据回顾")).toBeDisabled();
     expect(within(row).getByLabelText("查看清洗后数据")).toBeDisabled();
+  });
+});
+
+describe("Supply Chain 的数据来源（取数状态）", () => {
+  const share = (overrides: Record<string, unknown>) =>
+    ({
+      source: "ra_input",
+      label: "RA信息",
+      canView: true,
+      localVersion: "",
+      remoteVersion: "",
+      remoteRows: 0,
+      publishedAt: "",
+      publishedBy: "",
+      aligned: false,
+      pending: false,
+      ...overrides,
+    }) as unknown as import("../types").SourceStatus;
+
+  it("已对齐：显示已对齐 + 最后更新时间，查看可用", () => {
+    renderPanel({ ra_input: importedState() }, false, {
+      alignMode: true,
+      importable: [],
+      viewable: ["ra_input"],
+      shareInfo: {
+        ra_input: share({
+          remoteVersion: "20261101T141401-1ca13a38",
+          publishedAt: "2026-11-01 14:14:01",
+          aligned: true,
+          remoteRows: 2435,
+        }),
+      },
+    });
+    expect(screen.getByText(/已对齐 · 2026-11-01 14:14/)).toBeInTheDocument();
+    expect(screen.getByLabelText("数据回顾")).toBeEnabled();
+    expect(screen.queryByLabelText("载入文件")).toBeNull();
+  });
+
+  it("未取数：提示未取数，查看不可用", () => {
+    renderPanel({}, false, {
+      alignMode: true,
+      importable: [],
+      viewable: ["ra_input"],
+      shareInfo: {
+        ra_input: share({ remoteVersion: "20261101T141401-1ca13a38", publishedAt: "2026-11-01 14:14:01" }),
+      },
+    });
+    expect(screen.getByText(/未取数/)).toBeInTheDocument();
+    expect(screen.getByLabelText("数据回顾")).toBeDisabled();
+  });
+
+  it("共享盘还没发布：显示尚未发布", () => {
+    renderPanel({}, false, {
+      alignMode: true,
+      importable: [],
+      viewable: ["ra_input"],
+      shareInfo: { ra_input: share({}) },
+    });
+    // 四个来源都没发布时都会显示这句
+    expect(screen.getAllByText(/共享盘尚未发布/).length).toBeGreaterThan(0);
   });
 });

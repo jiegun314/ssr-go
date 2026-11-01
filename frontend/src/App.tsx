@@ -200,6 +200,9 @@ export default function App() {
     return can(action);
   }).map((source) => source.key);
 
+  /** 不能导入任何来源（Supply Chain）：模块改叫「数据来源」，显示取数状态而不是"尚未导入" */
+  const alignMode = importableSources.length === 0;
+
   /** 能查看明细的来源：SC/Admin 看全部，其余只看自己那份。 */
   const viewableSources = can("review:any")
     ? SOURCES.map((source) => source.key)
@@ -244,6 +247,12 @@ export default function App() {
   const applyAlignResult = useCallback(
     (result: AlignResult) => {
       setLog(result.log ?? "");
+      if (result.imports) {
+        setImports((current) => ({
+          ...current,
+          ...(result.imports as unknown as Record<string, ImportState>),
+        }));
+      }
       if (result.message) {
         setMessage({ title: result.title, message: result.message, failed: result.failed });
       }
@@ -628,7 +637,7 @@ export default function App() {
             <Card
               className="card"
               size="small"
-              title="数据导入"
+              title={alignMode ? "数据来源" : "数据导入"}
               extra={
                 // 清空：只有白色图标（无文字、无边框），标题栏里靠右，省下模块内那一行的高度；
                 // 只有 Admin 有这个动作（权限矩阵 clear）
@@ -647,6 +656,7 @@ export default function App() {
             >
               <ImportPanel
                 states={imports}
+                alignMode={alignMode}
                 importableSources={importableSources}
                 viewableSources={viewableSources}
                 shareInfo={shareInfo}

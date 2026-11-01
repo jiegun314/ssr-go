@@ -70,7 +70,7 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 
 	for _, wanted := range []string{
 		`className="card"`,
-		`title="数据导入"`,
+		`title={alignMode ? "数据来源" : "数据导入"}`,
 		`card grow consolidation-card`,
 		`className="consolidation-name"`,
 		`className="card record-card"`,
