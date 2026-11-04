@@ -50,8 +50,13 @@ func TestCleanConfigContract(t *testing.T) {
 		t.Errorf("drop 应当有 8 列，实际 %v", dropped)
 	}
 	unique, _ := clean["unique"].([]any)
-	if len(unique) != 9 {
-		t.Errorf("unique 应当有 9 列，实际 %v", unique)
+	if len(unique) != 8 {
+		t.Errorf("unique 应当有 8 列（医疗器械管理类别不参与唯一性检查），实际 %v", unique)
+	}
+	for _, item := range unique {
+		if item == "medical_device_management_class" {
+			t.Error("医疗器械管理类别不应再做唯一性检查")
+		}
 	}
 	joinComma, _ := clean["join_comma"].([]any)
 	if len(joinComma) != 1 || joinComma[0] != "registration_filing_certificate_number" {

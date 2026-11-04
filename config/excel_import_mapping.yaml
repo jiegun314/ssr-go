@@ -102,7 +102,8 @@ sources:
         - "ra_expiration_date"
         - "registrant_filing_entity_name_en"
         - "remarks"
-      # 一个规格型号只能有一个值（多张证在这几项上不一致时按 conflict 处理）
+      # 一个规格型号只能有一个值（多张证在这几项上不一致时按 conflict 处理）。
+      # 注意：医疗器械管理类别不做唯一性检查（同一规格型号可能跨类别维护），不要加回来。
       unique:
         - "if_one_time_use"
         - "if_sterilized"
@@ -111,7 +112,6 @@ sources:
         - "mr_safety_information"
         - "is_identifier_consistent_with_registered_product"
         - "registered_product_identifier"
-        - "medical_device_management_class"
         - "device_category"
       # 先整合（去重 + 合并算出结果），再判冲突：
       #   error  = 任一分组在 unique 列上有多个值 → 整份文件报错、不导入（当前口径）
