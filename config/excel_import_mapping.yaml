@@ -82,6 +82,10 @@ sources:
       data_start_row: 2
       # sheet_name / english_header_row / required_row 只给样本工厂（gensample）用：
       # 样本文件里写工作表名、英文表头行、必填标记行；导入读的是第一个工作表，不看英文行
+    # 导入第一步：删除已失效的注册证（RA失效日期 < 今天 的整行丢弃；空值保留）
+    drop_expired:
+      field: "ra_expiration_date"
+
     # 导入后额外生成一张「清洗表」给整合读（原文表照旧保留，供数据回顾）：
     #   1) 同一张证（规格型号 + 注册证唯一码 + 注册证编号）只留 RA生效日期 最新的一行；
     #   2) 一个规格型号只剩一行：unique 列取最新证的值（跨证不同时按 conflict 处理，

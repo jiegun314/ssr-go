@@ -250,6 +250,7 @@ export namespace main {
 	    message: string;
 	    failed: boolean;
 	    publishedVersion: string;
+	    droppedExpired: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ImportResult(source);
@@ -266,6 +267,7 @@ export namespace main {
 	        this.message = source["message"];
 	        this.failed = source["failed"];
 	        this.publishedVersion = source["publishedVersion"];
+	        this.droppedExpired = source["droppedExpired"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

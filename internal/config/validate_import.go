@@ -121,6 +121,23 @@ func (loader *Loader) ValidateImportMapping(imports map[string]any) error {
 			}
 		}
 
+		// 失效过滤（可选）：drop_expired.field 必须是本来源已声明的列
+		if raw, present := source["drop_expired"]; present && raw != nil {
+			block, err := requireMapping(raw, "imports.sources."+sourceName+".drop_expired")
+			if err != nil {
+				return err
+			}
+			field, _ := asString(block["field"])
+			if field == "" {
+				return errorf("imports.sources.%s.drop_expired.field is required", sourceName)
+			}
+			if !dbFields[field] {
+				return errorf(
+					"imports.sources.%s.drop_expired.field references unknown column: %s",
+					sourceName, field)
+			}
+		}
+
 		// 清洗表（可选）：只允许已声明的列，表名不能与其它表撞车
 		if cleanValue, present := source["clean"]; present && cleanValue != nil {
 			cleanTable, err := validateCleanRule(sourceName, source, cleanValue, available)

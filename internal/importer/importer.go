@@ -50,6 +50,9 @@ type Rule struct {
 	EmptyValues    []any
 	// Clean 是「导入后生成清洗表」的规则（clean 块）；nil = 只写原文表。
 	Clean *CleanRule
+	// ExpiryField 是"失效日期"列（drop_expired.field）：导入第一步删除该日期早于今天的行。
+	// 空串 = 不做失效过滤。
+	ExpiryField string
 }
 
 // Result 是一次成功导入的结果。
@@ -57,8 +60,10 @@ type Result struct {
 	RowCount int
 	// CleanedRowCount 是清洗表的行数（没有 clean 规则时是 0）。
 	CleanedRowCount int
-	FileName        string
-	ImportTime      string
+	// DroppedExpired 是导入第一步删除的"失效注册证"行数（drop_expired）。
+	DroppedExpired int
+	FileName       string
+	ImportTime     string
 }
 
 // Importer 持有配置与数据库连接。
@@ -70,6 +75,8 @@ type Importer struct {
 	Order []string
 	// Now 产出 import_time（`YYYY/MM/DD HH:MM`）；测试可以换成固定时钟。
 	Now func() string
+	// NowDate 产出"今天"（失效注册证过滤用）；测试可以换成固定日期。
+	NowDate func() time.Time
 }
 
 // NewImporter 读一次导入配置，之后每次导入复用。
@@ -84,6 +91,7 @@ func NewImporter(loader *config.Loader, repository *store.Repository) (*Importer
 		Rules:      ruleMap,
 		Order:      order,
 		Now:        func() string { return time.Now().Format("2006/01/02 15:04") },
+		NowDate:    time.Now,
 	}, nil
 }
 
@@ -115,6 +123,7 @@ func LoadRules(loader *config.Loader) (map[string]*Rule, []string, error) {
 			ColumnMapping:     map[string]string{},
 			EmptyValues:       emptyValues,
 			Clean:             parseCleanRule(source["clean"]),
+			ExpiryField:       expiryFieldOf(source["drop_expired"]),
 		}
 		columnDefinitions, _ := source["columns"].([]any)
 		for _, rawColumn := range columnDefinitions {
@@ -216,6 +225,15 @@ func (importer *Importer) importWithRule(rule *Rule, filePath string) (Result, e
 		records = append(records, record)
 		rawCells = append(rawCells, raw)
 	}
+	// 导入第一步（可选）：删除已失效的注册证（该日期早于今天的行不进入任何一张表）
+	droppedExpired := 0
+	if rule.ExpiryField != "" {
+		today := time.Now()
+		if importer.NowDate != nil {
+			today = importer.NowDate()
+		}
+		records, rawCells, droppedExpired = dropExpiredRows(rule.ExpiryField, records, rawCells, today)
+	}
 	// 清洗（可选）：先把原文收成「一个分组一行」。规则冲突在这里就拒绝整份文件。
 	conditionalRows := records
 	var cleanedRows []store.Row
@@ -258,6 +276,7 @@ func (importer *Importer) importWithRule(rule *Rule, filePath string) (Result, e
 	return Result{
 		RowCount:        len(records),
 		CleanedRowCount: len(cleanedRows),
+		DroppedExpired:  droppedExpired,
 		FileName:        rule.ChineseName,
 		ImportTime:      importer.Now(),
 	}, nil

@@ -348,6 +348,14 @@ export default function App() {
             ? [
                 { label: "信息类别", value: category },
                 { label: "导入数量", value: `${result.rowCount.toLocaleString("zh-CN")} 行` },
+                ...(result.droppedExpired
+                  ? [
+                      {
+                        label: "失效注册证",
+                        value: `已删除 ${result.droppedExpired.toLocaleString("zh-CN")} 行`,
+                      },
+                    ]
+                  : []),
                 ...(result.publishedVersion
                   ? [{ label: "发布版本", value: result.publishedVersion }]
                   : []),

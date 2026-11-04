@@ -56,6 +56,8 @@ type ImportResult struct {
 	Failed   bool        `json:"failed"`
 	// PublishedVersion 是发布到共享盘的版本号（本地模式为空）。
 	PublishedVersion string `json:"publishedVersion"`
+	// DroppedExpired 是导入第一步删除的"失效注册证"行数（0 = 没有删除）。
+	DroppedExpired int `json:"droppedExpired"`
 }
 
 // SelectImportFile 打开「Select Excel File」对话框并返回用户选中的文件（取消返回空串）。
@@ -104,9 +106,14 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 		return ImportResult{Source: source, State: app.importStates[source], Log: app.logText()}
 	}
 	rule := app.importer.Rules[source]
-	if _, importErr := app.importer.Import(source, path); importErr != nil {
+	imported, importErr := app.importer.Import(source, path)
+	if importErr != nil {
 		app.audit("import", source, "导入失败："+importErr.Error(), "failed")
 		return app.markImportFailed(source, importErr)
+	}
+	if imported.DroppedExpired > 0 {
+		app.appendLog(LogInfo, fmt.Sprintf("%s：已删除 %d 条失效注册证（RA失效日期早于今天）",
+			rule.ChineseName, imported.DroppedExpired))
 	}
 	app.audit("import", source, "导入成功："+filepath.Base(path), "ok")
 	app.markImported(source, filepath.Base(path))
@@ -127,7 +134,7 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 			}
 			return ImportResult{
 				Source: source, FileName: filepath.Base(path), RowCount: state.RowCount,
-				State: app.importStates[source],
+				State: app.importStates[source], DroppedExpired: imported.DroppedExpired,
 				Log:   app.logText(),
 				Title: "导入成功，发布失败",
 				Message: fmt.Sprintf("%s导入成功（只保存在本机），但发布到共享盘失败。\n"+
@@ -140,6 +147,10 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 		app.appendLog(LogSuccess, fmt.Sprintf("%s已发布到共享盘：%s", rule.ChineseName, version))
 	}
 
+	message := fmt.Sprintf("%s导入成功\n导入行数：%d", rule.ChineseName, state.RowCount)
+	if imported.DroppedExpired > 0 {
+		message += fmt.Sprintf("\n已删除失效注册证：%d 行", imported.DroppedExpired)
+	}
 	return ImportResult{
 		Source:   source,
 		FileName: filepath.Base(path),
@@ -148,8 +159,9 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 		Log:      app.logText(),
 		// 成功反馈固定两行中文：第一行「{来源中文名}导入成功」，第二行行数
 		Title:            "导入成功",
-		Message:          fmt.Sprintf("%s导入成功\n导入行数：%d", rule.ChineseName, state.RowCount),
+		Message:          message,
 		PublishedVersion: published,
+		DroppedExpired:   imported.DroppedExpired,
 	}
 }
 

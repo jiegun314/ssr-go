@@ -255,6 +255,14 @@ func (app *App) alignSource(source string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// 对齐时也删失效注册证：快照可能由旧版本发布，不能把过期数据带进整合
+	if rule.ExpiryField != "" {
+		kept, dropped := importer.DropExpired(rule.ExpiryField, rows, time.Now())
+		rows = kept
+		if dropped > 0 {
+			app.appendLog(LogInfo, fmt.Sprintf("%s：对齐时删除 %d 条失效注册证", rule.ChineseName, dropped))
+		}
+	}
 	if err := store.ImportSourceRows(app.repo, store.SourceTable{
 		SourceName: source, TableName: rule.TargetTable, Columns: columns, ReplaceOnImport: true,
 	}, rows); err != nil {
