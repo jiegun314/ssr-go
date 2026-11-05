@@ -135,7 +135,7 @@ Excel 来源 ×4 → （配置校验：表头 / 必填 / 条件必填 / 值归�
 ```text
 SingleSourceReady/
   SingleSourceReady.app / ssr.exe     程序
-  config/                             四份 YAML（可现场编辑）
+  config/                             配置文件（四份核心 + users.yaml/workflow.yaml）
   data/template/*.xlsx                导出模板
   data/udi_data.sqlite3               空数据库（只含一张空 operation_log）
   output/export/                      每次导出的带时间戳副本
@@ -145,6 +145,14 @@ SingleSourceReady/
 
 **必须整体使用**：`config/`、`data/`、`resource/` 要跟程序放在同一层（配置文件读的是程序同级那份）；
 不要只把 `.app` 或 `ssr.exe` 单独挪走。macOS 产物未做 Apple 公证，首次打开若被拦截请右键 →「打开」。
+
+发布包只带 `config/defaults/` 里的默认文件，正式名的配置由**第一次运行按需生成**（已存在的绝不覆盖）：
+
+- `users.yaml`：多人协作版的人员名单（默认随包提供，首跑生成 → 显示登录页；把姓名/角色/邮箱改成真实人员即可；
+  **删除它 = 回报单机模式**）；
+- `workflow.yaml`：共享盘与流程配置（默认 `share.root` 为空 = 本地模式；填 UNC 或本地绝对路径后重开程序，
+  即启用发布/对齐/整合门禁）；
+- 两份都可在「参数设定 → 人员名单 / 共享盘」里直接编辑保存。
 
 ### 3.2 源码构建
 

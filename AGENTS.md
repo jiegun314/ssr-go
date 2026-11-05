@@ -87,6 +87,9 @@
   Admin 密码是 `internal/auth` 里的哈希常量（换密码 = 发新版）。权限矩阵（角色 × 动作）集中在
   `internal/auth`，`App` 的每个绑定方法用 `authorize`/`authorizeSource` 裁决，拒绝也写审计；
   审计表 `audit_log`（本地库）记录登录、拒绝、导入、整合、导出、设置保存等动作。
+  **发布包默认带这两份文件**（`config/defaults/` 里各一份）：第一次运行由 `ensureConfigFiles`
+  复制成正式名（`users.yaml` → 显示登录页；`workflow.yaml` 的 `share.root` 留空 = 本地模式），
+  已存在的文件绝不覆盖；没有默认文件时保持缺失（单机/本地模式，向后兼容）。
 - **导入后自动发布（P2）**：配了 `workflow.yaml` 的 `share.root` 时，导入成功会把整张表发布成
   `published/<部门>/<version>.csv` + `<version>.manifest.json`（+ 原始 xlsx 留档），
   再在 `state/state.lock` 里更新 `state/state.json`（哪个来源、谁、何时、行数、sha256）。

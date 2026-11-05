@@ -1,4 +1,4 @@
-# 多人协作版的人员名单（样例；复制成 config/users.yaml 才生效）
+# 多人协作版的人员名单（格式示例；发布包已默认提供 users.yaml，这里仅作参考）
 #
 # 本文件在 P1 起才会被程序读取；当前版本忽略它（没有它 = 单机模式，全权限）。
 # role 只能是：ra | eama | udi | supply_chain | admin

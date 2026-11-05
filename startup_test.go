@@ -28,6 +28,11 @@ func copyDirectoryForTest(t *testing.T, source string, target string) {
 		if entry.IsDir() {
 			return os.MkdirAll(destination, 0o755)
 		}
+		// 多人协作版的两份可选配置默认不参与测试拷贝：绝大多数用例按"单机/本地模式"
+		// 断言；需要它们的用例（登录、共享盘）会自己写一份。
+		if entry.Name() == "users.yaml" || entry.Name() == "workflow.yaml" {
+			return nil
+		}
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return err

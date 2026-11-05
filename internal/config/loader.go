@@ -115,6 +115,11 @@ var ConfigFileNames = []string{
 	SettingFile, ImportMappingFile, ConsolidationMappingFile, LogColumnsFile,
 }
 
+// OptionalFileNames 是多人协作版的两份可选配置：发布包里有默认文件时，
+// 第一次运行会把它们复制成正式名（用户可以直接编辑）；没有默认文件就不生成
+// （缺 users.yaml = 单机模式、缺 workflow.yaml = 本地模式，向后兼容）。
+var OptionalFileNames = []string{UsersFile, WorkflowFile}
+
 // NewLoader 用与 Python 版相同的规则解析配置目录：显式参数 > UDI_CONFIG_DIR >
 // 可执行文件同级的 config/。
 //
@@ -141,7 +146,7 @@ func NewLoader(explicitConfigDir string) (*Loader, error) {
 // 默认文件按两级找：配置目录里的 defaults/ → 可执行文件同级 config/defaults/
 // （UDI_CONFIG_DIR 指到别处时，默认文件仍来自程序自带的这一份）。
 func (loader *Loader) ensureConfigFiles() ([]string, error) {
-	missing := make([]string, 0, len(ConfigFileNames))
+	missing := make([]string, 0, len(ConfigFileNames)+len(OptionalFileNames))
 	for _, name := range ConfigFileNames {
 		if _, err := os.Stat(loader.Resolver.ConfigFile(name)); err != nil {
 			if !errors.Is(err, os.ErrNotExist) {
@@ -150,7 +155,17 @@ func (loader *Loader) ensureConfigFiles() ([]string, error) {
 			missing = append(missing, name)
 		}
 	}
-	if len(missing) == 0 {
+	// 可选文件只在"有默认文件"时补齐；没有默认文件就保持缺失（单机/本地模式）
+	optional := make([]string, 0, len(OptionalFileNames))
+	for _, name := range OptionalFileNames {
+		if _, err := os.Stat(loader.Resolver.ConfigFile(name)); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return nil, errorf("Configuration file not readable: %s: %v", loader.Resolver.ConfigFile(name), err)
+			}
+			optional = append(optional, name)
+		}
+	}
+	if len(missing) == 0 && len(optional) == 0 {
 		return nil, nil
 	}
 	defaultsDirectory, ok := loader.defaultsDirectory()
@@ -158,12 +173,12 @@ func (loader *Loader) ensureConfigFiles() ([]string, error) {
 		// 没有默认文件可补：保持原来的"缺文件就报错"行为，由 LoadYAML 给出准确文案。
 		return nil, nil
 	}
-	bootstrapped := make([]string, 0, len(missing))
-	for _, name := range missing {
+	bootstrapped := make([]string, 0, len(missing)+len(optional))
+	for _, name := range append(append([]string{}, missing...), optional...) {
 		source := filepath.Join(defaultsDirectory, name)
 		content, err := os.ReadFile(source)
 		if err != nil {
-			// 默认文件本身缺了：同样交给 LoadYAML 报"配置找不到"。
+			// 默认文件本身缺了：核心文件交给 LoadYAML 报"配置找不到"；可选文件直接跳过。
 			continue
 		}
 		target := loader.Resolver.ConfigFile(name)

@@ -1,0 +1,28 @@
+# 多人协作版的流程配置（默认文件：填好共享盘地址即可启用共享盘）
+#
+# - share.root 留空 = 本地模式（不发布、不对齐、不做共享盘门禁）；
+# - 共享盘地址支持 UNC（\\server\share）或本地绝对路径（本机演练用）；
+# - 修改后在「参数设定 → 共享盘」保存，或直接改本文件后重开程序。
+share:
+  root: ''
+  poll_seconds: 30
+  probe_timeout_seconds: 5
+  consolidate_lock_ttl_minutes: 30
+
+# 对齐（sync）：Supply Chain 把本机数据对齐到共享盘最新版本后才允许整合
+sync:
+  auto: true                  # 自动对齐；可在参数设定里关闭
+  require_before_consolidate: true
+
+consolidation:
+  on_new_version_during_run: warn   # warn | auto_rerun | block
+  skip_unchanged: true
+
+# 邮件在 P7 才实现；先占位，transport 保持 disabled。
+recipients:
+  ra_receivers: []            # 整合结果接收人（可多个，后续在参数设定里维护）
+  supply_chain: []
+  admins: []
+
+email:
+  transport: disabled         # disabled | smtp | graph | outbox

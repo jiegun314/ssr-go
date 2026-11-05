@@ -105,3 +105,75 @@ func TestMissingConfigWithoutDefaultsStillFails(t *testing.T) {
 		t.Errorf("错误文案变了：%v", err)
 	}
 }
+
+// TestOptionalConfigFilesAreCreatedFromDefaults 固定"发布包带默认文件时，首次运行
+// 会生成 users.yaml 与 workflow.yaml"（默认即多用户模式 + 本地共享盘模式）。
+func TestOptionalConfigFilesAreCreatedFromDefaults(t *testing.T) {
+	workspace := t.TempDir()
+	configDir := filepath.Join(workspace, "config")
+	defaults := filepath.Join(configDir, config.DefaultsDirectory)
+	copyDirectoryForTest(t, "config", defaults)
+	for _, name := range []string{config.UsersFile, config.WorkflowFile} {
+		content, err := os.ReadFile(filepath.Join("config", name))
+		if err != nil {
+			t.Fatalf("读仓库默认文件失败：%v", err)
+		}
+		if err := os.WriteFile(filepath.Join(defaults, name), content, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	loader, err := config.NewLoader(configDir)
+	if err != nil {
+		t.Fatalf("装载配置失败：%v", err)
+	}
+	created := map[string]bool{}
+	for _, name := range loader.Bootstrapped {
+		created[name] = true
+	}
+	for _, name := range []string{config.UsersFile, config.WorkflowFile} {
+		if !created[name] {
+			t.Errorf("应当从默认文件补齐 %s（实际 %v）", name, loader.Bootstrapped)
+		}
+		if _, err := os.Stat(filepath.Join(configDir, name)); err != nil {
+			t.Errorf("正式名文件没有生成：%v", err)
+		}
+	}
+	if users, err := loader.LoadUsers(); err != nil || len(users["users"].([]any)) == 0 {
+		t.Errorf("生成的 users.yaml 应当有人员：%v / %v", users, err)
+	}
+	if workflow, err := loader.LoadWorkflow(); err != nil || workflow == nil {
+		t.Errorf("生成的 workflow.yaml 应当可读：%v / %v", workflow, err)
+	}
+	if err := loader.ValidateAll(); err != nil {
+		t.Errorf("补齐后整体校验失败：%v", err)
+	}
+	// 第二次装载不再重复生成
+	again, err := config.NewLoader(configDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(again.Bootstrapped) != 0 {
+		t.Errorf("第二次装载又生成了 %v", again.Bootstrapped)
+	}
+}
+
+// TestOptionalConfigFilesAreNotCreatedWithoutDefaults 没有默认文件时保持原行为：
+// 不生成 users.yaml / workflow.yaml（= 单机 / 本地模式）。
+func TestOptionalConfigFilesAreNotCreatedWithoutDefaults(t *testing.T) {
+	workspace := t.TempDir()
+	configDir := filepath.Join(workspace, "config")
+	copyDirectoryForTest(t, "config", configDir)
+	loader, err := config.NewLoader(configDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{config.UsersFile, config.WorkflowFile} {
+		if _, err := os.Stat(filepath.Join(configDir, name)); !os.IsNotExist(err) {
+			t.Errorf("没有默认文件时不该生成 %s：%v", name, err)
+		}
+	}
+	if len(loader.Bootstrapped) != 0 {
+		t.Errorf("没有默认文件时不该声称补齐了：%v", loader.Bootstrapped)
+	}
+}
