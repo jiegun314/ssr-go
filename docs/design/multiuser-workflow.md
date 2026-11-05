@@ -547,7 +547,7 @@ email:
 | 新增 `internal/sync` | 对齐编排：比较 `state` 与本地 `synced_versions`、拉取、校验、覆盖导入、记版本 |
 | 新增 `internal/lease` | 整合锁（O_EXCL + 心跳 + TTL + 过期回收） |
 | 新增 `internal/notify` | 本期仅接口与 no-op 实现（写审计、置 disabled） |
-| `app_methods.go` | 每个绑定方法开头 `authorize` + 共享盘闸门；导入成功后发布；整合后写 `state` |
+| `internal/app/app_methods.go` | 每个绑定方法开头 `authorize` + 共享盘闸门；导入成功后发布；整合后写 `state` |
 | `internal/consolidation` | 从 `inbox/<id>` 读快照；导出名带 id；写 `summary.json`；门禁调用 |
 | `internal/store` | 新增 `audit_log`、`synced_versions` 两张本地表 |
 | `settings_schema.go` | 新增「共享盘」「用户与角色」「收件人（占位）」设置页（Admin） |

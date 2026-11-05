@@ -6,7 +6,7 @@ import type { SourceDefinition } from "./types";
 
 declare global {
   interface Window {
-    go?: { main?: { App?: Record<string, (...args: unknown[]) => Promise<unknown>> } };
+    go?: { app?: { App?: Record<string, (...args: unknown[]) => Promise<unknown>> } };
     runtime?: {
       EventsOn(name: string, callback: (...args: unknown[]) => void): void;
       EventsOff(name: string): void;
@@ -69,7 +69,7 @@ function publishBusy(text: string | null): void {
 }
 
 function bridge(): Record<string, (...args: unknown[]) => Promise<unknown>> | null {
-  return window.go?.main?.App ?? null;
+  return window.go?.app?.App ?? null;
 }
 
 /**

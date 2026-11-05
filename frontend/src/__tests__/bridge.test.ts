@@ -10,7 +10,7 @@ type BusyLog = (string | null)[];
 const installBridge = (method: string) => {
   const handler = vi.fn(async () => ({ ok: true }));
   (window as unknown as { go?: unknown }).go = {
-    main: { App: { [method]: handler } },
+    app: { App: { [method]: handler } },
   };
   return handler;
 };

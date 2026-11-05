@@ -16,11 +16,11 @@
 
 | 位置 | 职责 |
 | --- | --- |
-| `main.go` | 桌面入口：Wails 选项、窗口尺寸、资源与任务栏身份 |
-| `app.go` / `app_methods.go` | `App` 类型与**前端可调用的绑定方法**（`window.go.main.App.*`）；`wireConfiguration` 负责装配依赖（启动与热重载共用） |
-| `settings*.go` | 参数设定：树/表单读取、结构化行级写回、热重载 |
-| `menu_actions.go` | 菜单动作（打开参数设定、关于、快照目录等） |
-| `*_test.go`（根） | 集成与**跨语言契约**测试（前端源码文本、设计口径、发布包结构） |
+| `main.go` | 桌面入口（Wails 选项、窗口尺寸、资源与任务栏身份）；应用逻辑在 `internal/app` |
+| `internal/app` | `App` 类型、**前端可调用的绑定方法**（`window.go.app.App.*`）、参数设定、菜单、错误文案与全部集成/契约测试；`wireConfiguration` 负责装配依赖（启动与热重载共用） |
+| `internal/app/settings*.go` | 参数设定：树/表单读取、结构化行级写回、热重载 |
+| `internal/app/menu_actions.go` | 菜单动作（打开参数设定、关于、快照目录等） |
+| `internal/app/*_test.go` | 集成与**跨语言契约**测试（前端源码文本、设计口径、发布包结构）；`TestMain` 把工作目录固定到仓库根 |
 | `internal/config` | 四份配置的读取、校验、路径解析（**行为来源**，不要在这里改口径） |
 | `internal/rules` | 必填与条件必填（`required_when`）的判定 |
 | `internal/importer` | Excel → 暂存表；`internal/store` SQLite 访问（暂存/整合/日志/对齐） |
@@ -194,7 +194,7 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
 | --- | --- | --- |
 | 前端行为测试 | `frontend/src/__tests__/*.test.tsx`（vitest + jsdom + testing-library） | 渲染出来的东西与交互结果：筛选、排序、点开弹窗、复制内容、控件改值与**保存载荷**、抽屉内容、空态文案 |
 | Go 单元/golden | `internal/*`（样本在 `testdata/`，基线是 `.tsv`） | 业务逻辑、配置校验、导入/整合/导出结果 |
-| Go 契约测试 | 根目录 `layout_*_test.go`（对前端**源码文本**断言） | **设计口径与跨语言一致性**：颜色 token、固定宽度、中文文案、产物内嵌、`frontend/dist` 与模板一致 |
+| Go 契约测试 | `internal/app/layout_*_test.go`（对前端**源码文本**断言） | **设计口径与跨语言一致性**：颜色 token、固定宽度、中文文案、产物内嵌、`frontend/dist` 与模板一致 |
 
 - 能写成行为测试的，就写进行为测试：源码字符串断言只能证明"某段文字还在"，证明不了"跑起来对"。
 - Go 契约测试里的取值要从**唯一来源**取（`cmd/ssr-core/tools.go` 的常量、`config/*.yaml`、`frontend/src/theme.ts`），
@@ -232,7 +232,7 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
   已经含中文的原样显示）。操作日志里仍记英文原文（技术记录）。新增错误码/库错误时，
   往 `uiErrorRules` 里加一条整串匹配的规则，并补 `user_message_test.go` 的用例。
 - 颜色与关键尺寸只在 `frontend/src/design-tokens.ts` 定义一次，`styles.css` 用 `:root` 变量引用；
-  具体宽度与位置口径由根目录 `layout_*_test.go` 固定（按主题拆分）—— 改 CSS 时别只看截图，先看契约。
+  具体宽度与位置口径由 `internal/app/layout_*_test.go` 固定（按主题拆分）—— 改 CSS 时别只看截图，先看契约。
 
 ## 9. 提交与协作
 
@@ -264,7 +264,7 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
      （简版口径：`来源 + 键 + 候选值前 3 条`，键里的 `\x00` 换成 `+`）。
   3. `Outcome` 增加 `ConflictNotes [][]string`（与 `Rows` 同形同序，列顺序 = `Config.FieldNames`，
      空串 = 该格不冲突；`Rows`/`Statuses`/`Counts` 语义不变），golden 基线不变。
-  4. `app_methods.go` 的整合返回值带上该矩阵（`ConsolidateResult.Conflicts`，与 `Rows`/`Columns`
+  4. `internal/app/app_methods.go` 的整合返回值带上该矩阵（`ConsolidateResult.Conflicts`，与 `Rows`/`Columns`
      同形同序 —— status 那一格永远是空串），并**重新生成** Wails 模型
      （`frontend/wailsjs/go/models.ts`）；验证：`npm run build --prefix frontend`
      与根包契约测试 `consolidate_conflicts_test.go`。
@@ -277,7 +277,7 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
   （`Data<>` 剥掉生成类上的 `convertValues`，需要收窄的用 `Omit` + 交叉类型补联合类型），
   只有纯前端的 `SourceDefinition` 手写（`AboutInfo` 已由 Go 结构体生成）。
   改 Go 结构体后重新生成模型即可，前端不必同步字段清单（`tsc --noEmit` 会立刻发现不一致）。
-- 根目录 `package main` 偏重：`App` 与 Wails 绑定方法都在根，搬迁受 `window.go.main.App` 命名空间约束。
+- Wails 绑定命名空间是 `window.go.app.App`：`main.go` 只保留入口与资源，应用代码与测试都在 `internal/app`（同包，测试可用未导出内部）。
 - 日志级别的口径已合一：标签以 Go 的 `logLevelLabels` 为真源（`log_test.go` 逐条比对 `log.ts`），
   四个级别色只在 `frontend/src/design-tokens.ts` 定义（CSS 用 `var(--log-*)`）。
   还差一块：**值类型着色**（`theme.ts` 的 `VALUE_COLORS` 与 CSS 的 `.type-*`）仍是两处，可按同样办法收敛。

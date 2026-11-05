@@ -11,7 +11,7 @@
 //
 // 只有两类留在本文件手写：Go 侧没有对应结构体的（AboutInfo）与纯前端的（SourceDefinition）。
 
-import type { main, share } from "../wailsjs/go/models";
+import type { app, share } from "../wailsjs/go/models";
 
 /**
  * 只取数据字段：Wails 生成的类上还带一个 convertValues 方法（原型方法，类型里也有），
@@ -19,69 +19,69 @@ import type { main, share } from "../wailsjs/go/models";
  */
 type Data<T> = Omit<T, "convertValues">;
 
-/** 单个来源的导入状态（Go: Data<main.ImportState>）。state 在 Go 里是字符串常量，这里收窄。 */
-export type ImportState = Omit<Data<main.ImportState>, "state"> & {
+/** 单个来源的导入状态（Go: Data<app.ImportState>）。state 在 Go 里是字符串常量，这里收窄。 */
+export type ImportState = Omit<Data<app.ImportState>, "state"> & {
   state: "empty" | "imported" | "existing" | "failed";
 };
 
 /** 界面初始状态（Go 的 InitialState 结构体在生成模型里叫 State）。 */
-export type InitialState = Omit<Data<main.State>, "imports"> & {
+export type InitialState = Omit<Data<app.State>, "imports"> & {
   imports: Record<string, ImportState>;
 };
 
-export type ImportResult = Omit<Data<main.ImportResult>, "state"> & {
+export type ImportResult = Omit<Data<app.ImportResult>, "state"> & {
   state: ImportState;
 };
 
-export type ClearResult = Data<main.ClearResult>;
+export type ClearResult = Data<app.ClearResult>;
 
-export type ConsolidateResult = Data<main.ConsolidateResult>;
+export type ConsolidateResult = Data<app.ConsolidateResult>;
 
-export type ExportResult = Data<main.ExportResult>;
+export type ExportResult = Data<app.ExportResult>;
 
-export type ExportTarget = Data<main.ExportTarget>;
+export type ExportTarget = Data<app.ExportTarget>;
 
-export type ReviewResult = Data<main.ReviewResult>;
+export type ReviewResult = Data<app.ReviewResult>;
 
-/** 参数设定的一个节点（Go: Data<main.SettingsNode>）。kind 收窄成六种，children 递归到本类型。 */
-export type SettingsNode = Omit<Data<main.SettingsNode>, "kind" | "children"> & {
+/** 参数设定的一个节点（Go: Data<app.SettingsNode>）。kind 收窄成六种，children 递归到本类型。 */
+export type SettingsNode = Omit<Data<app.SettingsNode>, "kind" | "children"> & {
   kind: "map" | "seq" | "string" | "number" | "bool" | "null";
   children?: SettingsNode[];
 };
 
-/** 一次结构化修改（Go: Data<main.SettingsChange>）：改标量，或对标量列表做增删。 */
-export type SettingsChange = Omit<Data<main.SettingsChange>, "action"> & {
+/** 一次结构化修改（Go: Data<app.SettingsChange>）：改标量，或对标量列表做增删。 */
+export type SettingsChange = Omit<Data<app.SettingsChange>, "action"> & {
   action?: "set" | "append" | "remove";
 };
 
-export type SettingsTab = Omit<Data<main.SettingsTab>, "tree"> & {
+export type SettingsTab = Omit<Data<app.SettingsTab>, "tree"> & {
   tree: SettingsNode[];
 };
 
-export type SettingsSaveResult = Data<main.SettingsSaveResult>;
+export type SettingsSaveResult = Data<app.SettingsSaveResult>;
 
 /* ---------- 多人协作版（P1）：登录与会话 ---------- */
 
-export type LoginRole = Data<main.LoginRole>;
-export type SessionInfo = Data<main.SessionInfo>;
-export type LoginResult = Omit<Data<main.LoginResult>, "session"> & {
+export type LoginRole = Data<app.LoginRole>;
+export type SessionInfo = Data<app.SessionInfo>;
+export type LoginResult = Omit<Data<app.LoginResult>, "session"> & {
   session?: SessionInfo;
 };
 export type ShareStatus = Data<share.Status>;
-export type SourceStatus = Data<main.SourceStatus>;
-export type LastConsolidation = Data<main.LastConsolidation>;
-export type ShareOverview = Omit<Data<main.ShareOverview>, "sources" | "lastConsolidation" | "status"> & {
+export type SourceStatus = Data<app.SourceStatus>;
+export type LastConsolidation = Data<app.LastConsolidation>;
+export type ShareOverview = Omit<Data<app.ShareOverview>, "sources" | "lastConsolidation" | "status"> & {
   sources: SourceStatus[];
   lastConsolidation?: LastConsolidation;
   status: ShareStatus;
 };
-export type AlignResult = Data<main.AlignResult>;
-export type CleanupResult = Data<main.CleanupResult>;
-export type DiagnosticsResult = Data<main.DiagnosticsResult>;
+export type AlignResult = Data<app.AlignResult>;
+export type CleanupResult = Data<app.CleanupResult>;
+export type DiagnosticsResult = Data<app.DiagnosticsResult>;
 
 /* ---------- 以下为前端自有类型（Go 侧没有对应结构体） ---------- */
 
-export type AboutInfo = Data<main.AboutInfo>;
+export type AboutInfo = Data<app.AboutInfo>;
 
 /** 四个来源的界面定义（顺序与标题是界面口径，不是后端数据）。 */
 export type SourceDefinition = {
