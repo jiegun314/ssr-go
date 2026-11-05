@@ -7,6 +7,29 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.0.5] - 2026-11-05
+
+项目结构重整：应用代码与测试收进 `internal/app`，根目录只保留入口与工程文件。
+本版**没有业务行为变化**，配置、数据库、发布包布局与升级方式都与 3.0.3 一致。
+
+### 变更
+
+- 根目录只保留 `main.go`（Wails 入口：窗口、资源、embed）与工程文件；`App` 类型、绑定方法、
+  参数设定、菜单、错误文案全部移到 `internal/app`。
+- 原根目录的 45 个测试（集成、契约、布局）随代码移入 `internal/app`，与代码同包；
+  `TestMain` 把测试工作目录固定到仓库根，配置/样本/前端资源的相对路径口径不变。
+- Wails 绑定命名空间随包名从 `window.go.main.App` 改为 **`window.go.app.App`**：
+  重新生成 `frontend/wailsjs/go/app/App.*`，前端的 bridge、类型与测试已同步。
+  外部脚本如果直接引用 `window.go.main.App`，需要改成 `window.go.app.App`。
+- 文档（AGENTS、设计文档）中的目录与路径说明同步更新。
+
+### 验证
+
+- `go test -count=1 ./...` 全绿；`npm run build`、`npm test`（82 例）通过；
+- `make check` 退出码 0；
+- `wails build` 成功产出 `build/bin/SingleSourceReady.app`；
+- 本地运行包刷新正常，数据库保留。
+
 ## [3.0.3] - 2026-11-05
 
 管理员登录可以选择运行模式（联网/本地），发布包默认带 `users.yaml` 与 `workflow.yaml`，
@@ -499,7 +522,8 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.0.3...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.0.5...HEAD
+[3.0.5]: https://github.com/jiegun314/ssr-go/compare/v3.0.3...v3.0.5
 [3.0.3]: https://github.com/jiegun314/ssr-go/compare/v3.0.1...v3.0.3
 [3.0.1]: https://github.com/jiegun314/ssr-go/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/jiegun314/ssr-go/compare/v2.3.13...v3.0.0
