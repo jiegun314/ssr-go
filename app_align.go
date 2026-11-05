@@ -82,14 +82,14 @@ func (app *App) ShareOverview() ShareOverview {
 	defer app.mu.Unlock()
 	app.ensureSession()
 	overview := ShareOverview{
-		Enabled: app.shareConfig.Enabled(), AutoAlign: app.shareConfig.SyncAuto,
+		Enabled: app.shareEnabled(), AutoAlign: app.shareConfig.SyncAuto,
 		PollSeconds: app.shareConfig.PollSeconds,
 	}
 	if overview.PollSeconds <= 0 {
 		overview.PollSeconds = 30
 	}
 	overview.Status = app.refreshShareStatus()
-	if app.session == nil || !app.shareConfig.Enabled() {
+	if app.session == nil || !app.shareEnabled() {
 		// 未登录（或本地模式）：不下发任何来源明细
 		return overview
 	}
@@ -116,7 +116,7 @@ func (app *App) ShareOverview() ShareOverview {
 		}
 	}
 	// 记录导出是所有人可见的全量数据：轮询时顺带同步操作日志（60 秒节流）
-	if app.shareConfig.Enabled() && time.Since(app.lastLogSync) > 60*time.Second {
+	if app.shareEnabled() && time.Since(app.lastLogSync) > 60*time.Second {
 		app.lastLogSync = time.Now()
 		if err := app.syncOperationLog(); err != nil {
 			app.appendLog(LogWarning, "操作日志同步失败："+err.Error())
@@ -164,7 +164,7 @@ func (app *App) AlignSource(source string) AlignResult {
 	if err := app.authorize(auth.ActionAlign); err != nil {
 		return AlignResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
 	}
-	if status := app.refreshShareStatus(); app.shareConfig.Enabled() && !status.Healthy {
+	if status := app.refreshShareStatus(); app.shareEnabled() && !status.Healthy {
 		return AlignResult{Failed: true, Title: "共享盘异常",
 			Message: "共享盘不可用，无法对齐。请检查连接后点状态栏的「重新检查」。", Log: app.logText()}
 	}
@@ -235,7 +235,7 @@ func (app *App) AlignAll() AlignResult {
 
 // alignSource 是单份对齐的实现（不加锁，调用方已持有 app.mu）。
 func (app *App) alignSource(source string) (string, error) {
-	if !app.shareConfig.Enabled() {
+	if !app.shareEnabled() {
 		return "", fmt.Errorf("没有配置共享盘（本地模式不需要对齐）")
 	}
 	rule, known := app.importer.Rules[source]
@@ -298,7 +298,7 @@ func (app *App) alignSource(source string) (string, error) {
 
 // requireAligned 是整合前的对齐门禁（分享盘模式 + require_before_consolidate 才生效）。
 func (app *App) requireAligned() error {
-	if !app.shareConfig.Enabled() || !app.shareConfig.RequireBeforeConsolidate {
+	if !app.shareEnabled() || !app.shareConfig.RequireBeforeConsolidate {
 		return nil
 	}
 	state, err := share.LoadState(app.shareConfig.Root)
@@ -330,7 +330,7 @@ func (app *App) requireAligned() error {
 
 // recordConsolidation 把本次整合用的版本写进 state（"待整合"标志据此清除）。
 func (app *App) recordConsolidation(counts map[string]int) {
-	if !app.shareConfig.Enabled() {
+	if !app.shareEnabled() {
 		return
 	}
 	synced, err := app.repo.SyncedVersions()
@@ -375,7 +375,19 @@ func (app *App) recordConsolidation(counts map[string]int) {
 
 // refreshShareStatus 做一次共享盘检查（不写审计；RecheckShare 才写）。
 func (app *App) refreshShareStatus() share.Status {
-	if app.session != nil && !app.shareConfig.Enabled() {
+	if app.localMode {
+		status := share.Status{
+			Mode: "local", Healthy: true, CheckedAt: auth.Now(),
+			Detail: "本地模式：管理员选择不连接共享盘（不发布/不对齐/不门禁）",
+		}
+		app.shareStatus = status
+		if app.session != nil {
+			app.session.ShareReady = true
+			app.session.ShareDetail = status.Detail
+		}
+		return status
+	}
+	if app.session != nil && !app.shareEnabled() {
 		return share.Status{Mode: "local", Healthy: true, Detail: "本地模式：未配置共享盘", CheckedAt: auth.Now()}
 	}
 	status := app.shareConfig.Check()
@@ -403,7 +415,7 @@ func describeSources(app *App, sources []string) string {
 
 // shareState 读共享盘状态（共享盘未配置时返回空状态）。
 func (app *App) shareState() (*share.State, error) {
-	if !app.shareConfig.Enabled() {
+	if !app.shareEnabled() {
 		return &share.State{Sources: map[string]*share.SourceVersion{}}, nil
 	}
 	return share.LoadState(app.shareConfig.Root)
@@ -415,7 +427,7 @@ func (app *App) shareState() (*share.State, error) {
 //
 // 根目录必须由 IT 预先建好；这里失败只记警告，不阻塞其他操作（下一次检查会重试）。
 func (app *App) ensureShareLayout(status share.Status) {
-	if !app.shareConfig.Enabled() || !status.Healthy || app.shareLayoutDone {
+	if !app.shareEnabled() || !status.Healthy || app.shareLayoutDone {
 		return
 	}
 	if err := share.EnsureLayout(app.shareConfig.Root); err != nil {

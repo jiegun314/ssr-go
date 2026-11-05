@@ -92,7 +92,7 @@ func (app *App) ExportDiagnostics() DiagnosticsResult {
 		return DiagnosticsResult{Failed: true, Title: "错误", Message: userMessage(err), Log: app.logText()}
 	}
 	// 共享盘状态文件（有就带一份）
-	if app.shareConfig.Enabled() {
+	if app.shareEnabled() {
 		if content, readErr := os.ReadFile(filepath.Join(app.shareConfig.Root, "state", "state.json")); readErr == nil {
 			if err := write("share-state.json", content); err != nil {
 				return DiagnosticsResult{Failed: true, Title: "错误", Message: userMessage(err), Log: app.logText()}

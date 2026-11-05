@@ -91,9 +91,9 @@ func (app *App) CleanupShareVersions(keep int) CleanupResult {
 	if err := app.authorize(auth.ActionManageShare); err != nil {
 		return CleanupResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
 	}
-	if !app.shareConfig.Enabled() {
-		return CleanupResult{Failed: true, Title: "未配置共享盘",
-			Message: "没有配置共享盘（workflow.yaml 的 share.root），没有可清理的版本。", Log: app.logText()}
+	if !app.shareEnabled() {
+		return CleanupResult{Failed: true, Title: "未使用共享盘",
+			Message: "当前是本地模式（或没有配置共享盘），没有可清理的共享盘版本。", Log: app.logText()}
 	}
 	if status := app.refreshShareStatus(); !status.Healthy {
 		return CleanupResult{Failed: true, Title: "共享盘异常",

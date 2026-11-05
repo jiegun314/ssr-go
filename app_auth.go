@@ -75,6 +75,8 @@ func (app *App) Login(role string, password string) LoginResult {
 		return LoginResult{Failed: true, Title: "错误", Message: userMessage(err)}
 	}
 	defer app.endOperation()
+	// 每次登录默认联网模式；只有管理员在登录时明确选择本地模式才会改
+	app.localMode = false
 	if len(app.users) == 0 {
 		// 单机模式：没有名单可登，直接返回当前（自动建立的）身份
 		return LoginResult{Log: app.logText(), Session: app.sessionInfo()}
@@ -108,6 +110,57 @@ func (app *App) Login(role string, password string) LoginResult {
 	return LoginResult{Log: app.logText(), Session: app.sessionInfo()}
 }
 
+// LoginAdmin 是管理员登录：校验密码后按选择的运行模式进入。
+//
+// mode = "online"（默认，使用共享盘）/ "local"（本次会话不用共享盘：不发布、不对齐、不门禁）。
+// 界面在本地模式前会先弹警告，用户确认后才调用这里。
+func (app *App) LoginAdmin(password string, mode string) LoginResult {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if err := app.beginOperation(); err != nil {
+		return LoginResult{Failed: true, Title: "错误", Message: userMessage(err)}
+	}
+	defer app.endOperation()
+	if len(app.users) == 0 {
+		// 单机模式没有名单可登：按当前自动身份返回（模式不适用）
+		return LoginResult{Log: app.logText(), Session: app.sessionInfo()}
+	}
+	if !auth.VerifyAdminPassword(password) {
+		reason := "Admin 密码不正确"
+		if strings.TrimSpace(password) == "" {
+			reason = "Admin 登录需要密码"
+		}
+		app.audit("login", "admin", reason, "denied")
+		return LoginResult{Failed: true, Title: "登录失败", Message: reason + "。"}
+	}
+	if mode == "" {
+		mode = "online"
+	}
+	if mode != "online" && mode != "local" {
+		return LoginResult{Failed: true, Title: "登录失败", Message: "运行模式不合法，请重新选择。"}
+	}
+	app.localMode = mode == "local"
+	username := auth.CurrentUsername()
+	app.session = &auth.Session{
+		Name: username, Role: auth.RoleAdmin,
+		Username: username, Machine: auth.CurrentMachine(), At: auth.Now(),
+	}
+	status := app.checkShare()
+	if app.shareEnabled() {
+		// 联网模式：登录后把操作日志与共享盘合并一次
+		if err := app.syncOperationLog(); err != nil {
+			app.appendLog(LogWarning, "登录后同步操作日志失败："+err.Error())
+		}
+	}
+	modeLabel := "联网模式"
+	if app.localMode {
+		modeLabel = "本地模式"
+	}
+	app.audit("login", "admin", fmt.Sprintf("组别=%s 模式=%s 共享盘=%s", auth.Label(auth.RoleAdmin), modeLabel, status.Detail), "ok")
+	app.appendLog(LogInfo, fmt.Sprintf("已登录：%s（%s）", modeLabel, username))
+	return LoginResult{Log: app.logText(), Session: app.sessionInfo()}
+}
+
 // Logout 退出当前身份（单机模式下没有意义，直接返回当前身份）。
 func (app *App) Logout() LoginResult {
 	app.mu.Lock()
@@ -120,6 +173,7 @@ func (app *App) Logout() LoginResult {
 		app.appendLog(LogInfo, fmt.Sprintf("已退出：%s", app.session.Name))
 		app.session = nil
 	}
+	app.localMode = false
 	return LoginResult{Log: app.logText()}
 }
 
@@ -199,6 +253,18 @@ func (app *App) audit(action string, target string, detail string, result string
 
 // checkShare 检查共享盘并把结果记到会话上（P1 只做骨架，不阻断本地操作）。
 func (app *App) checkShare() share.Status {
+	if app.localMode {
+		status := share.Status{
+			Mode: "local", Healthy: true, CheckedAt: auth.Now(),
+			Detail: "本地模式：管理员选择不连接共享盘（不发布/不对齐/不门禁）",
+		}
+		app.shareStatus = status
+		if app.session != nil {
+			app.session.ShareReady = true
+			app.session.ShareDetail = status.Detail
+		}
+		return status
+	}
 	status := app.shareConfig.Check()
 	app.shareStatus = status
 	if app.session != nil {

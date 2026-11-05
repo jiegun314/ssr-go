@@ -1808,3 +1808,22 @@ body {
   width: 240px;
   flex: 0 0 240px;
 }
+
+/* 管理员登录：选择运行模式 + 本地模式警告 */
+.login-mode-options {
+  display: flex;
+  gap: 16px;
+}
+
+.login-mode-hint {
+  font-size: 12px;
+}
+
+.login-mode-warning {
+  width: 100%;
+  text-align: left;
+}
+
+.login-mode-warning .ant-alert-description {
+  font-size: 12px;
+}

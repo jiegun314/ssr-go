@@ -22,6 +22,11 @@ import (
 	"github.com/jiegun314/ssr-go/internal/share"
 )
 
+// shareEnabled 是"本次会话是否使用共享盘"：配置了 root，且管理员没有选择本地模式。
+func (app *App) shareEnabled() bool {
+	return !app.localMode && app.shareConfig.Enabled()
+}
+
 // Consolidate 跑整合：权限 → 对齐门禁 → 共享盘租约 → 整合主体 → 期间新版本策略。
 func (app *App) Consolidate() ConsolidateResult { return app.consolidate(false) }
 
@@ -39,7 +44,7 @@ func (app *App) consolidate(force bool) ConsolidateResult {
 		return ConsolidateResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
 	}
 	// 先查共享盘：盘断了要直接说"共享盘不可用"，而不是让"未对齐"的检查先报错
-	if app.shareConfig.Enabled() {
+	if app.shareEnabled() {
 		if status := app.refreshShareStatus(); !status.Healthy {
 			return ConsolidateResult{Failed: true, Title: "共享盘异常",
 				Message: "共享盘不可用，暂不能整合。请检查连接后点状态栏的「重新检查」。", Log: app.logText()}
@@ -48,13 +53,13 @@ func (app *App) consolidate(force bool) ConsolidateResult {
 	if err := app.requireAligned(); err != nil {
 		return ConsolidateResult{Failed: true, Title: "数据未对齐", Message: userMessage(err), Log: app.logText()}
 	}
-	if app.shareConfig.Enabled() {
+	if app.shareEnabled() {
 		if err := app.blockOnRecentPublish(); err != nil {
 			return ConsolidateResult{Failed: true, Title: "刚有新版本发布", Message: userMessage(err), Log: app.logText()}
 		}
 	}
 	lockID := ""
-	if app.shareConfig.Enabled() {
+	if app.shareEnabled() {
 		lockID = "consolidate-" + time.Now().Format("20060102T150405")
 		if err := share.AcquireConsolidation(app.shareConfig.Root, lockID, app.owner()); err != nil {
 			return ConsolidateResult{Failed: true, Title: "无法整合", Message: userMessage(err), Log: app.logText()}
@@ -67,7 +72,7 @@ func (app *App) consolidate(force bool) ConsolidateResult {
 	if force && !result.Failed {
 		result.Notice = "强制重跑：本次未变化的行也一并导出。"
 	}
-	if result.Failed || !app.shareConfig.Enabled() {
+	if result.Failed || !app.shareEnabled() {
 		return result
 	}
 	if !sameVersions(startVersions, app.shareVersions()) {
@@ -90,7 +95,7 @@ func (app *App) consolidate(force bool) ConsolidateResult {
 
 // shareVersions 读共享盘上四个来源的当前版本（共享盘未配置时返回 nil）。
 func (app *App) shareVersions() map[string]string {
-	if !app.shareConfig.Enabled() {
+	if !app.shareEnabled() {
 		return nil
 	}
 	state, err := share.LoadState(app.shareConfig.Root)
@@ -173,7 +178,7 @@ func (app *App) alignChangedSources() {
 // archiveExport 把导出的文件复制到 consolidated/<id>/ 并写 summary.json，
 // 再把相对路径写回 state.last_consolidation.result。
 func (app *App) archiveExport(localPath string, name string) (string, error) {
-	if !app.shareConfig.Enabled() {
+	if !app.shareEnabled() {
 		return "", nil
 	}
 	state, err := share.LoadState(app.shareConfig.Root)

@@ -87,6 +87,9 @@
   Admin 密码是 `internal/auth` 里的哈希常量（换密码 = 发新版）。权限矩阵（角色 × 动作）集中在
   `internal/auth`，`App` 的每个绑定方法用 `authorize`/`authorizeSource` 裁决，拒绝也写审计；
   审计表 `audit_log`（本地库）记录登录、拒绝、导入、整合、导出、设置保存等动作。
+  **管理员登录时可选运行模式**：默认联网（用共享盘）；选本地模式要先确认警告，确认后本次
+  会话 `app.localMode = true`（所有 `shareEnabled()` 检查为假：不发布/不对齐/不门禁/不同步日志），
+  警告选"否"退回身份选择；`Logout` 与其它角色登录都会复位为联网。
   **发布包默认带这两份文件**（`config/defaults/` 里各一份）：第一次运行由 `ensureConfigFiles`
   复制成正式名（`users.yaml` → 显示登录页；`workflow.yaml` 的 `share.root` 留空 = 本地模式），
   已存在的文件绝不覆盖；没有默认文件时保持缺失（单机/本地模式，向后兼容）。

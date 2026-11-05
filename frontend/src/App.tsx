@@ -166,6 +166,21 @@ export default function App() {
     [refreshInitial],
   );
 
+  const handleAdminLogin = useCallback(
+    async (password: string, mode: "online" | "local") => {
+      const result = await call<LoginResult>("LoginAdmin", password, mode);
+      if (!result) return;
+      setLog(result.log ?? "");
+      if (result.failed) {
+        setMessage({ title: result.title, message: result.message, failed: true });
+        return;
+      }
+      setSession(result.session ?? null);
+      await refreshInitial();
+    },
+    [refreshInitial],
+  );
+
   const handleLogout = useCallback(async () => {
     const result = await call<LoginResult>("Logout");
     if (!result) return;
@@ -650,7 +665,13 @@ export default function App() {
   if (roles.length > 0 && !session && !singleUser) {
     return (
       <>
-        <LoginScreen roles={roles} username={username} onLogin={handleLogin} busy={busy} />
+        <LoginScreen
+          roles={roles}
+          username={username}
+          onLogin={handleLogin}
+          onAdminLogin={handleAdminLogin}
+          busy={busy}
+        />
         <LoadingOverlay text={busy} />
         <MessageModal state={message} onClose={() => setMessage(null)} />
       </>

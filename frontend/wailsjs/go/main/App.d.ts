@@ -39,6 +39,8 @@ export function ListRoles():Promise<Array<main.LoginRole>>;
 
 export function Login(arg1:string,arg2:string):Promise<main.LoginResult>;
 
+export function LoginAdmin(arg1:string,arg2:string):Promise<main.LoginResult>;
+
 export function Logout():Promise<main.LoginResult>;
 
 export function OpenConfigDirectory():Promise<void>;

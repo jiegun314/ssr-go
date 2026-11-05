@@ -121,7 +121,7 @@ func (app *App) ImportSource(source string, filePath string) ImportResult {
 
 	// 配了共享盘就自动发布（整张表 + manifest + state.json）；失败要明确告诉用户"只在本机"
 	published := ""
-	if app.shareConfig.Enabled() {
+	if app.shareEnabled() {
 		version, publishErr := app.publishSource(source, path)
 		if publishErr != nil {
 			app.audit("publish", source, "发布失败："+publishErr.Error(), "failed")
@@ -438,7 +438,7 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	if archiveName == "" || archiveName == "." {
 		archiveName = filepath.Base(exported.FilePath)
 	}
-	if app.shareConfig.Enabled() {
+	if app.shareEnabled() {
 		path, archiveErr := app.archiveExport(exported.FilePath, archiveName)
 		if archiveErr != nil {
 			app.appendLog(LogWarning, "归档到共享盘失败："+archiveErr.Error())
@@ -452,7 +452,7 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	message := "整合结果已导出。"
 	if sharedPath != "" {
 		message += "\n已归档到共享盘：" + sharedPath
-	} else if app.shareConfig.Enabled() {
+	} else if app.shareEnabled() {
 		message += "\n共享盘不可用或还没有整合记录，结果未归档（文件已保存在本机）。"
 	}
 	return ExportResult{

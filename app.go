@@ -81,6 +81,8 @@ type App struct {
 	lastLogSync time.Time
 	// shareLayoutDone 表示本进程已经补齐过共享盘骨架（首次健康检查后只做一次）。
 	shareLayoutDone bool
+	// localMode 是管理员登录时选择的"本地模式"：本次会话不用共享盘（不发布/不对齐/不门禁）。
+	localMode bool
 }
 
 // ImportState 是一个来源的界面状态（对应现有界面的状态标签与圆点）。

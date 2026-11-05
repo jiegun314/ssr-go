@@ -20,14 +20,20 @@ const roles: LoginRole[] = [
 
 const renderLogin = () => {
   const onLogin = vi.fn();
+  const onAdminLogin = vi.fn();
   render(
     <ConfigProvider locale={zhCN}>
       <AntApp>
-        <LoginScreen roles={roles} username="zhangsan" onLogin={onLogin} />
+        <LoginScreen
+          roles={roles}
+          username="zhangsan"
+          onLogin={onLogin}
+          onAdminLogin={onAdminLogin}
+        />
       </AntApp>
     </ConfigProvider>,
   );
-  return { onLogin };
+  return { onLogin, onAdminLogin };
 };
 
 describe("登录页", () => {
@@ -66,12 +72,49 @@ describe("登录页", () => {
     expect(onLogin).not.toHaveBeenCalled();
   });
 
-  it("输入密码后提交带密码", async () => {
-    const { onLogin } = renderLogin();
+  it("输入密码后进入运行模式选择，默认联网模式", async () => {
+    const { onLogin, onAdminLogin } = renderLogin();
     await userEvent.click(screen.getByRole("button", { name: "Admin" }));
     await userEvent.type(screen.getByLabelText("Admin 密码"), "SsrAdmin@2026");
     await userEvent.click(screen.getByRole("button", { name: /登\s*录/ }));
-    expect(onLogin).toHaveBeenCalledWith("admin", "SsrAdmin@2026");
+
+    // 默认联网模式，且还没有真正登录
+    expect(screen.getByRole("radio", { name: /联网模式/ })).toBeChecked();
+    expect(onLogin).not.toHaveBeenCalled();
+    expect(onAdminLogin).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: /继\s*续/ }));
+    expect(onAdminLogin).toHaveBeenCalledWith("SsrAdmin@2026", "online");
+  });
+
+  it("选择本地模式要先确认警告；确认后以本地模式登录", async () => {
+    const { onAdminLogin } = renderLogin();
+    await userEvent.click(screen.getByRole("button", { name: "Admin" }));
+    await userEvent.type(screen.getByLabelText("Admin 密码"), "SsrAdmin@2026");
+    await userEvent.click(screen.getByRole("button", { name: /登\s*录/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /本地模式/ }));
+    await userEvent.click(screen.getByRole("button", { name: /继\s*续/ }));
+
+    expect(screen.getByText("本地模式不会使用共享盘")).toBeInTheDocument();
+    expect(onAdminLogin).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "确认进入本地模式" }));
+    expect(onAdminLogin).toHaveBeenCalledWith("SsrAdmin@2026", "local");
+  });
+
+  it("本地模式警告选「否」退回身份选择界面，不会登录", async () => {
+    const { onAdminLogin } = renderLogin();
+    await userEvent.click(screen.getByRole("button", { name: "Admin" }));
+    await userEvent.type(screen.getByLabelText("Admin 密码"), "SsrAdmin@2026");
+    await userEvent.click(screen.getByRole("button", { name: /登\s*录/ }));
+    await userEvent.click(screen.getByRole("radio", { name: /本地模式/ }));
+    await userEvent.click(screen.getByRole("button", { name: /继\s*续/ }));
+    await userEvent.click(screen.getByRole("button", { name: "否（返回身份选择）" }));
+
+    expect(onAdminLogin).not.toHaveBeenCalled();
+    // 回到组别选择：四个组别方块 + 管理员方块都在，密码框消失
+    expect(screen.getByRole("button", { name: "RA" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Admin" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Admin 密码")).toBeNull();
   });
 });
 

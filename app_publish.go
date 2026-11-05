@@ -33,7 +33,7 @@ func (app *App) RecheckShare() share.Status {
 
 // requireShare 是"要写共享盘"的动作前的闸门：本地模式直接放行；配置了共享盘就必须健康。
 func (app *App) requireShare(action string) error {
-	if !app.shareConfig.Enabled() {
+	if !app.shareEnabled() {
 		return nil
 	}
 	status := app.checkShare()

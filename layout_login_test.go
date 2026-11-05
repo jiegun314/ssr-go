@@ -12,6 +12,28 @@ import (
 
 // TestTheLoginShowsTheSSRLogo 固定"登录页顶部有 SSR 图标"：
 // 图来自 public/logo.png（随 dist 一起打包），必须有 alt（读屏软件可读）。
+// TestTheAdminLoginOffersOnlineAndLocalModes 固定管理员登录的运行模式选择：
+// 默认联网；本地模式必须先确认警告；警告选"否"回到身份选择。
+func TestTheAdminLoginOffersOnlineAndLocalModes(t *testing.T) {
+	screen := readFrontendSource(t, "src/components/LoginScreen.tsx")
+	app := readFrontendSource(t, "src/App.tsx")
+	for _, wanted := range []string{
+		"联网模式（默认）",
+		"本地模式",
+		"本地模式不会使用共享盘",
+		"否（返回身份选择）",
+		"确认进入本地模式",
+		"onAdminLogin",
+	} {
+		if !strings.Contains(screen, wanted) {
+			t.Errorf("登录页缺少运行模式相关的界面：%s", wanted)
+		}
+	}
+	if !strings.Contains(app, `call<LoginResult>("LoginAdmin", password, mode)`) {
+		t.Error("App 应当通过 LoginAdmin(password, mode) 登录管理员")
+	}
+}
+
 func TestTheLoginShowsTheSSRLogo(t *testing.T) {
 	screen := readFrontendSource(t, "src/components/LoginScreen.tsx")
 	styles := readFrontendSource(t, "src/styles.css")

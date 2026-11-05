@@ -20,7 +20,7 @@ import (
 
 // syncOperationLog 把本机日志与共享盘合并一次（调用方持有 app.mu）。
 func (app *App) syncOperationLog() error {
-	if !app.shareConfig.Enabled() || app.log == nil || app.repo == nil {
+	if !app.shareEnabled() || app.log == nil || app.repo == nil {
 		return nil
 	}
 	columns := app.log.TableColumns()
@@ -113,7 +113,7 @@ func sameMatrix(left, right [][]string) bool {
 // reviewLogRows 读「记录导出」的数据：共享盘模式读并集表（没有就回退本机），本地模式读本机。
 func (app *App) reviewLogRows(start string, end string) ([]store.Row, error) {
 	table := app.log.TableName
-	if app.shareConfig.Enabled() {
+	if app.shareEnabled() {
 		if exists, err := app.repo.TableExists(store.ReviewLogTable); err == nil && exists {
 			table = store.ReviewLogTable
 		}
