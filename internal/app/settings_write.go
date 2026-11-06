@@ -302,14 +302,20 @@ func planSettingsChange(raw []byte, document *yaml.Node, policy settingsPolicy, 
 	return settingsEdit{}, fmt.Errorf("未知操作：%s", change.Action)
 }
 
-// SaveSettingsValues 应用一批结构化修改：只改被编辑的行，然后走与「编辑原文」同一条
-// 安全通道（备份 → 写盘 → 整体校验 → 失败还原），成功后热重载配置。
+// SaveSettingsValues 应用一批结构化修改（只有 Admin）：
+// 只改被编辑的行，然后走与「编辑原文」同一条安全通道（备份 → 写盘 → 整体校验 → 失败还原）。
 func (app *App) SaveSettingsValues(key string, changes []SettingsChange) SettingsSaveResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
 	if err := app.authorize(auth.ActionEditSettings); err != nil {
 		return SettingsSaveResult{Failed: true, Message: userMessage(err)}
 	}
+	return app.saveSettingsValuesLocked(key, changes)
+}
+
+// saveSettingsValuesLocked 是 SaveSettingsValues 的无鉴权主体：
+// 共享盘位置（非 Admin 也能改）复用同一条安全写回/校验/热重载通道。
+func (app *App) saveSettingsValuesLocked(key string, changes []SettingsChange) SettingsSaveResult {
 	if app.loader == nil {
 		return SettingsSaveResult{Failed: true, Title: "错误", Message: "配置未加载"}
 	}

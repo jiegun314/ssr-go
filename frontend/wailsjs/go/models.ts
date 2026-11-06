@@ -722,6 +722,24 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class ShareRootInfo {
+	    root: string;
+	    mode: string;
+	    healthy: boolean;
+	    detail: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ShareRootInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.root = source["root"];
+	        this.mode = source["mode"];
+	        this.healthy = source["healthy"];
+	        this.detail = source["detail"];
+	    }
+	}
 	
 	export class State {
 	    version: string;

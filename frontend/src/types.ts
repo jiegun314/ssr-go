@@ -69,6 +69,9 @@ export type NotificationPreview = Data<app.NotificationPreview>;
 /** 更新通知的发送结果 */
 export type NotificationResult = Data<app.NotificationResult>;
 
+/** 共享盘位置（每台机器可不同；所有角色都能设置） */
+export type ShareRootInfo = Data<app.ShareRootInfo>;
+
 export type LoginResult = Omit<Data<app.LoginResult>, "session"> & {
   session?: SessionInfo;
 };

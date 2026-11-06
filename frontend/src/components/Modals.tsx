@@ -24,13 +24,14 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import type { DataNode } from "antd/es/tree";
 import { FileDown, Search } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 import type {
   AboutInfo,
   NotificationPreview,
   ReviewResult,
+  ShareRootInfo,
   SettingsChange,
   SettingsNode,
   SettingsTab,
@@ -535,6 +536,62 @@ export function NotificationModal({ open, preview, sending, onSend, onClose }: N
           ) : null}
         </div>
       ) : null}
+    </Modal>
+  );
+}
+
+type ShareRootModalProps = {
+  open: boolean;
+  info: ShareRootInfo | null;
+  saving: boolean;
+  onSave: (root: string) => void;
+  onClose: () => void;
+};
+
+/**
+ * 「共享盘位置」：非 Admin 唯一能改的设置。
+ * 只写 workflow.yaml 的 share.root；留空 = 本地模式。其它配置仍由 Admin 管理。
+ */
+export function ShareRootModal({ open, info, saving, onSave, onClose }: ShareRootModalProps) {
+  const [root, setRoot] = useState("");
+  // 每次打开时用当前值填充（关闭时未保存的输入不保留）
+  useEffect(() => {
+    if (open) setRoot(info?.root ?? "");
+  }, [open, info?.root]);
+  return (
+    <Modal
+      open={open}
+      title="共享盘位置"
+      width={520}
+      onCancel={saving ? undefined : onClose}
+      footer={[
+        <Button key="cancel" disabled={saving} onClick={onClose}>
+          取消
+        </Button>,
+        <Button key="save" type="primary" loading={saving} onClick={() => onSave(root)}>
+          保存
+        </Button>,
+      ]}
+    >
+      <div className="share-root-form">
+        <Typography.Paragraph type="secondary" className="share-root-hint">
+          本机使用的共享盘路径（每台电脑可以不同）。留空表示本地模式。
+          只修改这一项，其它设置仍由 Admin 维护。
+        </Typography.Paragraph>
+        <Input
+          aria-label="共享盘位置"
+          placeholder="例如 C:\SSRShare 或 \\server\share"
+          value={root}
+          disabled={saving}
+          onChange={(event) => setRoot(event.target.value)}
+          onPressEnter={() => onSave(root)}
+        />
+        {info?.detail ? (
+          <Typography.Paragraph type="secondary" className="share-root-status">
+            当前状态：{info.detail}
+          </Typography.Paragraph>
+        ) : null}
+      </div>
     </Modal>
   );
 }

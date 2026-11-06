@@ -41,6 +41,7 @@ import {
   HiddenModal,
   NotificationModal,
   ReviewModal,
+  ShareRootModal,
   SettingsModal,
 } from "./components/Modals";
 import type {
@@ -61,6 +62,7 @@ import type {
   LoginRole,
   SessionInfo,
   ShareOverview,
+  ShareRootInfo,
   ShareStatus,
   SourceStatus,
   ReviewResult,
@@ -111,6 +113,10 @@ export default function App() {
   const reviewSession = useRef<ReviewSession | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 非 Admin 只能改「共享盘位置」；Admin 走完整参数设定
+  const [shareRootOpen, setShareRootOpen] = useState(false);
+  const [shareRootInfo, setShareRootInfo] = useState<ShareRootInfo | null>(null);
+  const [savingShareRoot, setSavingShareRoot] = useState(false);
   const [tabs, setTabs] = useState<SettingsTab[]>([]);
   const [activeTab, setActiveTab] = useState("");
   const [editing, setEditing] = useState(false);
@@ -582,6 +588,14 @@ export default function App() {
   /* ---------- 参数设定 ---------- */
 
   const openSettings = useCallback(async () => {
+    // 只有 Admin 能改完整配置；其它角色只允许设置本机的共享盘位置
+    if (!can("settings:write")) {
+      const info = await call<ShareRootInfo>("GetShareRoot");
+      if (!info) return;
+      setShareRootInfo(info);
+      setShareRootOpen(true);
+      return;
+    }
     const loaded = await call<SettingsTab[]>("ConfigurationDocument");
     if (!Array.isArray(loaded) || loaded.length === 0) {
       fail("Error", "无法读取配置文件");
@@ -593,7 +607,21 @@ export default function App() {
     setTreePath([]);
     setExpandedKeys(defaultExpandedKeys(loaded[0].tree));
     setSettingsOpen(true);
-  }, [fail]);
+  }, [can, fail]);
+
+  const saveShareRoot = useCallback(
+    async (root: string) => {
+      setSavingShareRoot(true);
+      const result = await call<SettingsSaveResult>("SaveShareRoot", root);
+      setSavingShareRoot(false);
+      if (!result) return;
+      setMessage({ title: result.title, message: result.message, failed: result.failed });
+      if (result.failed) return;
+      setShareRootOpen(false);
+      await refreshInitial();
+    },
+    [refreshInitial],
+  );
 
   const selectTab = useCallback(
     (key: string) => {
@@ -1021,6 +1049,13 @@ export default function App() {
         onSave={saveSettings}
         onSaveValues={saveSettingsValues}
         onClose={() => setSettingsOpen(false)}
+      />
+      <ShareRootModal
+        open={shareRootOpen}
+        info={shareRootInfo}
+        saving={savingShareRoot}
+        onSave={(root) => void saveShareRoot(root)}
+        onClose={() => setShareRootOpen(false)}
       />
       <AboutModal
         open={aboutOpen}

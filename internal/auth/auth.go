@@ -76,6 +76,8 @@ const (
 	ActionEditSettings Action = "settings:write"
 	// 共享盘地址、人员名单等：只给 Admin。
 	ActionManageShare Action = "share:write"
+	// 共享盘位置（每台机器可不同）：所有角色都可以设置；其余配置仍只有 Admin 能改。
+	ActionSetShareRoot Action = "share:root"
 	// 看别人的来源明细（只有 SC / Admin）。
 	ActionReviewAny Action = "review:any"
 	// 看全部审计（SC / Admin）。
@@ -84,16 +86,17 @@ const (
 
 // matrix 是"角色 → 允许的动作"的唯一口径（设计文档 §12）。
 var matrix = map[Role][]Action{
-	RoleRA:   {ActionImportRA},
-	RoleEAMA: {ActionImportEAMA},
-	RoleUDI:  {ActionImportUDI},
+	RoleRA:   {ActionImportRA, ActionSetShareRoot},
+	RoleEAMA: {ActionImportEAMA, ActionSetShareRoot},
+	RoleUDI:  {ActionImportUDI, ActionSetShareRoot},
 	RoleSupplyChain: {
-		ActionAlign, ActionConsolidate, ActionExport, ActionViewSettings, ActionReviewAny, ActionViewAuditAny,
+		ActionAlign, ActionConsolidate, ActionExport, ActionViewSettings,
+		ActionReviewAny, ActionViewAuditAny, ActionSetShareRoot,
 	},
 	RoleAdmin: {
 		ActionImportRA, ActionImportEAMA, ActionImportUDI,
 		ActionAlign, ActionConsolidate, ActionExport, ActionClearData,
-		ActionViewSettings, ActionEditSettings, ActionManageShare,
+		ActionViewSettings, ActionEditSettings, ActionManageShare, ActionSetShareRoot,
 		ActionReviewAny, ActionViewAuditAny,
 	},
 }

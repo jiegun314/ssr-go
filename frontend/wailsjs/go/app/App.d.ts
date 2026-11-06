@@ -29,6 +29,8 @@ export function ExportDiagnostics():Promise<app.DiagnosticsResult>;
 
 export function ExportReviewData(arg1:string,arg2:string):Promise<app.ExportResult>;
 
+export function GetShareRoot():Promise<app.ShareRootInfo>;
+
 export function ImportSource(arg1:string,arg2:string):Promise<app.ImportResult>;
 
 export function ImportState(arg1:string):Promise<app.ImportState>;
@@ -66,6 +68,8 @@ export function ReviewSource(arg1:string,arg2:number,arg3:number,arg4:string):Pr
 export function SaveConfigurationFile(arg1:string,arg2:string):Promise<app.SettingsSaveResult>;
 
 export function SaveSettingsValues(arg1:string,arg2:Array<app.SettingsChange>):Promise<app.SettingsSaveResult>;
+
+export function SaveShareRoot(arg1:string):Promise<app.SettingsSaveResult>;
 
 export function SelectExportTarget():Promise<app.ExportTarget>;
 

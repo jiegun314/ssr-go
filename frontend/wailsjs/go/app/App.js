@@ -54,6 +54,10 @@ export function ExportReviewData(arg1, arg2) {
   return window['go']['app']['App']['ExportReviewData'](arg1, arg2);
 }
 
+export function GetShareRoot() {
+  return window['go']['app']['App']['GetShareRoot']();
+}
+
 export function ImportSource(arg1, arg2) {
   return window['go']['app']['App']['ImportSource'](arg1, arg2);
 }
@@ -128,6 +132,10 @@ export function SaveConfigurationFile(arg1, arg2) {
 
 export function SaveSettingsValues(arg1, arg2) {
   return window['go']['app']['App']['SaveSettingsValues'](arg1, arg2);
+}
+
+export function SaveShareRoot(arg1) {
+  return window['go']['app']['App']['SaveShareRoot'](arg1);
 }
 
 export function SelectExportTarget() {

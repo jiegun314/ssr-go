@@ -46,8 +46,8 @@ func TestPermissionMatrix(t *testing.T) {
 
 func TestActionsAreSortedAndStable(t *testing.T) {
 	actions := Actions(RoleRA)
-	if len(actions) != 1 || actions[0] != string(ActionImportRA) {
-		t.Fatalf("RA 的动作 = %v", actions)
+	if len(actions) != 2 || actions[0] != string(ActionImportRA) || actions[1] != string(ActionSetShareRoot) {
+		t.Fatalf("RA 的动作 = %v（应为导入自己的来源 + 设置共享盘位置）", actions)
 	}
 	admin := Actions(RoleAdmin)
 	for index := 1; index < len(admin); index++ {
