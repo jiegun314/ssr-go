@@ -79,6 +79,11 @@ type ImportPanelProps = {
   onNotify: (source: string) => void;
   /** 本次会话里已经发过通知的来源（图标换成 MailCheck） */
   notified?: Record<string, boolean>;
+  /**
+   * 是否显示「邮件通知」按钮：RA/EAMA/UDI（以及单机模式）显示；Supply Chain / Admin 不显示。
+   * 显示的栏目里，没有该来源导入权限的按钮置灰。
+   */
+  showNotify?: boolean;
   onReview: (source: string) => void;
   /** 「查看清洗后数据」：只有声明了 clean 的来源才会有这个按钮 */
   onReviewCleaned: (source: string) => void;
@@ -107,6 +112,7 @@ export function ImportPanel({
   onImport,
   onNotify,
   notified = {},
+  showNotify = false,
   onReview,
   onReviewCleaned,
 }: ImportPanelProps) {
@@ -169,36 +175,38 @@ export function ImportPanel({
                 ) : (
                   <>
                     {canImport ? (
-                      <>
-                        <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
-                          <Button
-                            type="text"
-                            aria-label="载入文件"
-                            icon={<FileSpreadsheet size={16} />}
-                            disabled={locked}
-                            onClick={() => onImport(source.key)}
-                          />
-                        </Tooltip>
-                        <Tooltip
-                          title={
-                            !localExists
+                      <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
+                        <Button
+                          type="text"
+                          aria-label="载入文件"
+                          icon={<FileSpreadsheet size={16} />}
+                          disabled={locked}
+                          onClick={() => onImport(source.key)}
+                        />
+                      </Tooltip>
+                    ) : null}
+                    {showNotify ? (
+                      <Tooltip
+                        title={
+                          !canImport
+                            ? "当前身份没有这个来源的导入权限"
+                            : !localExists
                               ? "导入后可发送更新通知"
                               : notified[source.key]
                                 ? "已发送通知（可再次发送）"
                                 : "邮件通知 Supply Chain / Admin"
+                        }
+                      >
+                        <Button
+                          type="text"
+                          aria-label="邮件通知"
+                          icon={
+                            notified[source.key] ? <MailCheck size={16} /> : <Mail size={16} />
                           }
-                        >
-                          <Button
-                            type="text"
-                            aria-label="邮件通知"
-                            icon={
-                              notified[source.key] ? <MailCheck size={16} /> : <Mail size={16} />
-                            }
-                            disabled={!localExists}
-                            onClick={() => onNotify(source.key)}
-                          />
-                        </Tooltip>
-                      </>
+                          disabled={!canImport || !localExists}
+                          onClick={() => onNotify(source.key)}
+                        />
+                      </Tooltip>
                     ) : null}
                     {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
                     <Typography.Text

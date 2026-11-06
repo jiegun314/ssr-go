@@ -56,8 +56,8 @@ func TestSendImportNotificationToSupplyChainAndAdmin(t *testing.T) {
 	if len(preview.To) != 2 || preview.To[0] != "sc@example.com" || preview.To[1] != "admin@example.com" {
 		t.Errorf("收件人应当是 Supply Chain + Admin：%v", preview.To)
 	}
-	if !strings.Contains(preview.Subject, "RA信息") {
-		t.Errorf("邮件主题缺少来源：%s", preview.Subject)
+	if preview.Subject != "SSR数据更新 - RA" {
+		t.Errorf("邮件主题应当是 SSR数据更新 - RA：%s", preview.Subject)
 	}
 	if !strings.Contains(preview.Body, "数据量：6 行") || !strings.Contains(preview.Body, "导入时间：") {
 		t.Errorf("邮件正文缺少时间/数据量：\n%s", preview.Body)
@@ -79,6 +79,17 @@ func TestSendImportNotificationToSupplyChainAndAdmin(t *testing.T) {
 	}
 	if !strings.Contains(message.Body, "RA信息") {
 		t.Errorf("正文缺少来源：\n%s", message.Body)
+	}
+}
+
+func TestNotificationTeamLabels(t *testing.T) {
+	for source, want := range map[string]string{
+		"ra_input": "SSR数据更新 - RA", "product_category": "SSR数据更新 - EAMA",
+		"medical_insurance_code": "SSR数据更新 - EAMA", "global_udi_input": "SSR数据更新 - UDI",
+	} {
+		if got := teamLabel(source); "SSR数据更新 - "+got != want {
+			t.Errorf("%s 的团队标签不对：%s", source, got)
+		}
 	}
 }
 

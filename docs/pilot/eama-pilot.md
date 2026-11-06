@@ -24,8 +24,8 @@
 
 **导入完数据后发通知**
 
-- RA / EAMA / UDI 导入成功后，来源卡片上的「邮件通知」按钮会激活；
-- 点开后先核对收件人（Supply Chain / Admin）、主题与正文，再点「发送邮件」；
+- RA / EAMA / UDI 导入成功后，来源卡片上的「邮件通知」按钮会激活；Supply Chain / Admin 登录时不显示该按钮；
+- 点开后先核对收件人（Supply Chain / Admin）、主题（`SSR数据更新 - EAMA`）与正文，再点「发送邮件」；
 - 邮件通过本机 Outlook 发出；若现场 Outlook 被安全策略限制自动发送，可在
   `workflow.yaml` 把 `email.send_mode` 改成 `draft`，之后会打开草稿由人工点发送。
 

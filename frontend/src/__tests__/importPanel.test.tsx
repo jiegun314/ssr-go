@@ -30,6 +30,7 @@ const renderPanel = (
     viewable?: string[];
     shareInfo?: Record<string, import("../types").SourceStatus>;
     alignMode?: boolean;
+    showNotify?: boolean;
   } = {},
 ) => {
   const onImport = vi.fn();
@@ -48,6 +49,7 @@ const renderPanel = (
           locked={locked}
           onImport={onImport}
           onNotify={onNotify}
+          showNotify={options.showNotify ?? true}
           onReview={onReview}
           onReviewCleaned={onReviewCleaned}
         />
@@ -208,5 +210,23 @@ describe("数据导入区的邮件通知入口", () => {
     expect(button).toBeEnabled();
     await userEvent.click(button);
     expect(onNotify).toHaveBeenCalledWith("ra_input");
+  });
+});
+
+describe("邮件通知按钮的显示范围", () => {
+  it("Supply Chain / Admin 登录时不显示按钮", () => {
+    renderPanel({ ra_input: importedState() }, false, { showNotify: false });
+    expect(screen.queryByRole("button", { name: "邮件通知" })).toBeNull();
+  });
+
+  it("没有该来源导入权限时按钮可见但不可用", () => {
+    renderPanel({ ra_input: importedState(), product_category: importedState() }, false, {
+      importable: ["ra_input"],
+      showNotify: true,
+    });
+    const allowed = within(sourceRow("RA信息")).getByRole("button", { name: "邮件通知" });
+    const denied = within(sourceRow("产品类别")).getByRole("button", { name: "邮件通知" });
+    expect(allowed).toBeEnabled();
+    expect(denied).toBeDisabled();
   });
 });

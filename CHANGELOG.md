@@ -7,6 +7,38 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.0] - 2026-11-06
+
+数据更新邮件通知：RA / EAMA / UDI 导入完数据后，一键把本次推送的时间、数据量与基础信息
+通过本机 Outlook 发给 Supply Chain 与 Admin 同事。
+
+### 新增
+
+- **导入卡片「邮件通知」按钮**：RA/EAMA/UDI 导入成功后激活；点击先预览收件人、主题与正文，
+  确认后通过本机 Microsoft Outlook 直接发送（Windows 用 Outlook COM，macOS 用 AppleScript）；
+  本次会话发过之后图标变为已发送状态，可再次发送。
+- **邮件主题固定**：`SSR数据更新 - RA` / `SSR数据更新 - EAMA` / `SSR数据更新 - UDI`；
+  正文含数据来源、导入时间、数据量（RA 另含清洗后行数）、文件名、发布版本、操作人/机器、
+  共享盘状态与发送时间。
+- **收件人**：`workflow.yaml` 的 `recipients.supply_chain` + `recipients.admins`；
+  某组为空时回退到 `users.yaml` 里对应角色的邮箱（同一地址自动去重）。
+- **按钮可见性**：Supply Chain 与 Admin 登录时不显示「邮件通知」按钮；RA/EAMA/UDI 用户在每个
+  来源都看到按钮，没有该来源导入权限的按钮置灰。单机模式保留按钮。
+- 发送结果写审计与操作日志；发送失败时提示检查 Outlook 登录或改用草稿模式。
+
+### 变更
+
+- `workflow.yaml` 新增 `email.send_mode: send | draft`（默认 `send` 直接发送，`draft` 打开草稿
+  手动发送）；`email.transport` 支持 `outlook`（默认模板已改为 outlook，不再走 SMTP）。
+  旧值 `smtp` / `graph` / `outbox` 保留可读，但当前不实现。
+
+### 验证
+
+- Go：新增通知测试（收件人与回退、未导入、无收件人、通道关闭、权限、draft 模式、主题团队名）；
+- 前端：导入栏按钮启用/禁用/隐藏、通知确认窗共 89 例通过；
+- `go test -count=1 ./...`、`make check` 退出码 0、`wails build` 成功；
+- 发布包在两个平台构建由 CI 校验。
+
 ## [3.0.5] - 2026-11-05
 
 项目结构重整：应用代码与测试收进 `internal/app`，根目录只保留入口与工程文件。
@@ -522,7 +554,8 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.0.5...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/jiegun314/ssr-go/compare/v3.0.5...v3.1.0
 [3.0.5]: https://github.com/jiegun314/ssr-go/compare/v3.0.3...v3.0.5
 [3.0.3]: https://github.com/jiegun314/ssr-go/compare/v3.0.1...v3.0.3
 [3.0.1]: https://github.com/jiegun314/ssr-go/compare/v3.0.0...v3.0.1

@@ -752,6 +752,10 @@ export default function App() {
                 onImport={handleImport}
                 onNotify={handleNotify}
                 notified={notified}
+                showNotify={
+                  Boolean(session?.singleUser) ||
+                  ["ra", "eama", "udi"].includes(session?.role ?? "")
+                }
                 onReview={openSourceReview}
                 onReviewCleaned={openCleanedReview}
               />

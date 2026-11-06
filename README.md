@@ -118,9 +118,10 @@ Excel 来源 ×4 → （配置校验：表头 / 必填 / 条件必填 / 值归�
   `consolidated/<id>/`；未对齐时整合置灰；
 - 状态、待整合、最后整合时间显示在底部状态栏与「数据对齐」；无整合权限的身份只读；
 - **部门更新邮件通知**：RA / EAMA / UDI 导入完成后，来源卡片上出现「邮件通知」按钮；
-  点击先预览收件人、主题与正文，确认后通过**本机 Microsoft Outlook** 发给 Supply Chain 与 Admin
-  （收件人取 `workflow.yaml` 的 `recipients.supply_chain` / `recipients.admins`，没填时回退到
-  `users.yaml` 里对应角色的邮箱；`email.send_mode: send` 直接发送，`draft` 打开草稿手动发送）；
+  点击先预览收件人、主题与正文，确认后通过**本机 Microsoft Outlook** 直接发给 Supply Chain 与 Admin
+  （主题 `SSR数据更新 - RA/EAMA/UDI`；收件人取 `workflow.yaml` 的 `recipients.supply_chain` /
+  `recipients.admins`，没填时回退到 `users.yaml` 里对应角色的邮箱；`send` 为默认，`draft` 可选）；
+  **Supply Chain / Admin 登录时不显示按钮；RA/EAMA/UDI 用户看到所有来源的按钮，没有导入权限的置灰**；
 - 「记录导出」全量同步；「运行状态」可查共享盘、审计、清理旧版本、导出诊断包；
 - 详细设计见 [`docs/design/multiuser-workflow.md`](docs/design/multiuser-workflow.md)，
   EAMA 试点手册见 [`docs/pilot/eama-pilot.md`](docs/pilot/eama-pilot.md)。

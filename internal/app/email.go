@@ -197,12 +197,8 @@ func (app *App) buildNotification(source string) notificationContent {
 		"",
 		"发送时间："+time.Now().Format("2006/01/02 15:04"),
 	)
-	subjectTime := state.ImportTime
-	if subjectTime == "" {
-		subjectTime = time.Now().Format("2006/01/02 15:04")
-	}
 	content.to = to
-	content.subject = fmt.Sprintf("【SSR】%s数据已更新（%s）", rule.ChineseName, subjectTime)
+	content.subject = "SSR数据更新 - " + teamLabel(source)
 	content.body = strings.Join(bodyLines, "\n")
 	content.ready = true
 	return content
@@ -238,4 +234,19 @@ func (app *App) notificationRecipients() []string {
 		}
 	}
 	return result
+}
+
+// teamLabel 是邮件主题里的团队名：RA / EAMA / UDI。
+// EAMA 的两个来源（产品类别、医保代码）都归到 EAMA。
+func teamLabel(source string) string {
+	switch source {
+	case "ra_input":
+		return "RA"
+	case "product_category", "medical_insurance_code":
+		return "EAMA"
+	case "global_udi_input":
+		return "UDI"
+	default:
+		return source
+	}
 }

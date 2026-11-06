@@ -137,13 +137,15 @@
   但需要重新出一份）；整合/清理前先查共享盘，断盘时直接给中文提示；同一来源 10 分钟内被
   别人发布覆盖时写日志与 `publish/warning` 审计。EAMA 试点手册见 `docs/pilot/eama-pilot.md`。
 - **数据更新邮件通知（P7 第一步）**：RA/EAMA/UDI 导入成功后，导入卡片上的「邮件通知」按钮激活；
-  点击先 `PreviewImportNotification` 预览（收件人/主题/正文），确认后 `SendImportNotification`
-  通过**本机 Outlook** 发送（`internal/mail`：Windows PowerShell COM、macOS AppleScript；
-  `send` 直接发、`draft` 打开草稿）。收件人 = `workflow.yaml` 的 `recipients.supply_chain` +
-  `recipients.admins`，某组为空时回退到 `users.yaml` 里对应角色的邮箱；正文含导入时间、数据量
-  （RA 另含清洗后行数）、发布版本、操作人、共享盘状态与文件名；发送结果写审计与操作日志。
-  配置：`email.transport: outlook`（默认）、`email.send_mode: send|draft`；旧值 smtp/graph/outbox
-  仍可读但不实现。
+  点击先 `PreviewImportNotification` 预览，确认后 `SendImportNotification` 通过**本机 Outlook**
+  直接发送（`internal/mail`：Windows PowerShell COM、macOS AppleScript；`draft` 可选，打开草稿）。
+  主题固定为 `SSR数据更新 - RA` / `SSR数据更新 - EAMA` / `SSR数据更新 - UDI`；
+  收件人 = `workflow.yaml` 的 `recipients.supply_chain` + `recipients.admins`，某组为空时回退到
+  `users.yaml` 里对应角色的邮箱；正文含导入时间、数据量（RA 另含清洗后行数）、发布版本、
+  操作人、共享盘状态与文件名；发送结果写审计与操作日志。
+  **按钮可见性**：RA/EAMA/UDI 用户（以及单机模式）在每个来源都看到按钮，没有该来源导入权限的
+  置灰；Supply Chain 与 Admin 登录时不显示按钮。配置：`email.transport: outlook`（默认）、
+  `email.send_mode: send|draft`；旧值 smtp/graph/outbox 仍可读但不实现。
 - **导入第一步删除失效注册证**（来源的 `drop_expired.field`，当前只用于 RA）：导入时先按
   `RA失效日期` 过滤 —— 日期早于今天的行整行丢弃（今天到期仍保留；空值/无法解析的值保留），
   原文表、清洗表、发布快照都不再包含这些行；**对齐共享盘快照时也会再过滤一次**
