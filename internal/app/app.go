@@ -153,6 +153,8 @@ func (app *App) startup(ctx context.Context) {
 	} else if note != "" {
 		app.appendLog(LogWarning, note)
 	}
+	// 人员名单：启动时从共享盘拉取（Admin 保存后的发布在 settings / 登录时处理）
+	app.syncUsersFromShare("startup")
 	setting, err := loader.LoadSetting()
 	if err != nil {
 		app.fail("配置错误：" + err.Error())

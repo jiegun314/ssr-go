@@ -310,7 +310,11 @@ func (app *App) SaveSettingsValues(key string, changes []SettingsChange) Setting
 	if err := app.authorize(auth.ActionEditSettings); err != nil {
 		return SettingsSaveResult{Failed: true, Message: userMessage(err)}
 	}
-	return app.saveSettingsValuesLocked(key, changes)
+	result := app.saveSettingsValuesLocked(key, changes)
+	if !result.Failed && key == config.UsersFile {
+		app.afterUsersSaved(&result)
+	}
+	return result
 }
 
 // saveSettingsValuesLocked 是 SaveSettingsValues 的无鉴权主体：

@@ -90,6 +90,10 @@
   **共享盘位置（`share.root`）每台机器可不同**：所有角色都有 `share:root` 动作，
   在「设置 → 参数设定」里只改这一项（留空 = 本地模式），复用结构化写回/校验/热重载通道；
   其余配置仍只有 Admin 有 `settings:write`。非 Admin 打开参数设定时只出现这个单字段弹窗。
+  **人员名单同步**：Admin 保存 `users.yaml` 后发布到 `<share>/config/users.yaml` +
+  `users.manifest.json`（sha256/版本/操作人；最后保存的 Admin 为准）；其它电脑在启动/登录时
+  校验 manifest 并拉取，本机有未同步改动（pending 标记）时不覆盖；共享盘不可用时保持本机，
+  Admin 下次登录自动重试发布。实现见 `internal/usersync` 与 `internal/app/users_sync.go`。
   **管理员登录时可选运行模式**：默认联网（用共享盘）；选本地模式要先确认警告，确认后本次
   会话 `app.localMode = true`（所有 `shareEnabled()` 检查为假：不发布/不对齐/不门禁/不同步日志），
   警告选"否"退回身份选择；`Logout` 与其它角色登录都会复位为联网。

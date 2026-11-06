@@ -367,10 +367,14 @@ func (app *App) SaveConfigurationFile(key string, content string) SettingsSaveRe
 			Message: "配置校验失败，已还原为保存前的内容：\n" + err.Error(), Backup: backup}
 	}
 	app.appendLog(LogSuccess, "配置已保存："+key)
-	return SettingsSaveResult{
+	result := SettingsSaveResult{
 		Title: "成功",
 		Message: "配置已保存：" + key + "\n原文件已备份为 " + backup +
 			"\n注意：改动在重启程序后生效。",
 		Backup: backup,
 	}
+	if key == config.UsersFile {
+		app.afterUsersSaved(&result)
+	}
+	return result
 }

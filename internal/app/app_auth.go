@@ -101,6 +101,8 @@ func (app *App) Login(role string, password string) LoginResult {
 		Username: username, Machine: auth.CurrentMachine(), At: auth.Now(),
 	}
 	status := app.checkShare()
+	// 人员名单：登录时检查共享盘有没有 Admin 的新版本（只拉不推）
+	app.syncUsersFromShare("login")
 	// 登录后把操作日志与共享盘合并一次：换一台电脑也能看到全量的「记录导出」
 	if err := app.syncOperationLog(); err != nil {
 		app.appendLog(LogWarning, "登录后同步操作日志失败："+err.Error())
@@ -146,6 +148,8 @@ func (app *App) LoginAdmin(password string, mode string) LoginResult {
 		Username: username, Machine: auth.CurrentMachine(), At: auth.Now(),
 	}
 	status := app.checkShare()
+	// 人员名单：Admin 登录时若有 pending 保存会重试发布，否则拉取共享盘版本
+	app.syncUsersFromShare("login")
 	if app.shareEnabled() {
 		// 联网模式：登录后把操作日志与共享盘合并一次
 		if err := app.syncOperationLog(); err != nil {

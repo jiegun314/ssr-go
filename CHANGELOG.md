@@ -7,6 +7,34 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.1] - 2026-11-06
+
+设置权限细化：非 Admin 也能设置本机共享盘位置；人员名单改由 Admin 统一维护并同步到
+其它电脑。
+
+### 新增
+
+- **非 Admin 设置共享盘位置**：RA / EAMA / UDI / Supply Chain 打开「设置 → 参数设定」时
+  只出现「共享盘位置」单字段弹窗，只修改本机 `share.root`（留空 = 本地模式）；
+  其它配置文件仍然只有 Admin 能改。保存复用结构化写回通道（备份 → 写盘 → 整体校验 →
+  失败还原 → 热重载），注释/键序/其它键原样保留。
+- **Admin 维护人员名单并同步**：Admin 保存 `users.yaml` 后自动发布到
+  `<share>/config/users.yaml` + `users.manifest.json`（sha256 / 版本 / 操作人）；
+  其它电脑在启动/登录时校验 manifest 并拉取，更新本机人员名单（登录页角色随之更新）。
+- 本机有未同步改动（例如 Admin 离线保存）时不会被共享盘覆盖；共享盘不可用时保持本机名单，
+  Admin 下次登录自动重试发布。
+
+### 变更
+
+- 权限矩阵新增 `share:root`（所有角色）；`settings:write` 仍只属于 Admin。
+- 共享盘位置填 `https://...sharepoint.com/...` 时会提示先用 OneDrive 同步成本地文件夹。
+
+### 验证
+
+- Go：各角色共享盘位置权限、RA 不能改其它配置、SharePoint 地址拒绝、人员名单发布/拉取/
+  pending 重试/防覆盖、`internal/usersync` 校验与篡改检测；
+- 前端：共享盘位置弹窗 2 例；`npm test` 91 例、`go test ./...`、`make check`、`wails build` 全绿。
+
 ## [3.1.0] - 2026-11-06
 
 数据更新邮件通知：RA / EAMA / UDI 导入完数据后，一键把本次推送的时间、数据量与基础信息
@@ -554,7 +582,8 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.0...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.1...HEAD
+[3.1.1]: https://github.com/jiegun314/ssr-go/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/jiegun314/ssr-go/compare/v3.0.5...v3.1.0
 [3.0.5]: https://github.com/jiegun314/ssr-go/compare/v3.0.3...v3.0.5
 [3.0.3]: https://github.com/jiegun314/ssr-go/compare/v3.0.1...v3.0.3
