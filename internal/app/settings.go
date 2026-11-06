@@ -81,7 +81,8 @@ recipients:
   supply_chain: []
   admins: []
 email:
-  transport: disabled               # disabled | smtp | graph | outbox
+  transport: outlook                # disabled | outlook（本机 Outlook）
+  send_mode: send                   # send | draft（draft = 打开草稿手动发送）
 `
 
 // usersTemplate 是"还没有 users.yaml"时给「人员名单」页签的初始内容（保存即创建）。

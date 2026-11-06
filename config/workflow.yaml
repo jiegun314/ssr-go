@@ -18,11 +18,12 @@ consolidation:
   on_new_version_during_run: warn   # warn | auto_rerun | block
   skip_unchanged: true
 
-# 邮件在 P7 才实现；先占位，transport 保持 disabled。
+# 邮件通知：通过本机 Outlook 发送（不依赖 SMTP 服务器）。
 recipients:
   ra_receivers: []            # 整合结果接收人（可多个，后续在参数设定里维护）
   supply_chain: []
   admins: []
 
 email:
-  transport: disabled         # disabled | smtp | graph | outbox
+  transport: outlook
+  send_mode: send              # send | draft（draft = 打开草稿手动发送）

@@ -626,9 +626,16 @@ func ValidateWorkflow(document map[string]any) error {
 	email, _ := document["email"].(map[string]any)
 	transport, _ := email["transport"].(string)
 	switch strings.TrimSpace(transport) {
-	case "", "disabled", "smtp", "graph", "outbox":
+	case "", "disabled", "outlook", "smtp", "graph", "outbox":
+		// smtp / graph / outbox 是旧版占位值，保留可读（当前只实现 outlook）
 	default:
-		return fmt.Errorf("workflow.yaml 的 email.transport 只能是 disabled / smtp / graph / outbox：%s", transport)
+		return fmt.Errorf("workflow.yaml 的 email.transport 只能是 disabled / outlook：%s", transport)
+	}
+	sendMode, _ := email["send_mode"].(string)
+	switch strings.TrimSpace(sendMode) {
+	case "", "send", "draft":
+	default:
+		return fmt.Errorf("workflow.yaml 的 email.send_mode 只能是 send / draft：%s", sendMode)
 	}
 	consolidation, _ := document["consolidation"].(map[string]any)
 	strategy, _ := consolidation["on_new_version_during_run"].(string)

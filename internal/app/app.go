@@ -15,6 +15,7 @@ import (
 	"github.com/jiegun314/ssr-go/internal/configsnapshot"
 	"github.com/jiegun314/ssr-go/internal/consolidation"
 	"github.com/jiegun314/ssr-go/internal/importer"
+	"github.com/jiegun314/ssr-go/internal/mail"
 	"github.com/jiegun314/ssr-go/internal/numfmt"
 	"github.com/jiegun314/ssr-go/internal/paths"
 	"github.com/jiegun314/ssr-go/internal/share"
@@ -77,6 +78,8 @@ type App struct {
 	singleUser  bool
 	shareConfig share.Config
 	shareStatus share.Status
+	// mailer 是本机 Outlook 发送器（测试注入假实现，避免真的弹邮件）。
+	mailer mail.Sender
 	// lastLogSync 是上一次操作日志同步的时间（轮询时节流用）。
 	lastLogSync time.Time
 	// shareLayoutDone 表示本进程已经补齐过共享盘骨架（首次健康检查后只做一次）。
@@ -93,6 +96,8 @@ type ImportState struct {
 	Tooltip    string `json:"tooltip"`
 	RowCount   int    `json:"rowCount"`
 	ImportTime string `json:"importTime"`
+	// FileName 是最近一次导入的文件名（邮件通知里会带上）。
+	FileName string `json:"fileName,omitempty"`
 }
 
 // State 是界面启动时需要的全部状态。
@@ -228,6 +233,7 @@ func (app *App) wireConfiguration(loader *config.Loader) (string, error) {
 		return "", fmt.Errorf("配置错误：%w", err)
 	}
 	app.shareConfig = shareConfig
+	app.mailer = mail.NewOutlookSender(shareConfig.EmailMode)
 
 	app.loader = loader
 	app.importer = importerValue
@@ -405,6 +411,7 @@ func (app *App) markImported(source string, fileName string) {
 		Tooltip:    fmt.Sprintf("最近导入：%s，%s 行", importTime, formatCount(count)),
 		RowCount:   count,
 		ImportTime: importTime,
+		FileName:   fileName,
 	}
 	app.appendLog(LogSuccess, fmt.Sprintf("%s导入成功，共 %s 行",
 		app.importer.Rules[source].ChineseName, formatCount(count)))

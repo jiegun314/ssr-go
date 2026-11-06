@@ -37,6 +37,7 @@ export namespace app {
 	    tooltip: string;
 	    rowCount: number;
 	    importTime: string;
+	    fileName?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ImportState(source);
@@ -50,6 +51,7 @@ export namespace app {
 	        this.tooltip = source["tooltip"];
 	        this.rowCount = source["rowCount"];
 	        this.importTime = source["importTime"];
+	        this.fileName = source["fileName"];
 	    }
 	}
 	export class AlignResult {
@@ -411,6 +413,54 @@ export namespace app {
 	        this.label = source["label"];
 	        this.hint = source["hint"];
 	        this.needsPassword = source["needsPassword"];
+	    }
+	}
+	export class NotificationPreview {
+	    source: string;
+	    to: string[];
+	    subject: string;
+	    body: string;
+	    transport: string;
+	    mode: string;
+	    ready: boolean;
+	    reason?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NotificationPreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.to = source["to"];
+	        this.subject = source["subject"];
+	        this.body = source["body"];
+	        this.transport = source["transport"];
+	        this.mode = source["mode"];
+	        this.ready = source["ready"];
+	        this.reason = source["reason"];
+	    }
+	}
+	export class NotificationResult {
+	    failed: boolean;
+	    title: string;
+	    message: string;
+	    to?: string[];
+	    mode?: string;
+	    log: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NotificationResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.failed = source["failed"];
+	        this.title = source["title"];
+	        this.message = source["message"];
+	        this.to = source["to"];
+	        this.mode = source["mode"];
+	        this.log = source["log"];
 	    }
 	}
 	export class ReviewResult {

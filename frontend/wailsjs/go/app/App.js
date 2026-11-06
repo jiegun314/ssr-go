@@ -94,6 +94,10 @@ export function OpenExportDirectory() {
   return window['go']['app']['App']['OpenExportDirectory']();
 }
 
+export function PreviewImportNotification(arg1) {
+  return window['go']['app']['App']['PreviewImportNotification'](arg1);
+}
+
 export function Quit() {
   return window['go']['app']['App']['Quit']();
 }
@@ -136,6 +140,10 @@ export function SelectImportFile(arg1) {
 
 export function SelectReviewExportTarget(arg1) {
   return window['go']['app']['App']['SelectReviewExportTarget'](arg1);
+}
+
+export function SendImportNotification(arg1) {
+  return window['go']['app']['App']['SendImportNotification'](arg1);
 }
 
 export function ShareOverview() {

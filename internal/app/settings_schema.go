@@ -103,7 +103,10 @@ func settingsPolicyFor(fileKey string) settingsPolicy {
 					note: "有部门更新数据时的通知收件人"},
 				{match: "recipients.admins", label: "管理员收件人"},
 				{match: "email.transport", label: "邮件通道",
-					control: "select", options: []string{"disabled", "smtp", "graph", "outbox"}},
+					control: "select", options: []string{"disabled", "outlook"}},
+				{match: "email.send_mode", label: "发送方式",
+					control: "select", options: []string{"send", "draft"},
+					note: "send = 通过本机 Outlook 直接发送；draft = 打开草稿手动发送"},
 			},
 			listEdit: map[string]bool{
 				"recipients.ra_receivers": true,

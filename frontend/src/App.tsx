@@ -36,10 +36,18 @@ import { AlignPanel } from "./components/AlignPanel";
 import { StatusModal } from "./components/StatusModal";
 import { recordIconClick } from "./iconClicks";
 import { LoginScreen } from "./components/LoginScreen";
-import { AboutModal, HiddenModal, ReviewModal, SettingsModal } from "./components/Modals";
+import {
+  AboutModal,
+  HiddenModal,
+  NotificationModal,
+  ReviewModal,
+  SettingsModal,
+} from "./components/Modals";
 import type {
   AboutInfo,
   ClearResult,
+  NotificationPreview,
+  NotificationResult,
   ConsolidateResult,
   ExportResult,
   ExportTarget,
@@ -78,6 +86,10 @@ export default function App() {
   const [log, setLog] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<MessageState>(null);
+  // 更新通知：preview 决定确认窗开不开；notified 记住本次会话发过哪些来源
+  const [notifyPreview, setNotifyPreview] = useState<NotificationPreview | null>(null);
+  const [notifying, setNotifying] = useState(false);
+  const [notified, setNotified] = useState<Record<string, boolean>>({});
 
   const [columns, setColumns] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
@@ -352,6 +364,7 @@ export default function App() {
       setLog(result.log);
       void refreshOverview();
       if (result.state) applyImportStates({ [source]: result.state });
+      setNotified((current) => ({ ...current, [source]: false }));
       // 成功时把结果摊成「信息类别 / 导入数量」两行，失败时只给原因（failed 让标题配红色图标）
       const category = SOURCES.find((item) => item.key === source)?.title ?? source;
       setMessage({
@@ -380,6 +393,31 @@ export default function App() {
     },
     [applyImportStates],
   );
+
+  const handleNotify = useCallback(async (source: string) => {
+    const preview = await call<NotificationPreview>("PreviewImportNotification", source);
+    if (!preview) return;
+    if (!preview.ready) {
+      setMessage({ title: "暂不能发送", message: preview.reason ?? "", failed: true });
+      return;
+    }
+    setNotifyPreview(preview);
+  }, []);
+
+  const confirmNotify = useCallback(async () => {
+    if (!notifyPreview) return;
+    const source = notifyPreview.source;
+    setNotifying(true);
+    const result = await call<NotificationResult>("SendImportNotification", source);
+    setNotifying(false);
+    if (!result) return;
+    setLog(result.log ?? "");
+    setNotifyPreview(null);
+    setMessage({ title: result.title, message: result.message, failed: result.failed });
+    if (!result.failed) {
+      setNotified((current) => ({ ...current, [source]: true }));
+    }
+  }, [notifyPreview]);
 
   const handleClear = useCallback(async () => {
     const result = await call<ClearResult>("ClearImportedData");
@@ -712,6 +750,8 @@ export default function App() {
                 shareInfo={shareInfo}
                 locked={shareBlocked}
                 onImport={handleImport}
+                onNotify={handleNotify}
+                notified={notified}
                 onReview={openSourceReview}
                 onReviewCleaned={openCleanedReview}
               />
@@ -933,6 +973,15 @@ export default function App() {
         onSearch={handleReviewSearch}
         onExport={handleReviewExport}
         onClose={() => setReviewOpen(false)}
+      />
+      <NotificationModal
+        open={Boolean(notifyPreview)}
+        preview={notifyPreview}
+        sending={notifying}
+        onSend={() => void confirmNotify()}
+        onClose={() => {
+          if (!notifying) setNotifyPreview(null);
+        }}
       />
       <StatusModal
         open={statusOpen}

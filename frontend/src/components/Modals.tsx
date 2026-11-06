@@ -5,6 +5,7 @@
 //   也不再为了"像 QDialog"去掉 X 再自绘居中按钮）。
 
 import {
+  Alert,
   Button,
   Descriptions,
   Flex,
@@ -14,6 +15,7 @@ import {
   Segmented,
   Space,
   Table,
+  Tag,
   Tabs,
   Tooltip,
   Tree,
@@ -25,7 +27,14 @@ import { FileDown, Search } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
-import type { AboutInfo, ReviewResult, SettingsChange, SettingsNode, SettingsTab } from "../types";
+import type {
+  AboutInfo,
+  NotificationPreview,
+  ReviewResult,
+  SettingsChange,
+  SettingsNode,
+  SettingsTab,
+} from "../types";
 import { SettingsForm } from "./SettingsForm";
 
 /**
@@ -464,6 +473,68 @@ export function HiddenModal({ open, onClose }: HiddenModalProps) {
         <img src="puppy.png" alt="🐶Puppy Approved!🐾" />
         <h3 className="hidden-title">🐶Puppy Approved!🐾</h3>
       </div>
+    </Modal>
+  );
+}
+
+type NotificationModalProps = {
+  open: boolean;
+  preview: NotificationPreview | null;
+  sending: boolean;
+  onSend: () => void;
+  onClose: () => void;
+};
+
+/**
+ * 数据更新通知的确认窗：先把收件人、主题与正文摊开给用户看，再决定发不发。
+ * 发送方式由 workflow.yaml 的 email.send_mode 决定（send = 直接发；draft = 打开草稿）。
+ */
+export function NotificationModal({ open, preview, sending, onSend, onClose }: NotificationModalProps) {
+  const draft = preview?.mode === "draft";
+  return (
+    <Modal
+      open={open}
+      title="发送更新通知"
+      width={560}
+      onCancel={sending ? undefined : onClose}
+      footer={[
+        <Button key="cancel" disabled={sending} onClick={onClose}>
+          取消
+        </Button>,
+        <Button
+          key="send"
+          type="primary"
+          loading={sending}
+          disabled={!preview?.ready}
+          onClick={onSend}
+        >
+          {draft ? "打开草稿" : "发送邮件"}
+        </Button>,
+      ]}
+    >
+      {preview ? (
+        <div className="notify-preview">
+          <Descriptions column={1} size="small" bordered>
+            <Descriptions.Item label="收件人">
+              <Space size={[4, 4]} wrap>
+                {preview.to.length === 0 ? (
+                  <Typography.Text type="secondary">未配置收件人</Typography.Text>
+                ) : (
+                  preview.to.map((address) => <Tag key={address}>{address}</Tag>)
+                )}
+              </Space>
+            </Descriptions.Item>
+            <Descriptions.Item label="主题">{preview.subject}</Descriptions.Item>
+            <Descriptions.Item label="方式">
+              {draft ? "打开 Microsoft Outlook 草稿（手动点发送）" : "通过本机 Microsoft Outlook 直接发送"}
+            </Descriptions.Item>
+          </Descriptions>
+          <pre className="notify-body">{preview.body}</pre>
+          {!preview.ready ? (
+            <Alert type="warning" showIcon message={preview.reason || "暂时不能发送"} />
+          ) : null}
+        </div>
+      ) : null}
     </Modal>
   );
 }

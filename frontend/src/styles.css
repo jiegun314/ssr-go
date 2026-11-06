@@ -1827,3 +1827,24 @@ body {
 .login-mode-warning .ant-alert-description {
   font-size: 12px;
 }
+
+/* 数据更新通知：确认窗里的收件人、主题与正文预览 */
+.notify-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notify-body {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  background: #fafafa;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -35,6 +35,8 @@ import {
   Copy,
   FileSpreadsheet,
   Filter,
+  Mail,
+  MailCheck,
   Search,
   Table as TableIcon,
   X,
@@ -73,6 +75,10 @@ type ImportPanelProps = {
   /** 共享盘异常时锁住导入/发布（P2 闸门） */
   locked?: boolean;
   onImport: (source: string) => void;
+  /** 导入成功后发送更新通知（本机 Outlook，发给 Supply Chain / Admin） */
+  onNotify: (source: string) => void;
+  /** 本次会话里已经发过通知的来源（图标换成 MailCheck） */
+  notified?: Record<string, boolean>;
   onReview: (source: string) => void;
   /** 「查看清洗后数据」：只有声明了 clean 的来源才会有这个按钮 */
   onReviewCleaned: (source: string) => void;
@@ -99,6 +105,8 @@ export function ImportPanel({
   shareInfo,
   locked = false,
   onImport,
+  onNotify,
+  notified = {},
   onReview,
   onReviewCleaned,
 }: ImportPanelProps) {
@@ -161,15 +169,36 @@ export function ImportPanel({
                 ) : (
                   <>
                     {canImport ? (
-                      <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
-                        <Button
-                          type="text"
-                          aria-label="载入文件"
-                          icon={<FileSpreadsheet size={16} />}
-                          disabled={locked}
-                          onClick={() => onImport(source.key)}
-                        />
-                      </Tooltip>
+                      <>
+                        <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
+                          <Button
+                            type="text"
+                            aria-label="载入文件"
+                            icon={<FileSpreadsheet size={16} />}
+                            disabled={locked}
+                            onClick={() => onImport(source.key)}
+                          />
+                        </Tooltip>
+                        <Tooltip
+                          title={
+                            !localExists
+                              ? "导入后可发送更新通知"
+                              : notified[source.key]
+                                ? "已发送通知（可再次发送）"
+                                : "邮件通知 Supply Chain / Admin"
+                          }
+                        >
+                          <Button
+                            type="text"
+                            aria-label="邮件通知"
+                            icon={
+                              notified[source.key] ? <MailCheck size={16} /> : <Mail size={16} />
+                            }
+                            disabled={!localExists}
+                            onClick={() => onNotify(source.key)}
+                          />
+                        </Tooltip>
+                      </>
                     ) : null}
                     {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
                     <Typography.Text

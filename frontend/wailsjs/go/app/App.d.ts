@@ -49,6 +49,8 @@ export function OpenDataDirectory():Promise<void>;
 
 export function OpenExportDirectory():Promise<void>;
 
+export function PreviewImportNotification(arg1:string):Promise<app.NotificationPreview>;
+
 export function Quit():Promise<void>;
 
 export function RecheckShare():Promise<share.Status>;
@@ -70,6 +72,8 @@ export function SelectExportTarget():Promise<app.ExportTarget>;
 export function SelectImportFile(arg1:string):Promise<string>;
 
 export function SelectReviewExportTarget(arg1:string):Promise<app.ExportTarget>;
+
+export function SendImportNotification(arg1:string):Promise<app.NotificationResult>;
 
 export function ShareOverview():Promise<app.ShareOverview>;
 

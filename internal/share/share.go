@@ -28,6 +28,12 @@ type Config struct {
 	RequireBeforeConsolidate bool
 	// OnNewVersion 是"整合期间有人发布"的策略：warn | auto_rerun | block。
 	OnNewVersion string
+	// Recipients 是 workflow.yaml 的收件人列表（按用途分组）。
+	Recipients map[string][]string
+	// EmailTransport 是邮件通道：disabled（默认）/ outlook。
+	EmailTransport string
+	// EmailMode 是发送方式：send（默认，直接发）/ draft（打开草稿）。
+	EmailMode string
 }
 
 // Load 读 workflow.yaml；没有这个文件时返回零值（= 本地模式）。
@@ -39,6 +45,19 @@ func Load(loader *config.Loader) (Config, error) {
 	block, _ := document["share"].(map[string]any)
 	sync, _ := document["sync"].(map[string]any)
 	consolidation, _ := document["consolidation"].(map[string]any)
+	email, _ := document["email"].(map[string]any)
+	recipients := map[string][]string{}
+	if block, ok := document["recipients"].(map[string]any); ok {
+		for key, value := range block {
+			list, _ := value.([]any)
+			for _, item := range list {
+				address := strings.TrimSpace(text(item))
+				if address != "" {
+					recipients[key] = append(recipients[key], address)
+				}
+			}
+		}
+	}
 	configValue := Config{
 		Root:                     strings.TrimSpace(text(block["root"])),
 		PollSeconds:              integer(block["poll_seconds"], 30),
@@ -46,6 +65,26 @@ func Load(loader *config.Loader) (Config, error) {
 		SyncAuto:                 boolean(sync["auto"], true),
 		RequireBeforeConsolidate: boolean(sync["require_before_consolidate"], true),
 		OnNewVersion:             text(consolidation["on_new_version_during_run"]),
+		Recipients:               recipients,
+		EmailTransport:           strings.TrimSpace(text(email["transport"])),
+		EmailMode:                strings.TrimSpace(text(email["send_mode"])),
+	}
+	if configValue.EmailTransport == "" {
+		configValue.EmailTransport = "disabled"
+	}
+	if configValue.EmailMode == "" {
+		configValue.EmailMode = "send"
+	}
+	switch configValue.EmailTransport {
+	case "disabled", "outlook", "smtp", "graph", "outbox":
+		// smtp / graph / outbox 是旧版占位值：保留可读，但当前只实现 outlook
+	default:
+		return Config{}, fmt.Errorf(
+			"workflow.yaml 的 email.transport 只能是 disabled / outlook：%s", configValue.EmailTransport)
+	}
+	if configValue.EmailMode != "send" && configValue.EmailMode != "draft" {
+		return Config{}, fmt.Errorf(
+			"workflow.yaml 的 email.send_mode 只能是 send / draft：%s", configValue.EmailMode)
 	}
 	if configValue.OnNewVersion == "" {
 		configValue.OnNewVersion = "warn"

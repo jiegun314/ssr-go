@@ -33,6 +33,7 @@ const renderPanel = (
   } = {},
 ) => {
   const onImport = vi.fn();
+  const onNotify = vi.fn();
   const onReview = vi.fn();
   const onReviewCleaned = vi.fn();
   render(
@@ -46,13 +47,14 @@ const renderPanel = (
           shareInfo={options.shareInfo}
           locked={locked}
           onImport={onImport}
+          onNotify={onNotify}
           onReview={onReview}
           onReviewCleaned={onReviewCleaned}
         />
       </AntApp>
     </ConfigProvider>,
   );
-  return { onImport, onReview, onReviewCleaned };
+  return { onImport, onNotify, onReview, onReviewCleaned };
 };
 
 /** 按来源标题定位那一行（四个来源始终整块渲染，不能只按数量断言）。 */
@@ -187,5 +189,24 @@ describe("Supply Chain 的数据来源（取数状态）", () => {
     });
     // 四个来源都没发布时都会显示这句
     expect(screen.getAllByText(/共享盘尚未发布/).length).toBeGreaterThan(0);
+  });
+});
+
+describe("数据导入区的邮件通知入口", () => {
+  it("导入前禁用", () => {
+    const { onNotify } = renderPanel({
+      ra_input: { ...importedState(), state: "empty", label: "尚未导入", rowCount: 0 },
+    });
+    const button = within(sourceRow("RA信息")).getByRole("button", { name: "邮件通知" });
+    expect(button).toBeDisabled();
+    expect(onNotify).not.toHaveBeenCalled();
+  });
+
+  it("导入后激活并回调来源", async () => {
+    const { onNotify } = renderPanel({ ra_input: importedState() });
+    const button = within(sourceRow("RA信息")).getByRole("button", { name: "邮件通知" });
+    expect(button).toBeEnabled();
+    await userEvent.click(button);
+    expect(onNotify).toHaveBeenCalledWith("ra_input");
   });
 });

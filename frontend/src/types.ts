@@ -64,6 +64,11 @@ export type SettingsSaveResult = Data<app.SettingsSaveResult>;
 
 export type LoginRole = Data<app.LoginRole>;
 export type SessionInfo = Data<app.SessionInfo>;
+/** 更新通知的预览（收件人 / 主题 / 正文） */
+export type NotificationPreview = Data<app.NotificationPreview>;
+/** 更新通知的发送结果 */
+export type NotificationResult = Data<app.NotificationResult>;
+
 export type LoginResult = Omit<Data<app.LoginResult>, "session"> & {
   session?: SessionInfo;
 };

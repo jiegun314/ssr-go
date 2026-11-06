@@ -37,6 +37,7 @@ export const REVIEW_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 export const BUSY_TEXT: Record<string, string> = {
   SelectImportFile: "正在打开文件夹",
   ImportSource: "正在导入 Excel 数据...",
+  SendImportNotification: "正在通过 Outlook 发送邮件...",
   Consolidate: "正在整合数据...",
   ReviewSource: "正在加载已导入数据...",
   ReviewCleanedSource: "正在加载清洗后数据...",
