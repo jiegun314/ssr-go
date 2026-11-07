@@ -81,7 +81,7 @@
   声明了 `merge_records`，否则配置校验拦住）：每条记录先按列自己的字段与 `separator` 拼好、
   空值跳过，再按 `record_separator` 连接，所以不会出现尾部分隔符。当前用于「一个型号多个医保编码」：
   只合并**医保代码本身**（不带序列号），英文逗号连接。
-- **多人协作版（P1）**：`config/users.yaml`（人员与角色，可选）与 `config/workflow.yaml`（共享盘地址、
+- **多人协作版（P1）**：`config/users.yaml`（按固定组别的人员与邮箱，可选）与 `config/workflow.yaml`（共享盘地址、
   收件人等，可选）是新增的两份配置，缺失时程序按**单机模式 / 本地模式**运行（行为与旧版本一致）。
   有 `users.yaml` 时启动先登录（选择身份，不读域信息，只记录本机用户名）；除 Admin 外无密码，
   Admin 密码是 `internal/auth` 里的哈希常量（换密码 = 发新版）。权限矩阵（角色 × 动作）集中在
@@ -90,6 +90,9 @@
   **共享盘位置（`share.root`）每台机器可不同**：所有角色都有 `share:root` 动作，
   在「设置 → 参数设定」里只改这一项（留空 = 本地模式），复用结构化写回/校验/热重载通道；
   其余配置仍只有 Admin 有 `settings:write`。非 Admin 打开参数设定时只出现这个单字段弹窗。
+  **人员名单结构**：`users.yaml` 的 `users` 是固定组别映射，组别键只能是
+  `RA` / `EAMA` / `UDI` / `SUPPLY CHAIN` / `ADMIN`（大写，组别即角色）；每组一条
+  `name` / `email` / `note` 记录，不再写 `role` 字段；旧的 `users` 列表仍可读取以兼容升级。
   **人员名单同步**：Admin 保存 `users.yaml` 后发布到 `<share>/config/users.yaml` +
   `users.manifest.json`（sha256/版本/操作人；最后保存的 Admin 为准）；其它电脑在启动/登录时
   校验 manifest 并拉取，本机有未同步改动（pending 标记）时不覆盖；共享盘不可用时保持本机，
@@ -131,7 +134,8 @@
   「清理」走 `CleanupShareVersions`（只 Admin）：每个来源保留最新 N 个版本，且当前版本、
   `last_consolidation` 用到的版本与整合目录永远保留。参数设定新增两个页签：**「共享盘」**编辑
   `workflow.yaml`（`share.root` 留空 = 本地模式，相对路径会被校验拦下）、**「人员名单」**编辑
-  `users.yaml`；两份文件不存在时给模板，保存即创建（重开程序生效）。「共享盘」页签里的
+  `users.yaml`；人员名单按固定组别分块（`RA` 在第一项），组别键不可改名。
+  两份文件不存在时给模板，保存即创建（重开程序生效）。「共享盘」页签里的
   `recipients.ra_receivers` / `supply_chain` / `admins` 是收件人列表（可增删，邮箱格式校验）。
 - **记录导出全量同步**：「记录导出」所有人可见，所以操作日志要与共享盘合并成全量：
   本机 `operation_log`（未变判定用）保持原样，并集写进回顾表 `operation_log_all`

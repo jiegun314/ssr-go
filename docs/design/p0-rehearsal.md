@@ -11,7 +11,7 @@
 | `scripts/ssr-share-init.sh` | 建"假共享盘"骨架：`published/{ra,eama,udi}`、`state/state.json`、`consolidated`、`audit`、`README.txt` |
 | `scripts/ssr-share-launch.sh` | 为每个角色准备独立实例目录（配置 + 数据 + 模板），`workflow.yaml` 的 `share.root` 指向假共享盘，可选直接启动 |
 | `config/workflow.yaml.example` | 流程配置样例（`share.root`、`sync`、`consolidation`、`recipients`、`email` 占位） |
-| `config/users.yaml.example` | 人员与角色样例（ra / eama / udi / supply_chain / admin） |
+| `config/users.yaml.example` | 人员与角色样例（固定组别 RA / EAMA / UDI / SUPPLY CHAIN / ADMIN） |
 
 ## 2. 快速开始（macOS / Linux）
 

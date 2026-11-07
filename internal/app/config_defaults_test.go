@@ -139,7 +139,7 @@ func TestOptionalConfigFilesAreCreatedFromDefaults(t *testing.T) {
 			t.Errorf("正式名文件没有生成：%v", err)
 		}
 	}
-	if users, err := loader.LoadUsers(); err != nil || len(users["users"].([]any)) == 0 {
+	if users, err := loader.LoadUsers(); err != nil || len(users) == 0 {
 		t.Errorf("生成的 users.yaml 应当有人员：%v / %v", users, err)
 	}
 	if workflow, err := loader.LoadWorkflow(); err != nil || workflow == nil {

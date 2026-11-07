@@ -199,12 +199,12 @@ state/consolidate.lock    内容 {"id","owner","machine","pid","since","heartbea
 
 ```yaml
 users:
-  - name: "张三"
-    role: "ra"              # ra | eama | udi | supply_chain | admin
+  RA:                       # 固定组别键，大写，组别即角色
+    name: "张三"
     email: "zhangsan@corp.com"
     note: "RA 组"
-  - name: "李四"
-    role: "supply_chain"
+  SUPPLY CHAIN:
+    name: "李四"
     email: "lisi@corp.com"
 ```
 
@@ -501,7 +501,7 @@ Admin 界面「运行状态」页：四份版本与发布人、各机器的对�
 | 文件 | 内容 | 可改者 |
 | --- | --- | --- |
 | `config/workflow.yaml`（新） | `share.root`（**共享盘地址，配置项**）、轮询间隔、门禁口径、整合期间新版本策略、`recipients.*` 与 `email.*`（占位） | Admin |
-| `config/users.yaml`（新） | 人员：姓名 / 角色 / 邮箱 / 备注（**不含域账号**） | Admin |
+| `config/users.yaml`（新） | 人员：按固定组别（RA / EAMA / UDI / SUPPLY CHAIN / ADMIN）的姓名 / 邮箱 / 备注（**不含域账号**） | Admin |
 | 程序常量 | Admin 密码 argon2id 哈希（写死，不可改） | 发新版 |
 | 四份业务配置 | 语义不变 | Admin |
 

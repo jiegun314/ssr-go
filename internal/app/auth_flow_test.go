@@ -16,14 +16,14 @@ import (
 )
 
 const testUsersYAML = `users:
-  - name: "张三"
-    role: "ra"
+  RA:
+    name: "张三"
     email: "zhangsan@example.com"
-  - name: "赵六"
-    role: "supply_chain"
+  SUPPLY CHAIN:
+    name: "赵六"
     email: "zhaoliu@example.com"
-  - name: "管理员"
-    role: "admin"
+  ADMIN:
+    name: "管理员"
     email: "admin@example.com"
 `
 

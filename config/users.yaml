@@ -1,26 +1,27 @@
-# 多人协作版的人员名单（默认文件：把姓名/角色/邮箱改成真实人员即可）
+# 多人协作版的人员名单（默认文件：把姓名/邮箱改成真实人员即可）
 #
 # - 删除本文件 = 单机模式（不显示登录页，全权限）；
-# - 登录页只显示组别（不显示人名）；这里记录的是角色与通知用邮箱；
-# - role 只能是：ra | eama | udi | supply_chain | admin（Admin 登录需要密码）。
+# - 登录页只显示组别（不显示人名）；这里记录的是组别联系人与通知用邮箱；
+# - 组别固定为 RA / EAMA / UDI / SUPPLY CHAIN / ADMIN（大写，不能改名）；
+# - 组别键就是角色，每条记录不再写 role；Admin 登录仍使用程序内置密码。
 users:
-  - name: "张三"
-    role: "ra"
+  RA:
+    name: "张三"
     email: "zhangsan@example.com"
     note: "RA 组（RA 信息）"
-  - name: "李四"
-    role: "eama"
+  EAMA:
+    name: "李四"
     email: "lisi@example.com"
     note: "EAMA（产品类别 + 医保代码）"
-  - name: "王五"
-    role: "udi"
+  UDI:
+    name: "王五"
     email: "wangwu@example.com"
     note: "Global UDI Team"
-  - name: "赵六"
-    role: "supply_chain"
+  SUPPLY CHAIN:
+    name: "赵六"
     email: "zhaoliu@example.com"
     note: "Supply Chain（整合）"
-  - name: "管理员"
-    role: "admin"
+  ADMIN:
+    name: "管理员"
     email: "admin@example.com"
     note: "Admin（登录需要密码）"

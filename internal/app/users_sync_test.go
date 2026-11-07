@@ -13,18 +13,18 @@ import (
 )
 
 const syncedUsersYAML = `users:
-  - name: "张三"
-    role: "ra"
+  RA:
+    name: "张三"
     email: "zhangsan@example.com"
-  - name: "赵六"
-    role: "supply_chain"
-    email: "zhaoliu@example.com"
-  - name: "管理员"
-    role: "admin"
-    email: "admin@example.com"
-  - name: "王五"
-    role: "udi"
+  UDI:
+    name: "王五"
     email: "wangwu@example.com"
+  SUPPLY CHAIN:
+    name: "赵六"
+    email: "zhaoliu@example.com"
+  ADMIN:
+    name: "管理员"
+    email: "admin@example.com"
 `
 
 func TestAdminSavePublishesUsersToShare(t *testing.T) {

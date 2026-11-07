@@ -169,12 +169,89 @@ func IsKnownRole(value string) bool {
 	return false
 }
 
-// ParseUsers 把 users.yaml 解析成人员列表（校验名字非空且不重复、角色合法）。
+// UserGroupKeys 是 users.yaml 新结构里固定的组别键（大写，不能改名）。
+// 组别即角色，人员记录不再写 role 字段。
+var UserGroupKeys = map[Role]string{
+	RoleRA:          "RA",
+	RoleEAMA:        "EAMA",
+	RoleUDI:         "UDI",
+	RoleSupplyChain: "SUPPLY CHAIN",
+	RoleAdmin:       "ADMIN",
+}
+
+// UserGroupOrder 是固定组别的展示顺序（RA 永远排第一）。
+var UserGroupOrder = []Role{RoleRA, RoleEAMA, RoleUDI, RoleSupplyChain, RoleAdmin}
+
+// ParseUsers 把 users.yaml 解析成人员列表。
+//
+// 当前结构按固定组别分组（users.RA / users.EAMA / …），组别键即角色；
+// 为了不让升级中的旧文件失效，也继续接受旧的 users 列表（每项带 role）。
 func ParseUsers(document map[string]any) ([]User, error) {
 	if document == nil {
 		return nil, nil
 	}
-	raw, _ := document["users"].([]any)
+	raw, exists := document["users"]
+	if !exists {
+		return nil, errors.New("users.yaml 里没有 users 配置（至少要有一个人）")
+	}
+	switch value := raw.(type) {
+	case []any:
+		return parseUsersList(value)
+	case map[string]any:
+		return parseUsersByGroup(value)
+	default:
+		return nil, errors.New("users.yaml 的 users 必须是按固定组别的映射（或旧的列表）")
+	}
+}
+
+// parseUsersByGroup 解析按固定组别分组的 users（新结构）。
+func parseUsersByGroup(raw map[string]any) ([]User, error) {
+	if len(raw) == 0 {
+		return nil, errors.New("users.yaml 里没有人员（至少要有一个人）")
+	}
+	allowed := make(map[string]Role, len(UserGroupKeys))
+	for _, role := range UserGroupOrder {
+		allowed[UserGroupKeys[role]] = role
+	}
+	for key := range raw {
+		if _, ok := allowed[key]; !ok {
+			return nil, fmt.Errorf("users 的组别不合法：%s（固定为 %s）",
+				key, strings.Join(groupKeys(), " / "))
+		}
+	}
+	users := make([]User, 0, len(raw))
+	seen := map[string]bool{}
+	for _, role := range UserGroupOrder {
+		key := UserGroupKeys[role]
+		item, ok := raw[key]
+		if !ok {
+			continue
+		}
+		entry, ok := item.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("users.%s 必须是一条人员记录（name / email / note）", key)
+		}
+		if strings.TrimSpace(text(entry["role"])) != "" {
+			return nil, fmt.Errorf("users.%s 不要再写 role（组别键已经决定角色）", key)
+		}
+		user, err := parseUserEntry(entry, "users."+key, role)
+		if err != nil {
+			return nil, err
+		}
+		if seen[user.Name] {
+			return nil, fmt.Errorf("users.%s.name 重复：%s", key, user.Name)
+		}
+		seen[user.Name] = true
+		users = append(users, user)
+	}
+	if len(users) == 0 {
+		return nil, errors.New("users.yaml 里没有人员（至少要有一个人）")
+	}
+	return users, nil
+}
+
+// parseUsersList 解析旧结构 users 列表（每项带 role），保证已有配置继续可用。
+func parseUsersList(raw []any) ([]User, error) {
 	if len(raw) == 0 {
 		return nil, errors.New("users.yaml 里没有 users 列表（至少要有一个人）")
 	}
@@ -185,27 +262,45 @@ func ParseUsers(document map[string]any) ([]User, error) {
 		if !ok {
 			return nil, fmt.Errorf("users[%d] 必须是一个映射", position)
 		}
-		name := strings.TrimSpace(text(entry["name"]))
-		if name == "" {
-			return nil, fmt.Errorf("users[%d].name 不能为空", position)
-		}
-		if seen[name] {
-			return nil, fmt.Errorf("users[%d].name 重复：%s", position, name)
-		}
-		seen[name] = true
 		role := strings.TrimSpace(text(entry["role"]))
 		if !IsKnownRole(role) {
 			return nil, fmt.Errorf("users[%d].role 不合法：%s（可选 %s）",
 				position, role, strings.Join(Roles, " / "))
 		}
-		users = append(users, User{
-			Name:  name,
-			Role:  Role(role),
-			Email: strings.TrimSpace(text(entry["email"])),
-			Note:  strings.TrimSpace(text(entry["note"])),
-		})
+		user, err := parseUserEntry(entry, fmt.Sprintf("users[%d]", position), Role(role))
+		if err != nil {
+			return nil, err
+		}
+		if seen[user.Name] {
+			return nil, fmt.Errorf("users[%d].name 重复：%s", position, user.Name)
+		}
+		seen[user.Name] = true
+		users = append(users, user)
 	}
 	return users, nil
+}
+
+// parseUserEntry 读取一条人员记录；角色由调用方决定（旧列表取 role，新结构取组别键）。
+func parseUserEntry(entry map[string]any, label string, role Role) (User, error) {
+	name := strings.TrimSpace(text(entry["name"]))
+	if name == "" {
+		return User{}, fmt.Errorf("%s.name 不能为空", label)
+	}
+	return User{
+		Name:  name,
+		Role:  role,
+		Email: strings.TrimSpace(text(entry["email"])),
+		Note:  strings.TrimSpace(text(entry["note"])),
+	}, nil
+}
+
+// groupKeys 返回固定组别键的展示顺序。
+func groupKeys() []string {
+	keys := make([]string, 0, len(UserGroupOrder))
+	for _, role := range UserGroupOrder {
+		keys = append(keys, UserGroupKeys[role])
+	}
+	return keys
 }
 
 // ---------- Admin 密码 ----------

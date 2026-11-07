@@ -102,6 +102,45 @@ func TestParseUsers(t *testing.T) {
 	}
 }
 
+func TestParseUsersByFixedGroups(t *testing.T) {
+	document := map[string]any{"users": map[string]any{
+		"RA":           map[string]any{"name": "张三", "email": "a@corp.com", "note": "RA"},
+		"SUPPLY CHAIN": map[string]any{"name": "赵六", "email": "sc@corp.com"},
+		"ADMIN":        map[string]any{"name": "管理员", "email": "admin@corp.com"},
+	}}
+	users, err := ParseUsers(document)
+	if err != nil {
+		t.Fatalf("解析失败：%v", err)
+	}
+	if len(users) != 3 || users[0].Role != RoleRA || users[1].Role != RoleSupplyChain || users[2].Role != RoleAdmin {
+		t.Fatalf("组别顺序/角色不对：%+v", users)
+	}
+	if users[0].Name != "张三" || users[0].Email != "a@corp.com" || users[0].Note != "RA" {
+		t.Errorf("人员字段不对：%+v", users[0])
+	}
+
+	// 组别是固定的：不能改名、不能写 role、必须是一条人员记录
+	for name, bad := range map[string]map[string]any{
+		"组别小写": {"users": map[string]any{
+			"ra": map[string]any{"name": "张三"},
+		}},
+		"未知组别": {"users": map[string]any{
+			"BOSS": map[string]any{"name": "张三"},
+		}},
+		"仍写 role": {"users": map[string]any{
+			"RA": map[string]any{"name": "张三", "role": "ra"},
+		}},
+		"组别下是列表": {"users": map[string]any{
+			"RA": []any{map[string]any{"name": "张三"}},
+		}},
+		"空组别": {"users": map[string]any{}},
+	} {
+		if _, err := ParseUsers(bad); err == nil {
+			t.Errorf("%s 应当被拒绝", name)
+		}
+	}
+}
+
 func TestSourcePermissions(t *testing.T) {
 	if !CanImport(RoleRA, "ra_input") {
 		t.Error("RA 应当能导入 ra_input")

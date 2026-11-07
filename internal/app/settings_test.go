@@ -223,3 +223,59 @@ func treeFind(nodes []SettingsNode, key string) *SettingsNode {
 	}
 	return nil
 }
+
+// TestUsersTabUsesFixedGroupKeys 固定「人员名单」页签的新结构：
+// users 下是按角色命名的固定组别（RA 第一），不再是一串带下标的列表，
+// 每条记录里也没有 role 字段（组别键即角色）。
+func TestUsersTabUsesFixedGroupKeys(t *testing.T) {
+	app, configDir := newSettingsApp(t)
+	content, err := os.ReadFile(filepath.Join("config", config.UsersFile))
+	if err != nil {
+		t.Fatalf("读人员名单样例失败：%v", err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, config.UsersFile), content, 0o644); err != nil {
+		t.Fatalf("写人员名单失败：%v", err)
+	}
+	loader, err := config.NewLoader(configDir)
+	if err != nil {
+		t.Fatalf("重新读配置失败：%v", err)
+	}
+	app.loader = loader
+
+	var usersTab SettingsTab
+	for _, tab := range app.ConfigurationDocument() {
+		if tab.Key == config.UsersFile {
+			usersTab = tab
+			break
+		}
+	}
+	if usersTab.Key == "" {
+		t.Fatal("没有找到人员名单页签")
+	}
+	root := findSettingsNode(usersTab.Tree, "users")
+	if root == nil || root.Kind != "map" {
+		t.Fatalf("users 应当是映射：%+v", root)
+	}
+	want := []string{"RA", "EAMA", "UDI", "SUPPLY CHAIN", "ADMIN"}
+	if len(root.Children) != len(want) {
+		t.Fatalf("组别数量 = %d; want %d", len(root.Children), len(want))
+	}
+	for index, key := range want {
+		group := root.Children[index]
+		if group.Key != key || group.Kind != "map" {
+			t.Errorf("第 %d 个组别 = %q/%s; want %q/map", index, group.Key, group.Kind, key)
+		}
+		hasName := false
+		for _, child := range group.Children {
+			if child.Key == "role" {
+				t.Errorf("组别 %s 的记录里不应该再有 role 字段", key)
+			}
+			if child.Key == "name" {
+				hasName = true
+			}
+		}
+		if !hasName {
+			t.Errorf("组别 %s 缺少 name 字段", key)
+		}
+	}
+}

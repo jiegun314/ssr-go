@@ -58,7 +58,7 @@ func settingsTabs() []SettingsTab {
 		{Key: config.ConsolidationMappingFile, Title: "整合映射", Note: "匹配规则、去重规则、导出列与变更描述"},
 		{Key: config.LogColumnsFile, Title: "日志列", Note: "生成物：由导出模板表头生成，请勿手改"},
 		{Key: config.WorkflowFile, Title: "共享盘", Note: "多人协作版：share.root（留空 = 本地模式）、对齐与整合策略；保存后重开程序生效"},
-		{Key: config.UsersFile, Title: "人员名单", Note: "多人协作版：姓名 / 角色 / 邮箱；保存后启用登录页"},
+		{Key: config.UsersFile, Title: "人员名单", Note: "多人协作版：按固定组别填写姓名 / 邮箱；保存后启用登录页"},
 	}
 }
 
@@ -87,26 +87,27 @@ email:
 
 // usersTemplate 是"还没有 users.yaml"时给「人员名单」页签的初始内容（保存即创建）。
 const usersTemplate = `# 多人协作版的人员名单（保存后启用登录页；删除本文件 = 单机模式）
-# role 只能是：ra | eama | udi | supply_chain | admin（Admin 登录需要密码）
+# 组别固定为 RA / EAMA / UDI / SUPPLY CHAIN / ADMIN（大写，不能改名）；
+# 组别键就是角色，每条人员记录不再写 role 字段。
 users:
-  - name: "张三"
-    role: "ra"
+  RA:
+    name: "张三"
     email: ""
     note: ""
-  - name: "李四"
-    role: "eama"
+  EAMA:
+    name: "李四"
     email: ""
     note: ""
-  - name: "王五"
-    role: "udi"
+  UDI:
+    name: "王五"
     email: ""
     note: ""
-  - name: "赵六"
-    role: "supply_chain"
+  SUPPLY CHAIN:
+    name: "赵六"
     email: ""
     note: ""
-  - name: "管理员"
-    role: "admin"
+  ADMIN:
+    name: "管理员"
     email: ""
     note: ""
 `

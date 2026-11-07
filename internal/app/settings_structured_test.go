@@ -372,3 +372,38 @@ func TestSettingsTreeCarriesCommentsControlsAndReadOnlyReasons(t *testing.T) {
 		t.Errorf("基数应当是三个候选值的下拉：%+v", cardinality)
 	}
 }
+
+// TestStructuredSaveEditsGroupedUsers 人员名单的组别键（含带空格的 SUPPLY CHAIN）可以按路径写回，
+// 且只改目标行、不把组别结构改回列表。
+func TestStructuredSaveEditsGroupedUsers(t *testing.T) {
+	app, configDir := newSettingsApp(t)
+	sample, err := os.ReadFile(filepath.Join("config", config.UsersFile))
+	if err != nil {
+		t.Fatalf("读人员名单样例失败：%v", err)
+	}
+	path := filepath.Join(configDir, config.UsersFile)
+	if err := os.WriteFile(path, sample, 0o644); err != nil {
+		t.Fatalf("写人员名单失败：%v", err)
+	}
+	loader, err := config.NewLoader(configDir)
+	if err != nil {
+		t.Fatalf("重新读配置失败：%v", err)
+	}
+	app.loader = loader
+
+	before, _ := os.ReadFile(path)
+	result := app.SaveSettingsValues(config.UsersFile, []SettingsChange{
+		{Path: []string{"users", "SUPPLY CHAIN", "email"}, Value: "new-sc@corp.com"},
+	})
+	if result.Failed {
+		t.Fatalf("保存失败：%s", result.Message)
+	}
+	after, _ := os.ReadFile(path)
+	changed := diffLines(string(before), string(after))
+	if len(changed) != 1 || !strings.Contains(changed[0], "new-sc@corp.com") {
+		t.Fatalf("应当只改邮箱那一行，实际：%v", changed)
+	}
+	if !strings.Contains(string(after), "SUPPLY CHAIN:") || strings.Contains(string(after), "role:") {
+		t.Errorf("组别结构被破坏：\n%s", after)
+	}
+}
