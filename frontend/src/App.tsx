@@ -713,18 +713,25 @@ export default function App() {
   /* ---------- Go 侧事件 ---------- */
 
   useEffect(() => {
-    onEvent("show-about", () => void openAbout());
-    onEvent("show-settings", () => void openSettings());
-    onEvent("log-updated", (text) => setLog(String(text ?? "")));
-    onEvent("show-message", (payload) => {
-      const data = payload as { title?: string; message?: string; failed?: boolean } | undefined;
-      if (!data) return;
-      setMessage({
-        title: data.title ?? "Info",
-        message: data.message ?? "",
-        failed: data.failed ?? false,
-      });
-    });
+    // 每次 openSettings / openAbout 变化都会重新注册；必须清掉旧监听，
+    // 否则菜单事件会打到登录前的旧闭包（Admin 也会弹出「共享盘位置」）。
+    const unsubscribe = [
+      onEvent("show-about", () => void openAbout()),
+      onEvent("show-settings", () => void openSettings()),
+      onEvent("log-updated", (text) => setLog(String(text ?? ""))),
+      onEvent("show-message", (payload) => {
+        const data = payload as { title?: string; message?: string; failed?: boolean } | undefined;
+        if (!data) return;
+        setMessage({
+          title: data.title ?? "Info",
+          message: data.message ?? "",
+          failed: data.failed ?? false,
+        });
+      }),
+    ];
+    return () => {
+      for (const off of unsubscribe) off();
+    };
   }, [openAbout, openSettings]);
 
   // 多人模式（有 users.yaml）但没有会话 → 先登录；单机模式后端已自动建立会话，直接进主界面。

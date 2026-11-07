@@ -8,7 +8,7 @@ declare global {
   interface Window {
     go?: { app?: { App?: Record<string, (...args: unknown[]) => Promise<unknown>> } };
     runtime?: {
-      EventsOn(name: string, callback: (...args: unknown[]) => void): void;
+      EventsOn(name: string, callback: (...args: unknown[]) => void): () => void;
       EventsOff(name: string): void;
     };
   }
@@ -141,9 +141,9 @@ export async function call<T>(method: string, ...args: unknown[]): Promise<T | u
   }
 }
 
-/** 订阅 Go 侧菜单发来的事件；没有 runtime 时（纯浏览器预览）静默跳过。 */
-export function onEvent(name: string, handler: (...args: unknown[]) => void): void {
-  window.runtime?.EventsOn(name, handler);
+/** 订阅 Go 侧菜单发来的事件；返回取消订阅函数（没有 runtime 时静默跳过）。 */
+export function onEvent(name: string, handler: (...args: unknown[]) => void): () => void {
+  return window.runtime?.EventsOn(name, handler) ?? (() => undefined);
 }
 
 /**
