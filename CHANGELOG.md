@@ -7,6 +7,33 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.2] - 2026-11-07
+
+人员名单改为固定组别结构，并修复 Admin 参数设定误开「共享盘位置」窗口的问题。
+
+### 变更
+
+- **人员名单固定组别**：`config/users.yaml` 的 `users` 从带下标的人员列表改为固定组别映射，
+  组别键为 `RA` / `EAMA` / `UDI` / `SUPPLY CHAIN` / `ADMIN`（大写，不能改名），`RA` 排在
+  第一项；组别键就是角色，每条记录只写 `name` / `email` / `note`，不再写 `role`。
+- 「参数设定 → 人员名单」按固定组别分块展示，不再出现 `0` / `1` / `2` 这类下标；
+  表单模板、默认配置与文档同步更新。
+- 旧的列表结构仍可读取，已有 `users.yaml` 不需要手工改写即可升级。
+
+### 修复
+
+- **Admin 参数设定误开共享盘位置**：修复菜单事件监听未注销导致的旧回调残留；Admin 从菜单
+  打开「设置 → 参数设定」时稳定进入完整设置窗口，只有 RA / EAMA / UDI / Supply Chain
+  打开单字段的「共享盘位置」弹窗。
+
+### 验证
+
+- Go：固定组别解析、表单树结构、带空格的 `SUPPLY CHAIN` 路径保存、旧列表兼容、Admin 菜单
+  事件回归测试；
+- 前端：`npm test` 16 个文件 93 例通过；`go test -count=1 ./...`、`make check`、`npm run build`
+  全绿；
+- 两个平台的正式产物由 CI 在打 tag 后构建并挂到 Release。
+
 ## [3.1.1] - 2026-11-06
 
 设置权限细化：非 Admin 也能设置本机共享盘位置；人员名单改由 Admin 统一维护并同步到
@@ -582,7 +609,8 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.1...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.2...HEAD
+[3.1.2]: https://github.com/jiegun314/ssr-go/compare/v3.1.1...v3.1.2
 [3.1.1]: https://github.com/jiegun314/ssr-go/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/jiegun314/ssr-go/compare/v3.0.5...v3.1.0
 [3.0.5]: https://github.com/jiegun314/ssr-go/compare/v3.0.3...v3.0.5
