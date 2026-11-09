@@ -7,6 +7,33 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.3] - 2026-11-09
+
+补齐 UDI 导出映射，并把 RA 的 NMPA 分类编码带入整合结果。
+
+### 新增
+
+- **UDI 导出列补齐**：新增 `DI Data Carrier Type`、`Combination Product?`、`Kit?` 与四个
+  `Controlled by ...` 列，分别取 `global_udi_input` 的 `di_carrier`、`if_kit_product` 与
+  `if_pi_contains_expiry_date` / `manufacturing_date` / `lot_number` / `serial_number`；
+  `Combination Product?` 与 `Kit?` 按业务确认共用 `if_kit_product`。
+- **RA NMPA 分类编码**：新增 `NMPA Classification Code`，取
+  `ra_input.device_catalog_classification_code`，必填；此前该列在模板中存在但导出为空。
+
+### 变更
+
+- 整合导出字段由 32 列增至 40 列；`Catalog or Reference Number` 仍取
+  `ra_input.material_code`，`Version or Model` 暂不增补。
+- 同步更新运行包 `config/consolidation_mapping.yaml` 与 `config/defaults/consolidation_mapping.yaml`，
+  并刷新整合 golden 基线。
+
+### 验证
+
+- Go：配置来源契约、整合 golden 基线、全量 `go test -count=1 ./...` 通过；
+- 前端：`npm test` 16 个文件 93 例通过；`make check`（含 `genlogcolumns --check`、`gofmt`、`go vet`）
+  全绿；
+- 两个平台的正式产物由 CI 在打 tag 后构建并挂到 Release。
+
 ## [3.1.2] - 2026-11-07
 
 人员名单改为固定组别结构，并修复 Admin 参数设定误开「共享盘位置」窗口的问题。
@@ -609,7 +636,8 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.2...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.3...HEAD
+[3.1.3]: https://github.com/jiegun314/ssr-go/compare/v3.1.2...v3.1.3
 [3.1.2]: https://github.com/jiegun314/ssr-go/compare/v3.1.1...v3.1.2
 [3.1.1]: https://github.com/jiegun314/ssr-go/compare/v3.1.0...v3.1.1
 [3.1.0]: https://github.com/jiegun314/ssr-go/compare/v3.0.5...v3.1.0
