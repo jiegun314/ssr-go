@@ -373,6 +373,16 @@ target_dataset:
       transform:
         type: direct
 
+    # ── DATA CARRIER ──
+    DI Data Carrier Type:
+      category: "DATA CARRIER"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: di_carrier
+      transform:
+        type: direct
+
     # ── PRODUCT CATEGORY ──
     Device or IVD Reagents?:
       category: "PRODUCT CATEGORY"
@@ -383,12 +393,68 @@ target_dataset:
       transform:
         type: direct
 
+    # 与 Kit? 同源：业务确认组合产品也按来源的包类产品标志导出。
+    Combination Product?:
+      category: "PRODUCT CATEGORY"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: if_kit_product
+      transform:
+        type: direct
+
+    Kit?:
+      category: "PRODUCT CATEGORY"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: if_kit_product
+      transform:
+        type: direct
+
     Consumables or Equipment?:
       category: "PRODUCT CATEGORY"
       mandatory_status: "required"
       source:
         file: product_category
         field: product_type
+      transform:
+        type: direct
+
+    # ── PRODUCTION IDENTIFICATION ──
+    Controlled by Expiration Date?:
+      category: "PRODUCTION IDENTIFICATION"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: if_pi_contains_expiry_date
+      transform:
+        type: direct
+
+    Controlled by Manufacturing Date?:
+      category: "PRODUCTION IDENTIFICATION"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: if_pi_contains_manufacturing_date
+      transform:
+        type: direct
+
+    Controlled by Lot or Batch Number?:
+      category: "PRODUCTION IDENTIFICATION"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: if_pi_contains_lot_number
+      transform:
+        type: direct
+
+    Controlled by Serial Number?:
+      category: "PRODUCTION IDENTIFICATION"
+      mandatory_status: "required"
+      source:
+        file: global_udi_input
+        field: if_pi_contains_serial_number
       transform:
         type: direct
 
