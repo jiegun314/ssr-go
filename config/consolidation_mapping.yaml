@@ -383,6 +383,16 @@ target_dataset:
       transform:
         type: direct
 
+    # ── NMPA PRODUCT CLASSIFICATION ──
+    NMPA Classification Code:
+      category: "NMPA PRODUCT CLASSIFICATION"
+      mandatory_status: "required"
+      source:
+        file: ra_input
+        field: device_catalog_classification_code
+      transform:
+        type: direct
+
     # ── PRODUCT CATEGORY ──
     Device or IVD Reagents?:
       category: "PRODUCT CATEGORY"

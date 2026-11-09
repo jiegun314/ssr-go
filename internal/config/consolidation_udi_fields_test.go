@@ -5,13 +5,14 @@ import (
 	"testing"
 )
 
-// TestConsolidationMappingCoversTheRequestedUDIFields 固定 UDI 导出列的增补口径：
+// TestConsolidationMappingCoversTheRequestedFields 固定本次增补的导出列口径：
 //   - DI Data Carrier Type / Combination Product? / Kit? / 四个 Controlled by...
 //     均从 global_udi_input 取数；
 //   - Combination Product? 与 Kit? 按业务确认共用 if_kit_product；
+//   - NMPA Classification Code 取 ra_input.device_catalog_classification_code；
 //   - Catalog or Reference Number 仍取基准来源 ra_input.material_code，
 //     不改成 UDI 的 product_code（当前导入结构里也没有这个 db_field）。
-func TestConsolidationMappingCoversTheRequestedUDIFields(t *testing.T) {
+func TestConsolidationMappingCoversTheRequestedFields(t *testing.T) {
 	loader, err := NewLoader(filepath.Join("..", "..", "config"))
 	if err != nil {
 		t.Fatalf("装载配置失败：%v", err)
@@ -30,6 +31,7 @@ func TestConsolidationMappingCoversTheRequestedUDIFields(t *testing.T) {
 	}{
 		{"Catalog or Reference Number", "ra_input", "material_code"},
 		{"DI Data Carrier Type", "global_udi_input", "di_carrier"},
+		{"NMPA Classification Code", "ra_input", "device_catalog_classification_code"},
 		{"Combination Product?", "global_udi_input", "if_kit_product"},
 		{"Kit?", "global_udi_input", "if_kit_product"},
 		{"Controlled by Expiration Date?", "global_udi_input", "if_pi_contains_expiry_date"},
