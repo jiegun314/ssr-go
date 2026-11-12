@@ -7,6 +7,23 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.4] - 2026-11-12
+
+UDI 导入的「事业部」「业务单元」改为选填。
+
+### 变更
+
+- UDI 导入列「事业部」（`franchise`）与「业务单元」（`operating_company`）的
+  `mandatory_status` 统一为 `optional`；此前「业务单元」为 `required`，缺失时会拦截整份文件。
+- 两列仍只保留在暂存表与「数据回顾」中，不参与整合/导出；仓库默认配置、本地运行包的
+  当前配置与默认配置已同步。
+
+### 验证
+
+- `make check` 通过：全部 Go 测试、前端 16 个文件 93 例、`genlogcolumns --check`、
+  `gofmt`、`go vet`；
+- 两个平台的正式产物由 CI 在打 tag 后构建并挂到 Release。
+
 ## [3.1.3] - 2026-11-09
 
 补齐 UDI 导出映射，并把 RA 的 NMPA 分类编码带入整合结果。
@@ -636,7 +653,8 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.3...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.4...HEAD
+[3.1.4]: https://github.com/jiegun314/ssr-go/compare/v3.1.3...v3.1.4
 [3.1.3]: https://github.com/jiegun314/ssr-go/compare/v3.1.2...v3.1.3
 [3.1.2]: https://github.com/jiegun314/ssr-go/compare/v3.1.1...v3.1.2
 [3.1.1]: https://github.com/jiegun314/ssr-go/compare/v3.1.0...v3.1.1
