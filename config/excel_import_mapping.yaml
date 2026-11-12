@@ -315,7 +315,7 @@ sources:
 
       - chinese_name: "业务单元"
         db_field: "operating_company"
-        mandatory_status: "required"
+        mandatory_status: "optional"
         # 只给样本工厂（gensample）用，导入/整合都不读
 
       - chinese_name: "注册证号"
