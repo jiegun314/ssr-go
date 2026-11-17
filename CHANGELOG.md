@@ -7,6 +7,29 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.5] - 2026-11-17
+
+整合结果表新增「导出当前视图」。
+
+### 新增
+
+- 在查找框与「查找」按钮右侧新增「导出」按钮。
+- 导出当前**状态筛选 + 关键字筛选后**的全部行，不是当前分页；表头直接使用界面显示字段，
+  缺失格按界面写成「缺失」，生成 xlsx 文件。
+- 与标题栏的「生成文件」分开：不经过导出模板、不归档共享盘，只写操作日志与审计；
+  没有可导出行时按钮禁用。
+
+### 变更
+
+- 结果工具条在窄窗口下允许换行，状态筛选片换行后仍靠右排列，避免新增按钮把「冲突」片
+  挤出卡片边界。
+
+### 验证
+
+- `make check` 通过：全部 Go 测试、前端 16 个文件 96 例、`genlogcolumns --check`、
+  `gofmt`、`go vet`；
+- 两个平台的正式产物由 CI 在打 tag 后构建并挂到 Release。
+
 ## [3.1.4] - 2026-11-12
 
 UDI 导入的「事业部」「业务单元」改为选填。
@@ -653,7 +676,8 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.4...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.5...HEAD
+[3.1.5]: https://github.com/jiegun314/ssr-go/compare/v3.1.4...v3.1.5
 [3.1.4]: https://github.com/jiegun314/ssr-go/compare/v3.1.3...v3.1.4
 [3.1.3]: https://github.com/jiegun314/ssr-go/compare/v3.1.2...v3.1.3
 [3.1.2]: https://github.com/jiegun314/ssr-go/compare/v3.1.1...v3.1.2
