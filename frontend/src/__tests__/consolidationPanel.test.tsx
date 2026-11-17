@@ -4,9 +4,9 @@
 
 import { App as AntApp, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ConsolidationPanel } from "../components/Panels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
@@ -101,6 +101,75 @@ describe("数据整合结果表", () => {
     );
     expect(screen.getByText("暂无数据")).toBeInTheDocument();
     expect(document.querySelector(".ant-table-tbody")).toBeNull();
+  });
+
+  it("导出当前视图把查找与状态筛选后的全部行交给回调（不是当前页）", async () => {
+    const user = userEvent.setup();
+    const onExportView = vi.fn();
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={COLUMNS}
+          rows={ROWS}
+          statuses={STATUSES}
+          counts={COUNTS}
+          onExportView={onExportView}
+        />
+      </AntApp>,
+    );
+
+    // 先筛「合格」，再在结果里找「监护仪」→ 只剩 DI-002
+    await user.click(screen.getByRole("button", { name: /合格/ }));
+    await user.type(screen.getByLabelText("查找表格内容"), "监护仪");
+    await user.click(screen.getByRole("button", { name: "查找" }));
+    await user.click(screen.getByRole("button", { name: "导出当前视图" }));
+
+    await waitFor(() => expect(onExportView).toHaveBeenCalledTimes(1));
+    expect(onExportView).toHaveBeenCalledWith(COLUMNS, [["DI-002", "监护仪", "67890"]]);
+  });
+
+  it("导出当前视图把 MISSING 按界面显示写成「缺失」", async () => {
+    const user = userEvent.setup();
+    const onExportView = vi.fn();
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={COLUMNS}
+          rows={[["DI-004", "MISSING", ""]]}
+          statuses={["Incomplete"]}
+          counts={{ Incomplete: 1 }}
+          onExportView={onExportView}
+        />
+      </AntApp>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "导出当前视图" }));
+    await waitFor(() => expect(onExportView).toHaveBeenCalledTimes(1));
+    expect(onExportView).toHaveBeenCalledWith(COLUMNS, [["DI-004", "缺失", ""]]);
+  });
+
+  it("没有可导出的行时导出按钮禁用", async () => {
+    const user = userEvent.setup();
+    const onExportView = vi.fn();
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={COLUMNS}
+          rows={ROWS}
+          statuses={STATUSES}
+          counts={COUNTS}
+          onExportView={onExportView}
+        />
+      </AntApp>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /缺失/ }));
+    await user.type(screen.getByLabelText("查找表格内容"), "不存在");
+    await user.click(screen.getByRole("button", { name: "查找" }));
+    const button = screen.getByRole("button", { name: "导出当前视图" });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(onExportView).not.toHaveBeenCalled();
   });
 
   it("出现冲突时补一个冲突片", () => {

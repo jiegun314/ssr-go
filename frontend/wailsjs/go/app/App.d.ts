@@ -25,6 +25,8 @@ export function CopyToClipboard(arg1:string):Promise<boolean>;
 
 export function Export(arg1:string,arg2:string):Promise<app.ExportResult>;
 
+export function ExportConsolidationView(arg1:Array<string>,arg2:Array<any>,arg3:string):Promise<app.ExportResult>;
+
 export function ExportDiagnostics():Promise<app.DiagnosticsResult>;
 
 export function ExportReviewData(arg1:string,arg2:string):Promise<app.ExportResult>;
@@ -70,6 +72,8 @@ export function SaveConfigurationFile(arg1:string,arg2:string):Promise<app.Setti
 export function SaveSettingsValues(arg1:string,arg2:Array<app.SettingsChange>):Promise<app.SettingsSaveResult>;
 
 export function SaveShareRoot(arg1:string):Promise<app.SettingsSaveResult>;
+
+export function SelectConsolidationViewExportTarget():Promise<app.ExportTarget>;
 
 export function SelectExportTarget():Promise<app.ExportTarget>;
 

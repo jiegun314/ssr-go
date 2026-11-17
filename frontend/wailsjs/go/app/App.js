@@ -46,6 +46,10 @@ export function Export(arg1, arg2) {
   return window['go']['app']['App']['Export'](arg1, arg2);
 }
 
+export function ExportConsolidationView(arg1, arg2, arg3) {
+  return window['go']['app']['App']['ExportConsolidationView'](arg1, arg2, arg3);
+}
+
 export function ExportDiagnostics() {
   return window['go']['app']['App']['ExportDiagnostics']();
 }
@@ -136,6 +140,10 @@ export function SaveSettingsValues(arg1, arg2) {
 
 export function SaveShareRoot(arg1) {
   return window['go']['app']['App']['SaveShareRoot'](arg1);
+}
+
+export function SelectConsolidationViewExportTarget() {
+  return window['go']['app']['App']['SelectConsolidationViewExportTarget']();
 }
 
 export function SelectExportTarget() {

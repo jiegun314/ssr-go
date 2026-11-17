@@ -33,6 +33,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Copy,
+  FileDown,
   FileSpreadsheet,
   Filter,
   Mail,
@@ -329,6 +330,11 @@ type ConsolidationPanelProps = {
   conflicts?: string[][];
   /** 行级冲突原因：与 rows 同形同序（空串 = 该行不冲突），用于冲突字段不在导出列时的悬浮提示 */
   rowConflicts?: string[];
+  /**
+   * 导出当前视图：列名 = 表头，rows = 查找/状态筛选后的全部行（不是当前页）。
+   * 未提供时不显示导出按钮（例如没有整合/导出权限的只读身份）。
+   */
+  onExportView?: (columns: string[], rows: string[][]) => void | Promise<void>;
 };
 
 /** 结果表的一行：原始单元格 + 状态（状态筛选与行底色都要用，所以连下标一起包起来）。 */
@@ -350,8 +356,10 @@ export function ConsolidationPanel({
   counts,
   conflicts,
   rowConflicts,
+  onExportView,
 }: ConsolidationPanelProps) {
-  // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（导出始终只看合格行，与筛选无关）
+  // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（「导出当前视图」按筛选结果导出；
+  // 标题栏的正式「生成文件」仍只导 Ready 行，两者互不影响）
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   // 查找框：输入不算数，点「查找」或回车才应用（与回顾窗口口径一致）
   const [searchText, setSearchText] = useState("");
@@ -359,6 +367,7 @@ export function ConsolidationPanel({
   // 分页：默认 DEFAULT_PAGE_SIZE 行/页。列定义也记忆化 —— 数据量大时不必每次重算。
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [exportingView, setExportingView] = useState(false);
 
 
 
@@ -452,6 +461,23 @@ export function ConsolidationPanel({
     [visible, page, pageSize],
   );
 
+  // 导出当前视图：全部筛选结果（不是当前页），表头就是界面上的列名。
+  // MISSING 在表格里显示为「缺失」，导出也保持这个可读写法；空字符串仍为空。
+  const exportCurrentView = async () => {
+    if (!onExportView || visible.length === 0) return;
+    setExportingView(true);
+    try {
+      await onExportView(
+        columns,
+        visible.map((entry) =>
+          entry.cells.map((cell) => (cell === "MISSING" ? "缺失" : cell)),
+        ),
+      );
+    } finally {
+      setExportingView(false);
+    }
+  };
+
   // 重新整合（rows 换了）之后回到第一页：否则可能停在一个已经空的页上
   useEffect(() => setPage(1), [rows]);
 
@@ -529,6 +555,27 @@ export function ConsolidationPanel({
               setPage(1);
             }}
           />
+          {onExportView ? (
+            <Tooltip
+              title={
+                visible.length === 0
+                  ? "当前筛选没有可导出的行"
+                  : "导出当前筛选后的全部行（表头即显示字段）"
+              }
+            >
+              <Button
+                className="table-export"
+                size="small"
+                icon={<FileDown size={14} />}
+                loading={exportingView}
+                disabled={visible.length === 0}
+                aria-label="导出当前视图"
+                onClick={() => void exportCurrentView()}
+              >
+                导出
+              </Button>
+            </Tooltip>
+          ) : null}
         </div>
         <div
           className="status-strip"

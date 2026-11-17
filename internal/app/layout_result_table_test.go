@@ -82,18 +82,16 @@ func TestTheEmptyResultTableHasNoFrame(t *testing.T) {
 }
 
 // TestTheToolbarFitsTheNarrowestWindow 固定数据整合工具条在最小窗口（969 宽）下的行为：
-// 工具条（查找框 + 状态筛选片）同一行 —— 查找框居左、筛选片居右，**不换行**；
-// 状态片等宽（86px）、与左右按钮同高（32px），文字不换行；
-// **出现冲突片（4 个）时最小窗口也放得下**：969 − 24（外壳内边距）− 340（左列）
-// − 16（折叠按钮）− 2（卡片描边）− 24（卡片正文）= 563 可用；4×86 + 3×8 = 368，
-// 加查找框最小 150 与间距 8 只有 526 ≤ 563。所以状态片不参与收缩（宽度先由查找框让出），
-// 否则最后一片会被卡片边缘裁掉 —— 这正是 4 片时曾经出现的问题。
+// 查找框 + 查找/导出按钮居左、状态筛选片居右；状态片等宽（86px），文字不换行。
+// **出现冲突片（4 个）时最小窗口放不下整行**：4×86 + 3×8 = 368，再加查找框最小 150
+// 与两个按钮；此时整组状态片换到第二行（仍靠右），不压缩状态片、也不裁掉最后一片。
+// 因此这里允许 flex-wrap: wrap，但禁止用媒体查询手工搬动状态片。
 func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
 	toolbar := cssBlock(t, styles, ".table-toolbar {")
-	if !strings.Contains(toolbar, "flex-wrap: nowrap;") {
-		t.Errorf("工具条必须一行放完，不许换行，实际块：\n%s", toolbar)
+	if !strings.Contains(toolbar, "flex-wrap: wrap;") {
+		t.Errorf("工具条在冲突片 + 导出按钮放不下时应当可换行，实际块：\n%s", toolbar)
 	}
 	if strings.Contains(styles, "@media (max-width: 1040px)") {
 		t.Error("不该再有把状态片挤到第二行的媒体查询")
@@ -108,7 +106,7 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	}
 	search := cssBlock(t, styles, ".table-search {")
 	if !strings.Contains(search, "min-width: 150px;") {
-		t.Errorf("查找框要能压缩但不能挤掉状态片（min-width: 150px），实际块：\n%s", search)
+		t.Errorf("查找框要能压缩但不能挤掉按钮（min-width: 150px），实际块：\n%s", search)
 	}
 	strip := cssBlock(t, styles, ".status-strip {")
 	if !strings.Contains(strip, "justify-content: flex-end;") {
@@ -117,6 +115,9 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 	// 状态片不参与收缩：否则 grid 内容会溢出自己的盒子，第四个（冲突）片被卡片边缘裁掉
 	if !strings.Contains(strip, "flex: 0 0 auto;") {
 		t.Errorf("状态片不该被压缩（flex: 0 0 auto，宽度先由查找框让出），实际块：\n%s", strip)
+	}
+	if !strings.Contains(strip, "margin-left: auto;") {
+		t.Errorf("状态片换到第二行时仍应靠右（margin-left: auto），实际块：\n%s", strip)
 	}
 
 	chips := cssBlock(t, styles, ".status-chips {")
@@ -181,8 +182,10 @@ func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	if !strings.Contains(app, `className="consolidation-run"`) || !strings.Contains(app, "整合") {
 		t.Error("「整合」仍然是这个区域的主按钮")
 	}
-	if strings.Contains(panels, "onConsolidate") || strings.Contains(panels, "onExport") {
-		t.Error("两个按钮已经搬到标题栏，面板里不该再持有这两个回调")
+	// 官方「整合 / 生成文件」按钮住在标题栏，面板不再持有这两个回调；
+	// 面板自己的「导出当前视图」是另一件事（onExportView），允许保留。
+	if regexp.MustCompile(`\bonConsolidate\b|\bonExport\b`).MatchString(panels) {
+		t.Error("官方整合/生成文件按钮已经搬到标题栏，面板里不该再持有这两个回调")
 	}
 }
 

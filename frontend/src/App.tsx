@@ -585,6 +585,21 @@ export default function App() {
     setMessage({ title: result.title, message: result.message, failed: result.failed });
   }, []);
 
+  // 导出整合表当前视图：行来自前端筛选结果，列名即表头；与正式「生成文件」互不影响。
+  const handleExportView = useCallback(async (viewColumns: string[], viewRows: string[][]) => {
+    const choice = await call<ExportTarget>("SelectConsolidationViewExportTarget");
+    if (!choice?.target) return; // 取消
+    const result = await call<ExportResult>(
+      "ExportConsolidationView",
+      viewColumns,
+      viewRows,
+      choice.target,
+    );
+    if (!result) return;
+    setLog(result.log);
+    setMessage({ title: result.title, message: result.message, failed: result.failed });
+  }, []);
+
   /* ---------- 参数设定 ---------- */
 
   const openSettings = useCallback(async () => {
@@ -934,6 +949,7 @@ export default function App() {
                 counts={counts}
                 conflicts={conflicts}
                 rowConflicts={rowConflicts}
+                onExportView={canConsolidate ? handleExportView : undefined}
               />
             </Card>
           </div>

@@ -460,6 +460,75 @@ func (app *App) Export(fileName string, target string) ExportResult {
 	}
 }
 
+// SelectConsolidationViewExportTarget 打开「导出当前整合表格」的保存对话框。
+//
+// 与正式导出（SelectExportTarget）分开：这里导出的不是模板口径的合格行，而是界面上
+// 经过查找/状态筛选后看到的全部行；列名用表头，值按表格显示写进一份新的 xlsx。
+func (app *App) SelectConsolidationViewExportTarget() ExportTarget {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.importer == nil {
+		return ExportTarget{}
+	}
+	if err := app.authorize(auth.ActionExport); err != nil {
+		app.appendLog(LogWarning, "导出当前整合表格被拒绝："+err.Error())
+		return ExportTarget{}
+	}
+	defaultName := "整合表格_" + time.Now().Format("20060102_150405") + ".xlsx"
+	target, err := runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
+		Title:           "导出当前整合表格",
+		DefaultFilename: defaultName,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Excel 文件 (*.xlsx)", Pattern: "*.xlsx"},
+		},
+	})
+	if err != nil {
+		return ExportTarget{DefaultName: defaultName}
+	}
+	return ExportTarget{DefaultName: defaultName, Target: target}
+}
+
+// ExportConsolidationView 把前端当前看到的整合表格写成一个独立的 xlsx。
+//
+// columns 是表头（即界面上的显示字段），rows 是查找/状态筛选后的全部行（不是当前页）。
+// 这份文件只用于查看与二次分析，不写正式导出记录、不归档共享盘；操作日志与审计仍各记一条，
+// 便于追溯是谁导出了什么范围。
+func (app *App) ExportConsolidationView(columns []string, rows [][]string, target string) ExportResult {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if err := app.beginOperation(); err != nil {
+		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err)}
+	}
+	defer app.endOperation()
+	if err := app.authorize(auth.ActionExport); err != nil {
+		return ExportResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
+	}
+	if target == "" {
+		return ExportResult{Log: app.logText()}
+	}
+	if len(columns) == 0 {
+		return ExportResult{
+			Log: app.logText(), Title: "导出失败", Message: "没有可导出的列。", Failed: true,
+		}
+	}
+	// 统一裁/补到表头列数：前端传来的是显示行，不依赖它一定与表头等宽。
+	normalized := make([][]string, len(rows))
+	for index, row := range rows {
+		normalized[index] = make([]string, len(columns))
+		copy(normalized[index], row)
+	}
+	if err := excelio.WriteReviewWorkbook(target, columns, normalized); err != nil {
+		app.appendLog(LogError, "导出当前整合表格失败："+err.Error())
+		return ExportResult{Log: app.logText(), Title: "导出失败", Message: userMessage(err), Failed: true}
+	}
+	app.appendLog(LogSuccess, fmt.Sprintf("当前整合表格已导出到 %s（%d 行）", target, len(normalized)))
+	app.audit("export_view", target, "当前整合表格", "ok")
+	return ExportResult{
+		Log: app.logText(), Title: "成功", Path: target,
+		Message: fmt.Sprintf("已导出当前筛选后的 %d 行到：\n%s", len(normalized), target),
+	}
+}
+
 // ReviewLog 按时间区间读操作日志，并像来源回顾一样分页（§5.6）。
 //
 // 运行日志只在第 1 页写一行，与现状实现的开窗时机一致。
