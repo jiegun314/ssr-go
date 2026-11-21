@@ -272,7 +272,7 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 	// 图标全部用 Lucide，语义按用户口径挑：
 	//   FileSpreadsheet（载入文件 = 一个 Excel 文件）/ TableIcon（数据回顾 = 看数据表格）/
 	//   Filter（查看清洗后数据 = 合并/筛选后的表）/ Trash2（清空，现在挂在标题栏上）/
-	//   Search（记录导出的回顾）
+	//   History（记录导出的回顾 = 过去一段时间的记录）
 	for _, icon := range []string{"FileSpreadsheet", "TableIcon", "Filter", "Search"} {
 		if !strings.Contains(panels, icon) {
 			t.Errorf("图标应当使用 Lucide 的 %s", icon)

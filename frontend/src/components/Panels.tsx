@@ -36,6 +36,7 @@ import {
   FileDown,
   FileSpreadsheet,
   Filter,
+  History,
   Mail,
   MailCheck,
   Search,
@@ -282,7 +283,7 @@ export function RecordExportPanel({
       {picker(start, onStartChange, "起始日期")}
       <ArrowRight className="date-sep" size={14} aria-hidden="true" />
       {picker(end, onEndChange, "结束日期")}
-      <IconButton label="回顾" size="middle" icon={<Search />} onClick={onReview} />
+      <IconButton label="回顾" size="middle" icon={<History />} onClick={onReview} />
     </div>
   );
 }
