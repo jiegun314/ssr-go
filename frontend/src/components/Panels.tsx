@@ -44,6 +44,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { IconButton } from "./IconButton";
+
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 
 import { CLEANED_SOURCES, SOURCES, copyToClipboard } from "../bridge";
@@ -176,19 +178,19 @@ export function ImportPanel({
                 ) : (
                   <>
                     {canImport ? (
-                      <Tooltip title={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}>
-                        <Button
-                          type="text"
-                          aria-label="载入文件"
-                          icon={<FileSpreadsheet size={16} />}
-                          disabled={locked}
-                          onClick={() => onImport(source.key)}
-                        />
-                      </Tooltip>
+                      <IconButton
+                        label="载入文件"
+                        tooltip={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}
+                        size="middle"
+                        icon={<FileSpreadsheet />}
+                        disabled={locked}
+                        onClick={() => onImport(source.key)}
+                      />
                     ) : null}
                     {showNotify ? (
-                      <Tooltip
-                        title={
+                      <IconButton
+                        label="邮件通知"
+                        tooltip={
                           !canImport
                             ? "当前身份没有这个来源的导入权限"
                             : !localExists
@@ -197,17 +199,11 @@ export function ImportPanel({
                                 ? "已发送通知（可再次发送）"
                                 : "邮件通知 Supply Chain / Admin"
                         }
-                      >
-                        <Button
-                          type="text"
-                          aria-label="邮件通知"
-                          icon={
-                            notified[source.key] ? <MailCheck size={16} /> : <Mail size={16} />
-                          }
-                          disabled={!canImport || !localExists}
-                          onClick={() => onNotify(source.key)}
-                        />
-                      </Tooltip>
+                        size="middle"
+                        icon={notified[source.key] ? <MailCheck /> : <Mail />}
+                        disabled={!canImport || !localExists}
+                        onClick={() => onNotify(source.key)}
+                      />
                     ) : null}
                     {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
                     <Typography.Text
@@ -222,26 +218,23 @@ export function ImportPanel({
                 )}
                 {canView ? (
                   <>
-                    <Tooltip title={localExists ? "数据回顾" : "本机还没有取到数据"}>
-                      <Button
-                        type="text"
-                        aria-label="数据回顾"
-                        icon={<TableIcon size={16} />}
-                        disabled={!localExists}
-                        onClick={() => onReview(source.key)}
-                      />
-                    </Tooltip>
+                    <IconButton
+                      label="数据回顾"
+                      tooltip={localExists ? "数据回顾" : "本机还没有取到数据"}
+                      size="middle"
+                      icon={<TableIcon />}
+                      disabled={!localExists}
+                      onClick={() => onReview(source.key)}
+                    />
                     {/* 有清洗表的来源（RA 信息）：同一个窗口，读清洗表 —— 方便核对合并结果 */}
                     {CLEANED_SOURCES.includes(source.key) && (
-                      <Tooltip title="查看清洗后数据">
-                        <Button
-                          type="text"
-                          aria-label="查看清洗后数据"
-                          icon={<Filter size={16} />}
-                          disabled={current.state !== "imported" && current.state !== "existing"}
-                          onClick={() => onReviewCleaned(source.key)}
-                        />
-                      </Tooltip>
+                      <IconButton
+                        label="查看清洗后数据"
+                        size="middle"
+                        icon={<Filter />}
+                        disabled={current.state !== "imported" && current.state !== "existing"}
+                        onClick={() => onReviewCleaned(source.key)}
+                      />
                     )}
                   </>
                 ) : null}
@@ -289,9 +282,7 @@ export function RecordExportPanel({
       {picker(start, onStartChange, "起始日期")}
       <ArrowRight className="date-sep" size={14} aria-hidden="true" />
       {picker(end, onEndChange, "结束日期")}
-      <Tooltip title="回顾">
-        <Button icon={<Search size={16} />} aria-label="回顾" onClick={onReview} />
-      </Tooltip>
+      <IconButton label="回顾" size="middle" icon={<Search />} onClick={onReview} />
     </div>
   );
 }
@@ -546,35 +537,28 @@ export function ConsolidationPanel({
               setPage(1);
             }}
           />
-          <Button
-            size="small"
-            icon={<Search size={14} />}
-            aria-label="查找"
+          <IconButton
+            label="查找"
+            icon={<Search />}
             onClick={() => {
               setAppliedQuery(searchText);
               setPage(1);
             }}
           />
           {onExportView ? (
-            <Tooltip
-              title={
+            <IconButton
+              className="table-export"
+              label="导出当前视图"
+              tooltip={
                 visible.length === 0
                   ? "当前筛选没有可导出的行"
                   : "导出当前筛选后的全部行（表头即显示字段）"
               }
-            >
-              <Button
-                className="table-export"
-                size="small"
-                icon={<FileDown size={14} />}
-                loading={exportingView}
-                disabled={visible.length === 0}
-                aria-label="导出当前视图"
-                onClick={() => void exportCurrentView()}
-              >
-                导出
-              </Button>
-            </Tooltip>
+              icon={<FileDown />}
+              loading={exportingView}
+              disabled={visible.length === 0}
+              onClick={() => void exportCurrentView()}
+            />
           ) : null}
         </div>
         <div
@@ -832,12 +816,8 @@ export function LogDetailModal({ entry, onClose }: { entry: LogEntry | null; onC
       }
       footer={
         <Flex justify="flex-end" gap={8}>
-          <Tooltip title="复制全部信息">
-            <Button icon={<Copy size={16} />} aria-label="复制全部信息" onClick={copy} />
-          </Tooltip>
-          <Tooltip title="关闭">
-            <Button icon={<X size={16} />} aria-label="关闭" onClick={onClose} />
-          </Tooltip>
+          <IconButton label="复制全部信息" size="middle" icon={<Copy />} onClick={copy} />
+          <IconButton label="关闭" size="middle" icon={<X />} onClick={onClose} />
         </Flex>
       }
     >

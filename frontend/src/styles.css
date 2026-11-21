@@ -194,6 +194,81 @@ body {
   background: rgba(255, 255, 255, 0.18);
 }
 
+/* ---------- 统一的纯图标按钮 ---------- */
+
+/* 尺寸只有两档：24px（small，图标 14）与 32px（middle，图标 16）。
+   颜色按语义分：中性灰 = 查看 / 刷新 / 复制 / 关闭；危险红 = 清空 / 删除 / 清理；
+   红底标题栏用 inverse（白色）。品牌红填充只留给主决策，不在这里。 */
+.ui-icon-button.ant-btn {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  color: rgba(0, 0, 0, 0.65);
+  background: transparent;
+}
+
+.ui-icon-button.ant-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ui-icon-button.ant-btn:hover,
+.ui-icon-button.ant-btn:focus-visible {
+  color: rgba(0, 0, 0, 0.88);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.ui-icon-button.ant-btn:focus-visible {
+  outline: 2px solid var(--brand-red);
+  outline-offset: 1px;
+}
+
+.ui-icon-button.ant-btn:disabled,
+.ui-icon-button.ant-btn.ant-btn-disabled {
+  color: rgba(0, 0, 0, 0.25);
+  background: transparent;
+}
+
+.ui-icon-button-middle.ant-btn {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+}
+
+.ui-icon-button-middle.ant-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ui-icon-button-danger.ant-btn {
+  color: var(--danger-red);
+}
+
+.ui-icon-button-danger.ant-btn:hover,
+.ui-icon-button-danger.ant-btn:focus-visible {
+  color: var(--danger-red);
+  background: rgba(207, 19, 34, 0.08);
+}
+
+.ui-icon-button-inverse.ant-btn {
+  color: #fff;
+}
+
+.ui-icon-button-inverse.ant-btn:hover,
+.ui-icon-button-inverse.ant-btn:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ui-icon-button-inverse.ant-btn:disabled,
+.ui-icon-button-inverse.ant-btn.ant-btn-disabled {
+  color: rgba(255, 255, 255, 0.45);
+  background: transparent;
+}
+
 /* ---------- 数据整合的标题栏 ---------- */
 
 /* 标题栏：模块名在左、「整合」在整条栏的正中、生成文件图标在右，三者一律纵向居中 */
@@ -219,17 +294,22 @@ body {
   overflow: visible;
 }
 
-/* 「整合」：白底红字（红底标题栏上才有对比），整条标题栏的正中。
+/* 「整合」：白底红字（红底标题栏上才有对比），整条标题栏的正中；紧凑档 24px。
    必须同时给 top + translateY(-50%)，否则绝对定位会从标题文字的上沿往下排、下缘出栏。 */
 .consolidation-card .consolidation-run.ant-btn {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  height: 28px; /* 比 antd 默认再矮一点；38px 的标题栏里上下各留 5px */
+  height: 24px;
   background: #fff;
   color: #da291c; /* theme.ts 的 BRAND_RED */
   border-color: #fff;
+}
+
+.consolidation-card .consolidation-run.ant-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .consolidation-card .consolidation-run.ant-btn:hover,
@@ -245,34 +325,6 @@ body {
   border-color: #fff;
 }
 
-/* 数据整合标题栏右侧的「生成文件」：与「整合」**同一形式** —— 白底、品牌红字、
-   图标 + 文字、28px 高（38px 的标题栏里上下各留 5px）。区别只在位置：它留在右侧，
-   「整合」占整条栏的正中，一个区域仍然只有一个主按钮。 */
-.consolidation-card .consolidation-export.ant-btn {
-  height: 28px;
-  padding-inline: 10px;
-  background: #fff;
-  color: #da291c; /* theme.ts 的 BRAND_RED */
-  border-color: #fff;
-}
-
-/* 悬浮 / 按下 / 键盘焦点：白底不变，字体颜色也不换（用户口径：一律默认强生红）。 */
-.consolidation-card .consolidation-export.ant-btn:hover,
-.consolidation-card .consolidation-export.ant-btn:focus-visible,
-.consolidation-card .consolidation-export.ant-btn:active {
-  background: #fff;
-  color: #da291c;
-  border-color: #fff;
-}
-
-/* 没有合格行时禁用：底色换成浅灰做区分（比白明显能看出"不可用"），**字体仍然是强生红**。
-   灰底上红字约 4:1；禁用控件不受对比度下限约束。 */
-.consolidation-card .consolidation-export.ant-btn:disabled,
-.consolidation-card .consolidation-export.ant-btn.ant-btn-disabled {
-  background: #e8e8e8;
-  color: #da291c;
-  border-color: #e8e8e8;
-}
 
 /* 禁用时退回半透明白（antd 默认在红底上会变成深灰，看不清） */
 .card > .ant-card-head .head-icon-action.ant-btn:disabled,
@@ -1526,28 +1578,6 @@ body {
   background: var(--brand-red);
 }
 
-.align-card .align-run.ant-btn {
-  height: 28px;
-  padding-inline: 10px;
-  background: #fff;
-  color: var(--brand-red);
-  border-color: #fff;
-}
-
-.align-card .align-run.ant-btn:hover,
-.align-card .align-run.ant-btn:focus-visible,
-.align-card .align-run.ant-btn:active {
-  background: #fff;
-  color: var(--brand-red);
-  border-color: #fff;
-}
-
-.align-card .align-run.ant-btn:disabled,
-.align-card .align-run.ant-btn.ant-btn-disabled {
-  background: #e8e8e8;
-  color: var(--brand-red);
-  border-color: #e8e8e8;
-}
 
 /* 四个来源卡片：宽度够时一行四个，窗口变窄自动换成 2×2（容器查询，按模块自身宽度判断） */
 .align-grid-wrap {
@@ -1597,11 +1627,7 @@ body {
 
 .align-source-run.ant-btn {
   flex: 0 0 auto;
-  height: 22px;
   margin-left: auto;
-  padding-inline: 8px;
-  font-size: 12px;
-  line-height: 20px;
 }
 
 .align-source-line {

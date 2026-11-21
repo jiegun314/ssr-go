@@ -148,9 +148,8 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 }
 
 // TestTheExportActionIsSecondaryAndWaitsForReadyRows 固定数据整合标题栏的层级与门禁：
-// 一个区域只留一个**主按钮**（数据整合 = primary，「生成文件」是白底红字的次按钮，
-// 与「整合」同一形式：图标 + 文字、28px 高），且没有 Ready 行时「生成文件」禁用
-// （只有 Ready 会导出，点了也是白点）。
+// 一个区域只留一个**主按钮**（数据整合 = primary 文字按钮）；「生成文件」是红底上的
+// 白色图标按钮（无文字，tooltip / aria-label 说明用途），且没有 Ready 行时禁用。
 func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
@@ -159,27 +158,39 @@ func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	if !strings.Contains(app, `const readyCount = statuses.filter((status) => status === "Ready").length;`) {
 		t.Error("标题栏应当按 Ready 行数决定「生成文件」能不能点")
 	}
-	exportButton := app[strings.Index(app, `aria-label="生成文件"`):]
-	exportButton = exportButton[:strings.Index(exportButton, "</Button>")+len("</Button>")]
+	start := strings.Index(app, `className="consolidation-export"`)
+	if start < 0 {
+		t.Fatal("没找到标题栏里的「生成文件」图标按钮")
+	}
+	exportButton := app[start:]
+	end := strings.Index(exportButton, "onClick={handleExport}")
+	if end < 0 {
+		t.Fatal("「生成文件」图标按钮缺少 onClick")
+	}
+	exportButton = exportButton[:end]
+	for _, wanted := range []string{
+		`label="生成文件"`, // hover 提示 + aria-label
+		`inverse`,      // 红底标题栏
+		`icon={<FileDown />}`,
+		`disabled={!can("export") || readyCount === 0}`,
+	} {
+		if !strings.Contains(exportButton, wanted) {
+			t.Errorf("「生成文件」图标按钮缺少 %s，实际块：\n%s", wanted, exportButton)
+		}
+	}
 	if strings.Contains(exportButton, `type="primary"`) {
-		t.Error("「生成文件」应当是次按钮：一个区域只留「整合」一个主按钮")
+		t.Error("「生成文件」应当是次要动作：一个区域只留「整合」一个主按钮")
 	}
-	// 没有 Ready 行要禁用；P1 起再叠加身份权限（没有导出权限时同样禁用）
-	if !strings.Contains(app, `disabled={!can("export") || readyCount === 0}`) {
-		t.Error("没有 Ready 行（或没有导出权限）时「生成文件」要禁用")
-	}
-	// 图标 + 文字（与「整合」同一形式）：文字是按钮的子节点，不是 aria-label
-	if !regexp.MustCompile(`>\s*生成文件\s*</Button>`).MatchString(exportButton) {
-		t.Error("「生成文件」按钮要图标 + 文字（文字作为按钮子节点渲染）")
-	}
-	if !strings.Contains(exportButton, "icon={<FileDown size={16} />}") {
-		t.Error("「生成文件」的图标要与「整合」同尺寸（16px）")
+	if strings.Contains(exportButton, "生成文件</") {
+		t.Error("「生成文件」改成纯图标按钮后不该再带文字")
 	}
 	if !strings.Contains(app, "还没有可导出的行（只有合格的行会导出）") {
 		t.Error("禁用时要给出原因（Tooltip）")
 	}
-	// 「整合」是标题栏里唯一的主按钮
-	if !strings.Contains(app, `className="consolidation-run"`) || !strings.Contains(app, "整合") {
+	// 「整合」是标题栏里唯一的主按钮，仍保留文字
+	if !strings.Contains(app, `className="consolidation-run"`) ||
+		!strings.Contains(app, `type="primary"`) ||
+		!strings.Contains(app, "整合") {
 		t.Error("「整合」仍然是这个区域的主按钮")
 	}
 	// 官方「整合 / 生成文件」按钮住在标题栏，面板不再持有这两个回调；
@@ -299,11 +310,11 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 		t.Error("没有单元格级提示的冲突行应当挂行级原因")
 	}
 	// 所有表格查找：输入框旁边有小查找按钮，点按钮/回车才生效
-	if !strings.Contains(panels, "table-search-group") || !strings.Contains(panels, `aria-label="查找"`) {
+	if !strings.Contains(panels, "table-search-group") || !strings.Contains(panels, `label="查找"`) {
 		t.Error("整合表的查找应当有独立的小查找按钮")
 	}
 	modals := readFrontendSource(t, "src/components/Modals.tsx")
-	if !strings.Contains(modals, "table-search-group") || !strings.Contains(modals, `aria-label="查找"`) {
+	if !strings.Contains(modals, "table-search-group") || !strings.Contains(modals, `label="查找"`) {
 		t.Error("回顾窗口的查找应当有独立的小查找按钮")
 	}
 	triangle := cssBlock(t, styles, ".cell-conflict::after {")
@@ -322,9 +333,9 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 	}
 }
 
-// TestTheConsolidationHeadButtonsSitOnTheRedBar 固定数据整合标题栏里两个按钮的规格：
-// 两个按钮**同一形式**（白底、品牌红字、图标 + 文字、28px 高，38px 栏里上下各留 5px）：
-// 「整合」占整条栏的正中（绝对定位居中），「生成文件」留在右侧、不参与居中。
+// TestTheConsolidationHeadButtonsSitOnTheRedBar 固定数据整合标题栏的两个层级：
+// 「整合」是唯一的品牌红主按钮（白底红字、24px 紧凑档，占标题栏正中）；
+// 「生成文件」是红底上的白色纯图标按钮（24px，tooltip + aria-label），不再用白底文字按钮。
 func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -332,10 +343,10 @@ func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 	runButton := cssRule(t, styles, ".consolidation-card .consolidation-run.ant-btn {")
 	for _, wanted := range []string{
 		"position: absolute;",
-		"top: 50%;", // 少了它绝对定位会从标题文字上沿往下排，下缘就出栏了
+		"top: 50%;",
 		"left: 50%;",
 		"transform: translate(-50%, -50%);",
-		"height: 28px;", // 收窄后的高度：38px 的标题栏里上下各留 5px
+		"height: 24px;",
 		"background: #fff;",
 		"color: #da291c;",
 	} {
@@ -343,45 +354,46 @@ func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 			t.Errorf("「整合」按钮缺少 %s，实际块：\n%s", wanted, runButton)
 		}
 	}
-	// 「生成文件」与「整合」同一形式：白底、红字、同高；但不许也绝对定位居中（会和「整合」叠在一起）
-	exportButton := cssRule(t, styles, ".consolidation-card .consolidation-export.ant-btn {")
-	for _, wanted := range []string{
-		"height: 28px;",
-		"background: #fff;",
-		"color: #da291c;",
-		"border-color: #fff;",
-		"padding-inline: 10px;",
-	} {
+	start := strings.Index(app, `className="consolidation-export"`)
+	if start < 0 {
+		t.Fatal("没找到标题栏里的「生成文件」图标按钮")
+	}
+	exportButton := app[start:]
+	end := strings.Index(exportButton, "onClick={handleExport}")
+	if end < 0 {
+		t.Fatal("「生成文件」图标按钮缺少 onClick")
+	}
+	exportButton = exportButton[:end]
+	for _, wanted := range []string{`label="生成文件"`, "inverse", "icon={<FileDown />}"} {
 		if !strings.Contains(exportButton, wanted) {
-			t.Errorf("「生成文件」按钮缺少 %s（要与「整合」同一形式），实际块：\n%s", wanted, exportButton)
+			t.Errorf("「生成文件」图标按钮缺少 %s，实际块：\n%s", wanted, exportButton)
 		}
 	}
-	for _, forbidden := range []string{"position: absolute;", "transform:"} {
-		if strings.Contains(exportButton, forbidden) {
-			t.Errorf("「生成文件」留在右侧，不该用 %s 居中（会和「整合」重叠），实际块：\n%s", forbidden, exportButton)
+	if strings.Contains(exportButton, "生成文件</") {
+		t.Error("「生成文件」改成纯图标按钮后不该再带文字")
+	}
+	if strings.Contains(styles, ".consolidation-card .consolidation-export.ant-btn {") {
+		t.Error("旧的「生成文件」白底文字按钮样式应当删掉，改用统一的图标按钮")
+	}
+	base := cssBlock(t, styles, ".ui-icon-button.ant-btn {")
+	for _, wanted := range []string{"width: 24px;", "height: 24px;", "color: rgba(0, 0, 0, 0.65);"} {
+		if !strings.Contains(base, wanted) {
+			t.Errorf("图标按钮基础档缺少 %s，实际块：\n%s", wanted, base)
 		}
 	}
-	// 字体颜色一律用默认的强生红：悬浮 / 按下 / 禁用都不换色（用户口径，
-	// 之前悬浮用深红、禁用用淡红，都被否掉了）
-	states := cssBlock(t, styles, ".consolidation-card .consolidation-export.ant-btn:hover,")
-	if !strings.Contains(states, "color: #da291c;") {
-		t.Errorf("「生成文件」的悬浮/按下状态也要保持品牌红，实际块：\n%s", states)
-	}
-	for _, darker := range []string{"#a81f14", "#8f1a11", "rgba(218, 41, 28"} {
-		if strings.Contains(states, darker) {
-			t.Errorf("「生成文件」不该换成 %s（字体颜色统一用 #da291c），实际块：\n%s", darker, states)
+	middle := cssBlock(t, styles, ".ui-icon-button-middle.ant-btn {")
+	for _, wanted := range []string{"width: 32px;", "height: 32px;"} {
+		if !strings.Contains(middle, wanted) {
+			t.Errorf("图标按钮标准档缺少 %s，实际块：\n%s", wanted, middle)
 		}
 	}
-	// 禁用态：底色换成浅灰做区分，字体仍然是强生红
-	disabled := cssBlock(t, styles, ".consolidation-card .consolidation-export.ant-btn:disabled,")
-	for _, wanted := range []string{"background: #e8e8e8;", "color: #da291c;", "border-color: #e8e8e8;"} {
-		if !strings.Contains(disabled, wanted) {
-			t.Errorf("禁用态缺少 %s（浅灰底 + 强生红字），实际块：\n%s", wanted, disabled)
-		}
+	inverse := cssBlock(t, styles, ".ui-icon-button-inverse.ant-btn {")
+	if !strings.Contains(inverse, "color: #fff;") {
+		t.Errorf("红底图标按钮应当是白色，实际块：\n%s", inverse)
 	}
-	// 图标与「整合」同尺寸
-	if !strings.Contains(app, "icon={<FileDown size={16} />}") {
-		t.Error("生成文件的图标要与「整合」同尺寸（16px）")
+	danger := cssBlock(t, styles, ".ui-icon-button-danger.ant-btn {")
+	if !strings.Contains(danger, "color: var(--danger-red);") {
+		t.Errorf("危险图标按钮应当用危险红，实际块：\n%s", danger)
 	}
 	// 清空按钮仍走无边框白图标那套基础规则；禁用时退回半透明白
 	clear := cssRule(t, styles, ".card > .ant-card-head .head-icon-action.ant-btn {")

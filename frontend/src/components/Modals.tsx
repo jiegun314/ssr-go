@@ -23,9 +23,10 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { DataNode } from "antd/es/tree";
-import { FileDown, Search } from "lucide-react";
+import { ChevronsDown, ChevronsUp, FileDown, Pencil, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { IconButton } from "./IconButton";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 import type {
   AboutInfo,
@@ -98,9 +99,13 @@ export function ReviewModal({ open, result, exporting, onPage, onSearch, onExpor
       // 底栏仍是「导出在最左、翻页居中、关闭在最右」这一行。
       footer={
         <Flex align="center" gap={8}>
-          <Button icon={<FileDown size={16} />} loading={exporting} onClick={onExport}>
-            导出
-          </Button>
+          <IconButton
+            label="导出"
+            size="middle"
+            icon={<FileDown />}
+            loading={exporting}
+            onClick={onExport}
+          />
           <Flex flex="1 1 auto" justify="center">
             <Pagination
               current={result?.page ?? 1}
@@ -138,7 +143,7 @@ export function ReviewModal({ open, result, exporting, onPage, onSearch, onExpor
             }}
             onPressEnter={applySearch}
           />
-          <Button size="small" icon={<Search size={14} />} aria-label="查找" onClick={applySearch} />
+          <IconButton label="查找" icon={<Search />} onClick={applySearch} />
         </div>
       </div>
       <div className="tblwrap">
@@ -349,11 +354,13 @@ export function SettingsModal({
           />
           {view === "tree" && (
             <>
-              <Button onClick={() => onToggleAll(true)}>全部展开</Button>
-              <Button onClick={() => onToggleAll(false)}>全部折叠</Button>
+              <IconButton label="全部展开" icon={<ChevronsDown />} onClick={() => onToggleAll(true)} />
+              <IconButton label="全部折叠" icon={<ChevronsUp />} onClick={() => onToggleAll(false)} />
             </>
           )}
-          {view === "tree" && <Button onClick={onStartEdit}>编辑原文</Button>}
+          {view === "tree" && (
+            <IconButton label="编辑原文" icon={<Pencil />} onClick={onStartEdit} />
+          )}
         </Space>
       </Flex>
       {view === "form" ? (

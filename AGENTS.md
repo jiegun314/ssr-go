@@ -247,6 +247,11 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
   `BRAND_RED = #DA291C`（强生企业红）、`DANGER_RED = #CF1322`（真源在 `frontend/src/design-tokens.ts`，
   `theme.ts` 只做转出）。
 - 功能模块：**直角** + `1px solid #d9d9d9` 描边（比 antd 默认的 `#f0f0f0` 更深）。
+- **按钮统一走 `frontend/src/components/IconButton.tsx`**：工具 / 导航动作用纯图标
+  （`label` 同时作为 `aria-label` 与默认 Tooltip），只有主操作和对话框决策保留文字。
+  尺寸只有两档：紧凑 24px（`small`，图标 14）与标准 32px（`middle`，图标 16）；状态栏 20px 是特例。
+  颜色语义固定：中性灰 = 普通、`DANGER_RED` = 破坏性、`inverse` = 红底标题栏、品牌红
+  `primary` = 每个区域唯一的主决策。新增按钮先套这个组件，不要再写裸 `<Button>` 配临时字号 / 颜色。
 - 数字一律千分位（`internal/numfmt`）；文案中文；日期格式统一。
 - **错误文案分两层**：内部错误保持英文（便于检索与对照上游库），**给用户看的对话框文案统一走
   `userMessage`**（`user_message.go`：认识的错误给中文说法，不认识的用"操作失败："起头并附原文；

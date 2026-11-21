@@ -33,6 +33,7 @@ import {
   type MessageState,
 } from "./components/Panels";
 import { AlignPanel } from "./components/AlignPanel";
+import { IconButton } from "./components/IconButton";
 import { StatusModal } from "./components/StatusModal";
 import { recordIconClick } from "./iconClicks";
 import { LoginScreen } from "./components/LoginScreen";
@@ -780,15 +781,13 @@ export default function App() {
                 // 清空：只有白色图标（无文字、无边框），标题栏里靠右，省下模块内那一行的高度；
                 // 只有 Admin 有这个动作（权限矩阵 clear）
                 can("clear") ? (
-                  <Tooltip title="清空导入数据">
-                    <Button
-                      className="head-icon-action"
-                      type="text"
-                      aria-label="清空导入数据"
-                      icon={<Trash2 size={16} />}
-                      onClick={handleClear}
-                    />
-                  </Tooltip>
+                  <IconButton
+                    className="head-icon-action"
+                    label="清空导入数据"
+                    inverse
+                    icon={<Trash2 />}
+                    onClick={handleClear}
+                  />
                 ) : null
               }
             >
@@ -848,24 +847,20 @@ export default function App() {
                       <span className="align-auto-label">自动对齐</span>
                       <Switch size="small" checked={autoAlign} onChange={setAutoAlign} />
                     </span>
-                    <Tooltip
-                      title={
+                    <IconButton
+                      className="align-run"
+                      label="全部对齐"
+                      tooltip={
                         alignSummary.pending === 0
                           ? "没有需要对齐的来源"
                           : "把落后的来源都对齐到共享盘最新版本"
                       }
-                    >
-                      <Button
-                        className="align-run"
-                        aria-label="全部对齐"
-                        icon={<RefreshCw size={16} />}
-                        loading={aligning}
-                        disabled={aligning || alignSummary.pending === 0}
-                        onClick={handleAlignAll}
-                      >
-                        全部对齐
-                      </Button>
-                    </Tooltip>
+                      inverse
+                      icon={<RefreshCw />}
+                      loading={aligning}
+                      disabled={aligning || alignSummary.pending === 0}
+                      onClick={handleAlignAll}
+                    />
                   </div>
                 }
               >
@@ -892,6 +887,7 @@ export default function App() {
                       <Button
                         className="consolidation-run"
                         type="primary"
+                        size="small"
                         icon={<Merge size={16} />}
                         disabled={shareBlocked || !allAligned}
                         onClick={handleConsolidate}
@@ -906,35 +902,30 @@ export default function App() {
                 // 右侧动作：强制重跑 + 生成文件；没有整合权限的身份只显示「只读」
                 canConsolidate ? (
                   <>
-                    <Tooltip title={forceTitle}>
-                      <Button
-                        className="consolidation-force"
-                        icon={<RefreshCw size={16} />}
-                        disabled={shareBlocked || !allAligned || busy !== null}
-                        onClick={handleConsolidateForce}
-                      >
-                        强制重跑
-                      </Button>
-                    </Tooltip>
-                    <Tooltip
-                      title={
+                    <IconButton
+                      className="consolidation-force"
+                      label="强制重跑"
+                      tooltip={forceTitle}
+                      inverse
+                      icon={<RefreshCw />}
+                      disabled={shareBlocked || !allAligned || busy !== null}
+                      onClick={handleConsolidateForce}
+                    />
+                    <IconButton
+                      className="consolidation-export"
+                      label="生成文件"
+                      tooltip={
                         !can("export")
                           ? "当前身份没有导出权限"
                           : readyCount === 0
                             ? "还没有可导出的行（只有合格的行会导出）"
                             : "生成文件"
                       }
-                    >
-                      <Button
-                        className="consolidation-export"
-                        aria-label="生成文件"
-                        icon={<FileDown size={16} />}
-                        disabled={!can("export") || readyCount === 0}
-                        onClick={handleExport}
-                      >
-                        生成文件
-                      </Button>
-                    </Tooltip>
+                      inverse
+                      icon={<FileDown />}
+                      disabled={!can("export") || readyCount === 0}
+                      onClick={handleExport}
+                    />
                   </>
                 ) : (
                   <Tag className="consolidation-locked-tag">只读</Tag>

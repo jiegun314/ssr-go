@@ -3,8 +3,10 @@
 // 数据来自 ShareOverview（与对齐面板同一个来源），审计走 ReviewAudit（分页窗口）。
 
 import { Button, Descriptions, InputNumber, Modal, Table, Tag, Tooltip } from "antd";
+import { Download, RefreshCw, ScrollText, ShieldAlert, Trash2 } from "lucide-react";
+
+import { IconButton } from "./IconButton";
 import type { ColumnsType } from "antd/es/table";
-import { RefreshCw, ShieldAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import type { ShareOverview, SourceStatus } from "../types";
@@ -85,9 +87,12 @@ export function StatusModal({
                 {report.status.mode === "local" ? "本地模式" : report.status.healthy ? "正常" : "异常"}
               </Tag>
             ) : null}
-            <Button size="small" icon={<RefreshCw size={14} />} onClick={onRecheck}>
-              重新检查
-            </Button>
+            <IconButton
+              label="重新检查"
+              tooltip="重新检查共享盘"
+              icon={<RefreshCw />}
+              onClick={onRecheck}
+            />
           </div>
           <div className="status-section-body">{report?.status?.detail ?? "—"}</div>
         </section>
@@ -156,26 +161,22 @@ export function StatusModal({
               aria-label="保留份数"
             />
             <span>份（当前版本与最后整合用到的版本始终保留）</span>
-            <Button
-              size="small"
+            <IconButton
+              label="清理"
+              tooltip="清理共享盘旧版本"
               danger
-              icon={<Trash2 size={14} />}
+              icon={<Trash2 />}
               loading={cleaning}
               disabled={!canCleanup}
               onClick={() => onCleanup(keep)}
-            >
-              清理
-            </Button>
-            <Button size="small" onClick={onReviewAudit}>
-              查看审计
-            </Button>
-            <Button
-              size="small"
+            />
+            <IconButton label="查看审计" icon={<ScrollText />} onClick={onReviewAudit} />
+            <IconButton
+              label="导出诊断包"
+              icon={<Download />}
               loading={exportingDiagnostics}
               onClick={onExportDiagnostics}
-            >
-              导出诊断包
-            </Button>
+            />
           </div>
         </section>
       </div>

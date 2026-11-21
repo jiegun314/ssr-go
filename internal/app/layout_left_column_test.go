@@ -143,8 +143,8 @@ func TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable(t *testing.T) {
 	}
 	for _, wanted := range []string{
 		`className="head-icon-action"`,
-		`aria-label="清空导入数据"`,
-		`icon={<Trash2 size={16} />}`,
+		`label="清空导入数据"`,
+		`icon={<Trash2 />}`,
 		"extra={",
 	} {
 		if !strings.Contains(app, wanted) {
@@ -210,7 +210,7 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 			t.Errorf("记录导出样式缺少：%s", wanted)
 		}
 	}
-	for _, wanted := range []string{`className="date-sep"`, `aria-label="回顾"`, `title="回顾"`} {
+	for _, wanted := range []string{`className="date-sep"`, `label="回顾"`} {
 		if !strings.Contains(panels, wanted) && !strings.Contains(app, wanted) {
 			t.Errorf("记录导出结构缺少：%s", wanted)
 		}
@@ -223,8 +223,11 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 		t.Error("记录导出应当是左列里的普通模块（class=card record-card + title）")
 	}
 	// 回顾是纯图标按钮（窄栏里带文字一行放不下），语义靠 aria-label + Tooltip
-	reviewStart := strings.Index(panels, `aria-label="回顾"`)
-	reviewButton := panels[strings.LastIndex(panels[:reviewStart], "<Button"):]
+	reviewStart := strings.Index(panels, `label="回顾"`)
+	if reviewStart < 0 {
+		t.Fatal("没找到「回顾」图标按钮")
+	}
+	reviewButton := panels[strings.LastIndex(panels[:reviewStart], "<IconButton"):]
 	reviewButton = reviewButton[:strings.Index(reviewButton, "/>")]
 	if strings.Contains(reviewButton, "回顾<") || strings.Contains(reviewButton, ">回顾") {
 		t.Error("「回顾」在窄栏里应当是纯图标按钮，不该带文字")
@@ -260,7 +263,7 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 		t.Errorf("四个分组的间隔应当统一（margin-bottom: 6px），实际块：\n%s", group)
 	}
 	for _, wanted := range []string{
-		`aria-label="载入文件"`, `aria-label="数据回顾"`, `aria-label="查看清洗后数据"`,
+		`label="载入文件"`, `label="数据回顾"`, `label="查看清洗后数据"`,
 	} {
 		if !strings.Contains(panels, wanted) {
 			t.Errorf("导入区的图标按钮缺少可读名称：%s", wanted)

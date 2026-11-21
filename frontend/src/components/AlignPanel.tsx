@@ -5,7 +5,10 @@
 // 「发布状态（几份待对齐）」与「自动对齐」开关在模块标题栏里（App.tsx 的 Card extra），
 // 这里只负责卡片本身，尽量压低高度。
 
-import { Button, Tag } from "antd";
+import { Tag } from "antd";
+import { RefreshCw } from "lucide-react";
+
+import { IconButton } from "./IconButton";
 
 import type { SourceStatus } from "../types";
 
@@ -29,14 +32,20 @@ export function AlignPanel({ sources, aligning, onAlign }: AlignPanelProps) {
               >
                 {source.aligned ? (source.pending ? "已对齐 · 待整合" : "已对齐") : "未对齐"}
               </Tag>
-              <Button
-                size="small"
+              <IconButton
                 className="align-source-run"
+                label="对齐"
+                tooltip={
+                  source.aligned
+                    ? "本机已经是共享盘最新版本"
+                    : !source.remoteVersion
+                      ? "共享盘还没有这个来源的版本"
+                      : "对齐到共享盘最新版本"
+                }
+                icon={<RefreshCw />}
                 disabled={aligning || source.aligned || !source.remoteVersion}
                 onClick={() => onAlign(source.source)}
-              >
-                对齐
-              </Button>
+              />
             </div>
             <div className="align-source-line">
               <span className="align-key">共享盘</span>

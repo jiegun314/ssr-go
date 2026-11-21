@@ -9,7 +9,6 @@
 //   - 改动先攒在 pending 里，由窗口底部的「保存」一次性提交（后端只改被编辑的那几行）。
 
 import {
-  Button,
   Drawer,
   Flex,
   Input,
@@ -22,7 +21,9 @@ import {
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { RotateCcw, Trash2 } from "lucide-react";
+
+import { IconButton } from "./IconButton";
+import { Plus, RotateCcw, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
 
 import type { SettingsChange, SettingsNode } from "../types";
@@ -117,16 +118,12 @@ export function SettingsBlock({ node, depth, pending, onChange, onResetPath }: B
         <ScalarControl node={node} pending={pending} onChange={onChange} />
       </div>
       {dirty && (
-        <Tooltip title="丢弃这一项改动">
-          <Button
-            className="settings-field-reset"
-            type="text"
-            size="small"
-            aria-label="丢弃这一项改动"
-            icon={<RotateCcw size={14} />}
-            onClick={() => onResetPath(path)}
-          />
-        </Tooltip>
+        <IconButton
+          className="settings-field-reset"
+          label="丢弃这一项改动"
+          icon={<RotateCcw />}
+          onClick={() => onResetPath(path)}
+        />
       )}
       <span className="settings-field-key">{node.key}</span>
       {node.note && <span className="settings-field-note">{node.note}</span>}
@@ -240,16 +237,13 @@ function ScalarList({
               placeholder={item.value === "" ? "（空字符串）" : undefined}
               onChange={(event) => onChange({ path: item.path ?? [], value: event.target.value })}
             />
-            <Tooltip title="删除这一条（保存后生效）">
-              <Button
-                type="text"
-                size="small"
-                danger
-                aria-label={`删除第 ${index + 1} 条`}
-                icon={<Trash2 size={14} />}
-                onClick={() => onChange({ path, action: "remove", index, value: "" })}
-              />
-            </Tooltip>
+            <IconButton
+              label={`删除第 ${index + 1} 条`}
+              tooltip="删除这一条（保存后生效）"
+              danger
+              icon={<Trash2 />}
+              onClick={() => onChange({ path, action: "remove", index, value: "" })}
+            />
           </div>
         );
       })}
@@ -257,17 +251,13 @@ function ScalarList({
         <div className="settings-list-row" key={`appended-${index}`}>
           <span className="settings-list-index">新增</span>
           <Input size="small" value={item.value} readOnly />
-          <Tooltip title="撤销这条新增">
-            <Button
-              type="text"
-              size="small"
-              aria-label="撤销新增"
-              icon={<RotateCcw size={14} />}
-              onClick={() =>
-                onChange({ path, action: "remove", index: items.length + index, value: "" })
-              }
-            />
-          </Tooltip>
+          <IconButton
+            label="撤销新增"
+            icon={<Undo2 />}
+            onClick={() =>
+              onChange({ path, action: "remove", index: items.length + index, value: "" })
+            }
+          />
         </div>
       ))}
       <Flex className="settings-list-add" gap={8} align="center">
@@ -278,16 +268,15 @@ function ScalarList({
           placeholder="新条目内容"
           onChange={(event) => setDraft(event.target.value)}
         />
-        <Button
-          size="small"
+        <IconButton
+          label="添加一条"
+          icon={<Plus />}
           disabled={draft === ""}
           onClick={() => {
             onChange({ path, action: "append", value: draft });
             setDraft("");
           }}
-        >
-          添加一条
-        </Button>
+        />
       </Flex>
     </div>
   );
@@ -412,9 +401,7 @@ export function SettingsForm({
           <Typography.Text>
             有 <strong>{pending.length}</strong> 项改动待保存（保存后立即热重载）
           </Typography.Text>
-          <Button size="small" icon={<Trash2 size={14} />} onClick={onReset}>
-            全部撤销
-          </Button>
+          <IconButton label="全部撤销" icon={<Undo2 />} onClick={onReset} />
         </Flex>
       )}
       {nodes.map((node) => (
