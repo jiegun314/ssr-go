@@ -34,9 +34,9 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 			t.Errorf("App.tsx 缺少：%s", wanted)
 		}
 	}
-	// 对齐模块与其它模块同构：Card + 红底白字标题栏；发布状态/自动对齐/全部对齐都在标题栏
+	// 对齐模块与其它模块同构：Card + 浅色标题栏 + 红竖条；发布状态/自动对齐/全部对齐都在标题栏
 	if !strings.Contains(app, `className="card align-card"`) || !strings.Contains(app, `title="数据对齐"`) {
-		t.Error("数据对齐应当是 .card 模块（红底白字标题栏）")
+		t.Error("数据对齐应当是 .card 模块（浅色标题栏 + 红竖条）")
 	}
 	for _, wanted := range []string{
 		`className="align-head-extra"`,
@@ -88,7 +88,7 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 		!strings.Contains(styles, "repeat(4, minmax(0, 1fr))") {
 		t.Error("宽度够时四个卡片应当排成一行（@container min-width: 760px）")
 	}
-	// 卡片紧凑：右上角是纯图标按钮（24px 紧凑档），靠右；标题栏状态是白字
+	// 卡片紧凑：右上角是纯图标按钮（32px 标准档），靠右；标题栏状态用 antd Tag 语义色
 	run := cssBlock(t, styles, ".align-source-run.ant-btn {")
 	if !strings.Contains(run, "margin-left: auto;") {
 		t.Errorf("「对齐」图标按钮应当靠右，实际块：\n%s", run)
@@ -96,16 +96,19 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 	if !strings.Contains(align, `label="对齐"`) {
 		t.Error("「对齐」按钮要有可读名称（hover 提示 + aria-label）")
 	}
+	if !strings.Contains(align, `size="middle"`) {
+		t.Error("「对齐」按钮应使用 32px 标准图标档，与左栏导入动作一致")
+	}
 	statusTag := cssBlock(t, styles, ".align-card .align-status.ant-tag {")
-	if !strings.Contains(statusTag, "color: #fff;") {
-		t.Errorf("标题栏状态标签在黑底上应当是白字，实际块：\n%s", statusTag)
+	if !strings.Contains(statusTag, "margin-inline-end: 0;") || strings.Contains(statusTag, "color: #fff;") {
+		t.Errorf("标题栏状态标签应当用 antd Tag 语义浅底，不再为红底反白，实际块：\n%s", statusTag)
 	}
 	if !strings.Contains(app, `className="align-run"`) ||
 		!strings.Contains(app, `label="全部对齐"`) ||
-		!strings.Contains(app, "inverse") {
-		t.Error("标题栏「全部对齐」应当是红底上的白色图标按钮")
+		!strings.Contains(app, `icon={<RefreshCw />}`) {
+		t.Error("标题栏「全部对齐」应当是中性灰的纯图标按钮")
 	}
-	if !strings.Contains(styles, ".ui-icon-button-inverse.ant-btn {") {
-		t.Error("缺少红底白色图标按钮的统一样式")
+	if !strings.Contains(styles, ".ui-icon-button.ant-btn {") {
+		t.Error("缺少图标按钮的统一样式")
 	}
 }

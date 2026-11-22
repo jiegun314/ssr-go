@@ -215,7 +215,7 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
 | --- | --- | --- |
 | 前端行为测试 | `frontend/src/__tests__/*.test.tsx`（vitest + jsdom + testing-library） | 渲染出来的东西与交互结果：筛选、排序、点开弹窗、复制内容、控件改值与**保存载荷**、抽屉内容、空态文案 |
 | Go 单元/golden | `internal/*`（样本在 `testdata/`，基线是 `.tsv`） | 业务逻辑、配置校验、导入/整合/导出结果 |
-| Go 契约测试 | `internal/app/layout_*_test.go`（对前端**源码文本**断言） | **设计口径与跨语言一致性**：颜色 token、固定宽度、中文文案、产物内嵌、`frontend/dist` 与模板一致 |
+| Go 契约测试 | `internal/app/layout_*_test.go`（对前端**源码文本**断言） | **设计口径与跨语言一致性**：颜色/圆角/表面分层 token、固定宽度、中文文案、产物内嵌、`frontend/dist` 与模板一致 |
 
 - 能写成行为测试的，就写进行为测试：源码字符串断言只能证明"某段文字还在"，证明不了"跑起来对"。
 - Go 契约测试里的取值要从**唯一来源**取（`cmd/ssr-core/tools.go` 的常量、`config/*.yaml`、`frontend/src/theme.ts`），
@@ -243,15 +243,29 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
 
 ## 8. 界面口径
 
-- **一律用 antd 默认值**（字号、圆角、间距、控件高度、表格内边距），只覆盖品牌色：
+- **字号、间距、控件高度、表格内边距一律用 antd 默认值**，只覆盖品牌色：
   `BRAND_RED = #DA291C`（强生企业红）、`DANGER_RED = #CF1322`（真源在 `frontend/src/design-tokens.ts`，
   `theme.ts` 只做转出）。
-- 功能模块：**直角** + `1px solid #d9d9d9` 描边（比 antd 默认的 `#f0f0f0` 更深）。
+- **圆角分级**：外层功能模块 6px（`--module-radius`）、内层容器（分组框 / 结果表 / 状态框 /
+  设置块）4px（`--inner-radius`），细分隔条仍是直角；控件用 antd 默认。模块外框是
+  `1px solid var(--card-border)`（`#f0f0f0`）+ 浅阴影（`--card-shadow`），窗口底色 `--app-bg`
+  比白卡深一档 —— 表面分层靠底色差与阴影，不靠深灰描边堆叠。
+- **模块标题条是浅色底 + 左侧 3px 品牌红竖条 + 深色标题字**；红色从"整条填充"退到"线"，
+  只有数据整合保留一档品牌红淡底。红色填充只给主决策按钮（如「整合」）与危险动作。
+- **状态表达**：状态筛选片用 antd Tag 的语义浅底 + 6px 同色圆点；日志的五个筛选栏目沿用 antd
+  Segmented 控件，每项独立圆角 + 留缝 + 同样的语义色点，选中态仍由红色轨道强调；结果表只在首格用语义浅底 +
+  3px 状态竖条，整行仅 hover 时极淡着色，冲突格保留原有整格高亮。空态沿用 antd Empty 与
+  「暂无数据」，只做插图/文字的视觉收敛，不加边框、骨架或按钮。
+- **间距刻度** `--space-2/4/6/8/12/16` 只收拢未被契约固定的声明；窗口 padding、列间距、
+  分组留白等尺寸由 `layout_*_test.go` 固定，保持字面量不动，避免 token 与契约漂移。
+- **数据整合标题栏用三列网格**（`1fr auto 1fr` + `display: contents`）放模块名 /「整合」主按钮 /
+  右侧动作，按钮不再绝对定位；结果表保留 antd `sticky` 表头，`.tblwrap .ant-table-sticky-holder`
+  补不透明白底与淡描边，长表滚动时表头始终可见。
 - **按钮统一走 `frontend/src/components/IconButton.tsx`**：工具 / 导航动作用纯图标
   （`label` 同时作为 `aria-label` 与默认 Tooltip），只有主操作和对话框决策保留文字。
   尺寸只有两档：紧凑 24px（`small`，图标 14）与标准 32px（`middle`，图标 16）；状态栏 20px 是特例。
-  颜色语义固定：中性灰 = 普通、`DANGER_RED` = 破坏性、`inverse` = 红底标题栏、品牌红
-  `primary` = 每个区域唯一的主决策。新增按钮先套这个组件，不要再写裸 `<Button>` 配临时字号 / 颜色。
+  颜色语义固定：中性灰 = 普通、`DANGER_RED` = 破坏性（清空等）、品牌红 `primary` = 每个区域唯一的
+  主决策；浅色标题条上不再需要反白变体。新增按钮先套这个组件，不要再写裸 `<Button>` 配临时字号 / 颜色。
 - 数字一律千分位（`internal/numfmt`）；文案中文；日期格式统一。
 - **错误文案分两层**：内部错误保持英文（便于检索与对照上游库），**给用户看的对话框文案统一走
   `userMessage`**（`user_message.go`：认识的错误给中文说法，不认识的用"操作失败："起头并附原文；

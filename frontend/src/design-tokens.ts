@@ -15,8 +15,38 @@ export const BRAND_RED = "#DA291C";
 /** 危险红：antd 默认 colorError（#ff4d4f）白底只有 3.27:1，换成同色系 red-7。 */
 export const DANGER_RED = "#CF1322";
 
-/** 功能模块描边：比 antd 默认的 #f0f0f0 深，模块间隔很窄时也能一眼分开。 */
+/** 结构性分隔线（状态栏、登录面板等）：比卡片描边深一档，只用于分区、不用于模块外框。 */
 export const MODULE_BORDER = "#d9d9d9";
+
+/** 窗口底色：比 antd 默认的 #f5f5f5 再深一档，让白色模块靠底色差浮起来。 */
+export const APP_BG = "#f0f2f5";
+
+/** 模块描边：极淡，模块区隔主要交给阴影与底色差。 */
+export const CARD_BORDER = "#f0f0f0";
+
+/** 功能模块圆角（外层）：比内层容器大一档，形成分级圆角。 */
+export const MODULE_RADIUS = "6px";
+
+/** 内层容器圆角：分组框 / 结果表容器 / 状态框 / 设置块。 */
+export const INNER_RADIUS = "4px";
+
+/** 模块浅阴影：表面分层的第二层语言（高密度场景仍保留 1px 描边）。 */
+export const CARD_SHADOW =
+  "0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06)";
+
+/**
+ * 间距刻度（8pt 网格的子集）。这里只收拢**未被 Go 契约固定**的间距声明：
+ * 窗口 padding / 列间距 / 分组留白等尺寸是行为契约（layout_*_test.go），保持字面量不动，
+ * 避免出现"token 改了、契约没改"的漂移。新样式优先用这些变量。
+ */
+export const SPACE_TOKENS = {
+  "space-2": "2px",
+  "space-4": "4px",
+  "space-6": "6px",
+  "space-8": "8px",
+  "space-12": "12px",
+  "space-16": "16px",
+} as const;
 
 /** 操作日志标题条的灰底：比模块描边浅、比 antd colorFillAlter 深一档。 */
 export const LOG_HEAD_BG = "#e8e8e8";
@@ -52,6 +82,12 @@ export const CSS_TOKENS: Record<string, string> = {
   "brand-red": BRAND_RED,
   "danger-red": DANGER_RED,
   "module-border": MODULE_BORDER,
+  "app-bg": APP_BG,
+  "card-border": CARD_BORDER,
+  "module-radius": MODULE_RADIUS,
+  "inner-radius": INNER_RADIUS,
+  "card-shadow": CARD_SHADOW,
+  ...SPACE_TOKENS,
   "log-head-bg": LOG_HEAD_BG,
   "log-time-width": LOG_TIME_WIDTH,
   "log-level-slot": LOG_LEVEL_SLOT,

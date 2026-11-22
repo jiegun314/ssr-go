@@ -778,13 +778,13 @@ export default function App() {
               size="small"
               title={alignMode ? "数据来源" : "数据导入"}
               extra={
-                // 清空：只有白色图标（无文字、无边框），标题栏里靠右，省下模块内那一行的高度；
+                // 清空：只有危险红图标（无文字、无边框），标题栏里靠右，省下模块内那一行的高度；
                 // 只有 Admin 有这个动作（权限矩阵 clear）
                 can("clear") ? (
                   <IconButton
                     className="head-icon-action"
                     label="清空导入数据"
-                    inverse
+                    danger
                     icon={<Trash2 />}
                     onClick={handleClear}
                   />
@@ -809,7 +809,7 @@ export default function App() {
                 onReviewCleaned={openCleanedReview}
               />
             </Card>
-            {/* 记录导出：与其余模块同构（红标题栏 + 正文一行），位置在数据导入与操作日志之间 */}
+            {/* 记录导出：与其余模块同构（浅色标题栏 + 正文一行），位置在数据导入与操作日志之间 */}
             <Card className="card record-card" size="small" title="记录导出">
               <RecordExportPanel
                 start={startDate}
@@ -850,12 +850,12 @@ export default function App() {
                     <IconButton
                       className="align-run"
                       label="全部对齐"
+                      size="middle"
                       tooltip={
                         alignSummary.pending === 0
                           ? "没有需要对齐的来源"
                           : "把落后的来源都对齐到共享盘最新版本"
                       }
-                      inverse
                       icon={<RefreshCw />}
                       loading={aligning}
                       disabled={aligning || alignSummary.pending === 0}
@@ -871,7 +871,7 @@ export default function App() {
               className={`card grow consolidation-card${canConsolidate ? "" : " consolidation-card-locked"}`}
               size="small"
               title={
-                // 标题栏：模块名在左，「整合」主按钮在整条标题栏正中（绝对定位居中，见 styles.css）
+                // 标题栏：模块名在左，「整合」主按钮由三列网格放在整条栏正中（见 styles.css）
                 <>
                   <span className="consolidation-name">数据整合</span>
                   {canConsolidate ? (
@@ -905,8 +905,8 @@ export default function App() {
                     <IconButton
                       className="consolidation-force"
                       label="强制重跑"
+                      size="middle"
                       tooltip={forceTitle}
-                      inverse
                       icon={<RefreshCw />}
                       disabled={shareBlocked || !allAligned || busy !== null}
                       onClick={handleConsolidateForce}
@@ -914,6 +914,7 @@ export default function App() {
                     <IconButton
                       className="consolidation-export"
                       label="生成文件"
+                      size="middle"
                       tooltip={
                         !can("export")
                           ? "当前身份没有导出权限"
@@ -921,7 +922,6 @@ export default function App() {
                             ? "还没有可导出的行（只有合格的行会导出）"
                             : "生成文件"
                       }
-                      inverse
                       icon={<FileDown />}
                       disabled={!can("export") || readyCount === 0}
                       onClick={handleExport}

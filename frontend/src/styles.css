@@ -1,16 +1,18 @@
 /* 界面样式：只留 antd 表达不了的那部分。
  *
- * 设计口径（这次重做的核心）：
- *   字号 / 圆角 / 间距 / 控件高度 / 颜色语义 —— 全部走 antd 默认值；
- *   主题色只有三档：强生红（#DA291C）、灰、白（见 theme.ts）。
+ * 设计口径：
+ *   字号 / 间距 / 控件高度 —— 走 antd 默认值；圆角分级（模块 6px / 内层容器 4px）；
+ *   模块标题条是浅色底 + 左侧品牌红竖条，红色只留给竖条与主决策按钮；
+ *   表面分层靠底色差 + 极淡描边 + 浅阴影，不靠一叠深灰线。
  *
- * 所以这里刻意只剩三类规则：
+ * 所以这里刻意只剩四类规则：
  *   ① 窗口骨架的弹性布局（左列 / 右列 / 底部日志，日志拖动高度依赖这些选择器）；
- *   ② 数据整合结果表按状态着色（Go 侧只给状态字符串，antd 的 Table 没有这一维）；
- *   ③ 两个固定尺寸的展示窗口（关于 / 附加窗口，尺寸是产品契约）。
+ *   ② 模块标题条 / 圆角 / 阴影这套表面语言（token 在 design-tokens.ts）；
+ *   ③ 数据整合结果表按状态着色（Go 侧只给状态字符串，antd 的 Table 没有这一维）；
+ *   ④ 两个固定尺寸的展示窗口（关于 / 附加窗口，尺寸是产品契约）。
  *
- * 原来的 PySide6 残留已经不在这里了：4px 小圆角、红底白字标题条、仿只读输入框的
- * 底部描边、36px 日期框、2px 表格内边距、"QDialog 式"居中按钮底栏。
+ * 原来的 PySide6 残留已经不在这里了：统一的 4px 小圆角、红底白字标题条、
+ * 仿只读输入框的底部描边、36px 日期框、2px 表格内边距、"QDialog 式"居中按钮底栏。
  */
 
 * {
@@ -35,6 +37,17 @@ body,
   --brand-red: #DA291C;
   --danger-red: #CF1322;
   --module-border: #d9d9d9;
+  --app-bg: #f0f2f5;
+  --card-border: #f0f0f0;
+  --module-radius: 6px;
+  --inner-radius: 4px;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
   --log-head-bg: #e8e8e8;
   --log-time-width: 64px;
   --log-level-slot: 32px;
@@ -47,7 +60,7 @@ body,
 }
 
 body {
-  background: #f5f5f5; /* antd colorBgLayout：灰底 + 白卡片 */
+  background: var(--app-bg); /* 比白卡深一档：靠底色差做第一层表面分层 */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -68,7 +81,7 @@ body {
   padding: 12px;
 }
 
-/* 模块之间只留 8px：区隔交给标题条的红底与淡色描边，而不是靠大间距。
+/* 模块之间只留 8px：区隔交给底色差、浅阴影与标题条竖条，而不是靠大间距。
    允许收缩：表格行数很多时它俩的"固有高度"会很大，必须能收回到窗口内；
    左列内部另有分工 —— 数据导入按内容高度、日志按剩余空间（见 .left > .log-card）。 */
 .columns {
@@ -128,29 +141,39 @@ body {
   padding: 8px 12px;
 }
 
-/* 四个模块都是 antd 的 Card（size="small"）：圆角、标题排版、内边距都用 antd 的，
-   这里只把卡片接进弹性布局，并按用户要求换掉标题条的配色、加一条淡色描边做区隔。 */
+/* 模块：antd Card（size="small"）+ 分级圆角 + 极淡描边 + 浅阴影。
+   表面分层靠"底色差 + 阴影"，不再靠一圈深灰线把模块框成铁板。 */
 .card {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--module-border); /* 比 antd 默认的 #f0f0f0 明显加深，模块间隔窄时也能一眼分开 */
-  border-radius: 0; /* 功能模块一律直角 */
+  overflow: hidden; /* 让标题条与外层圆角贴齐 */
+  border: 1px solid var(--card-border);
+  border-radius: var(--module-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .card > .ant-card-head {
+  position: relative; /* 左侧品牌红竖条的定位基准 */
   flex: 0 0 auto;
-  border-radius: 0; /* 标题条跟着模块走直角 */
+  background: #fff;
+  border-radius: var(--module-radius) var(--module-radius) 0 0;
 }
 
-/* 除操作日志外的三个模块：品牌红底 + 白字的标题条（头部高度/字号/内边距仍是 antd 的）。 */
-.card:not(.log-card) > .ant-card-head {
-  background: #da291c; /* theme.ts 的 BRAND_RED */
-  border-bottom-color: #da291c;
+/* 标题条左侧 3px 品牌红竖条：红色从"整条填充"退到"线"，所有模块保持同一套标题语言。 */
+.card > .ant-card-head::before {
+  content: "";
+  position: absolute;
+  display: block; /* antd 给 .ant-card-head::before 设了 display: table（clearfix），要盖掉 */
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--brand-red);
 }
 
 .card:not(.log-card) > .ant-card-head .ant-card-head-title {
-  color: #fff;
+  color: rgba(0, 0, 0, 0.88);
 }
 
 .card > .ant-card-body {
@@ -180,9 +203,8 @@ body {
 
 /* ---------- 模块标题栏里的纯图标动作（清空） ---------- */
 
-/* 红底标题条上只放一个白色图标：无文字、无边框、无底色，鼠标悬浮给一层淡淡的白。 */
+/* 浅色标题条上的图标：颜色交给 .ui-icon-button 的中性/危险语义，这里只去边框与底色。 */
 .card > .ant-card-head .head-icon-action.ant-btn {
-  color: #fff;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -190,15 +212,14 @@ body {
 
 .card > .ant-card-head .head-icon-action.ant-btn:hover,
 .card > .ant-card-head .head-icon-action.ant-btn:focus-visible {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 /* ---------- 统一的纯图标按钮 ---------- */
 
 /* 尺寸只有两档：24px（small，图标 14）与 32px（middle，图标 16）。
-   颜色按语义分：中性灰 = 查看 / 刷新 / 复制 / 关闭；危险红 = 清空 / 删除 / 清理；
-   红底标题栏用 inverse（白色）。品牌红填充只留给主决策，不在这里。 */
+   颜色按语义分：中性灰 = 查看 / 刷新 / 复制 / 关闭；危险红 = 清空 / 删除 / 清理。
+   品牌红填充只留给主决策按钮，图标按钮一律无底色。 */
 .ui-icon-button.ant-btn {
   width: 24px;
   min-width: 24px;
@@ -253,27 +274,18 @@ body {
   background: rgba(207, 19, 34, 0.08);
 }
 
-.ui-icon-button-inverse.ant-btn {
-  color: #fff;
-}
-
-.ui-icon-button-inverse.ant-btn:hover,
-.ui-icon-button-inverse.ant-btn:focus-visible {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.18);
-}
-
-.ui-icon-button-inverse.ant-btn:disabled,
-.ui-icon-button-inverse.ant-btn.ant-btn-disabled {
-  color: rgba(255, 255, 255, 0.45);
-  background: transparent;
-}
-
 /* ---------- 数据整合的标题栏 ---------- */
 
-/* 标题栏：模块名在左、「整合」在整条栏的正中、生成文件图标在右，三者一律纵向居中 */
+/* 标题栏三列网格：模块名（左）| 整合主按钮（整条栏正中）| 强制重跑/生成文件（右）。
+   用 display: contents 让 antd 的 wrapper/title 不再参与布局，按钮直接成为网格项 ——
+   标题变长也不会和按钮重叠；三列固定 1fr / auto / 1fr，按钮相对整条栏居中。 */
 .consolidation-card > .ant-card-head {
-  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  align-content: center;
+  /* 唯一保留底色强调的模块：主决策区用品牌红 4% 淡底 */
+  background: color-mix(in srgb, var(--brand-red) 4%, #fff);
 }
 
 .consolidation-card > .ant-card-head .ant-card-head-wrapper,
@@ -283,28 +295,50 @@ body {
   align-items: center;
 }
 
+.consolidation-card > .ant-card-head .ant-card-head-wrapper,
+.consolidation-card > .ant-card-head .ant-card-head-title {
+  display: contents;
+}
+
+.consolidation-card > .ant-card-head .consolidation-name {
+  grid-column: 1;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  line-height: 1;
+}
+
+.consolidation-card > .ant-card-head .consolidation-run {
+  grid-column: 2;
+  align-self: center;
+  justify-self: center;
+}
+
+.consolidation-card > .ant-card-head .ant-card-extra {
+  grid-column: 3;
+  align-self: center;
+  justify-self: end;
+}
+
 /* 标题与右侧动作（强制重跑/生成文件）之间留出间隔，两个动作之间也隔开 */
 .consolidation-card > .ant-card-head .ant-card-extra {
   gap: 8px;
   margin-inline-start: 16px;
 }
 
-/* 标题块要放开 overflow，否则 antd 的 textEllipsis 会把居中的按钮裁掉 */
+/* 标题块放开 antd 的 textEllipsis：模块名较长时不被裁切（按钮已由网格单独布局） */
 .consolidation-card > .ant-card-head .ant-card-head-title {
   overflow: visible;
 }
 
-/* 「整合」：白底红字（红底标题栏上才有对比），整条标题栏的正中；紧凑档 24px。
-   必须同时给 top + translateY(-50%)，否则绝对定位会从标题文字的上沿往下排、下缘出栏。 */
+/* 「整合」：标题栏里唯一的品牌红填充主按钮（24px 紧凑档），由三列网格放在正中，
+   不再用绝对定位（标题变长也不会重叠）。 */
 .consolidation-card .consolidation-run.ant-btn {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   height: 24px;
-  background: #fff;
-  color: #da291c; /* theme.ts 的 BRAND_RED */
-  border-color: #fff;
+  background: var(--brand-red);
+  color: #fff;
+  border-color: var(--brand-red);
 }
 
 .consolidation-card .consolidation-run.ant-btn svg {
@@ -314,24 +348,17 @@ body {
 
 .consolidation-card .consolidation-run.ant-btn:hover,
 .consolidation-card .consolidation-run.ant-btn:focus-visible {
-  background: #fff;
-  color: #a81f14; /* 悬浮时红字再深一点 */
-  border-color: #fff;
+  background: #c02317;
+  color: #fff;
+  border-color: #c02317;
 }
 
 .consolidation-card .consolidation-run.ant-btn:active {
-  background: #fff;
-  color: #8f1a11;
-  border-color: #fff;
+  background: #a81f14;
+  color: #fff;
+  border-color: #a81f14;
 }
 
-
-/* 禁用时退回半透明白（antd 默认在红底上会变成深灰，看不清） */
-.card > .ant-card-head .head-icon-action.ant-btn:disabled,
-.card > .ant-card-head .head-icon-action.ant-btn.ant-btn-disabled {
-  color: rgba(255, 255, 255, 0.45);
-  background: transparent;
-}
 
 /* ---------- 竖向分隔上的收起 / 展开按钮 ---------- */
 
@@ -346,7 +373,7 @@ body {
   height: 32px; /* 与 antd 控件同高，但不占用模块的横向空间 */
   margin-inline: 2px;
   padding: 0;
-  border-radius: 0; /* 与模块一样直角 */
+  border-radius: 0; /* 12px 宽的细分隔条，圆角没有意义，保留直角 */
   color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
 }
 
@@ -362,7 +389,8 @@ body {
   margin-bottom: 6px;
   padding: 8px;
   background: #fff;
-  border: 1px solid #f0f0f0; /* colorBorderSecondary */
+  border: 1px solid var(--card-border); /* colorBorderSecondary */
+  border-radius: var(--inner-radius);
 }
 
 .title-row {
@@ -379,8 +407,8 @@ body {
 .actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--space-8);
+  margin-top: var(--space-6);
   min-width: 0;
 }
 
@@ -399,6 +427,7 @@ body {
   text-overflow: ellipsis;
   font-size: 12px;
   background: rgba(0, 0, 0, 0.04); /* colorFillTertiary：淡灰底 */
+  border-radius: var(--inner-radius);
 }
 
 .clean-row {
@@ -446,8 +475,8 @@ body {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
 }
 
 /* 查找框：输入即筛表格内容，窄窗口下可压缩（到 150px 为止），把宽度让给按钮与状态片 */
@@ -473,7 +502,7 @@ body {
   grid-auto-flow: column;
   grid-auto-columns: var(--status-chip-width);
   align-items: stretch;
-  gap: 8px;
+  gap: var(--space-8);
   min-width: 0;
   max-width: 100%;
 }
@@ -497,6 +526,18 @@ body {
   text-overflow: ellipsis;
   cursor: pointer;
   user-select: none;
+}
+
+/* 语义色点：与 antd Tag 的浅底填充叠在一起，比纯描边更容易扫读；
+   片宽固定 86px，加点不改布局（只在片内占 6px）。 */
+.status-chip.ant-tag::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-inline-end: 5px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .status-chip.ant-tag:hover {
@@ -525,7 +566,7 @@ body {
   flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: var(--space-8);
 }
 
 /* 结果表的滚动容器：只加一条淡色描边把表格和卡片内容区分开，
@@ -534,15 +575,23 @@ body {
   flex: 1 1 auto;
   min-height: 180px;
   overflow: auto;
-  border: 1px solid #f0f0f0; /* colorBorderSecondary */
+  border: 1px solid var(--card-border); /* colorBorderSecondary */
+  border-radius: var(--inner-radius);
 }
 
-/* 表格自己的表头圆角也一并抹平，跟容器的直角对齐 */
+/* 表头首尾格的圆角跟着内层容器走 4px（antd 默认 8px），不要露出尖角 */
 .tblwrap .ant-table-container,
 .tblwrap .ant-table-container table > thead > tr:first-child > th:first-child,
 .tblwrap .ant-table-container table > thead > tr:first-child > th:last-child {
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
+  border-start-start-radius: var(--inner-radius);
+  border-start-end-radius: var(--inner-radius);
+}
+
+/* 长表滚动时表头钉在 .tblwrap 顶部（antd 的 sticky prop 生成 .ant-table-sticky-holder）；
+   补一条淡描边让它和滚动内容分开，底色保持不透明，避免行内容从表头透出来。 */
+.tblwrap .ant-table-sticky-holder {
+  background: #fff;
+  box-shadow: 0 1px 0 var(--card-border);
 }
 
 /* 没有数据时不画容器，整个模块区域居中显示"暂无数据"。 */
@@ -554,37 +603,42 @@ body {
   justify-content: center;
 }
 
-/* 结果表按状态着色：底色取 antd 的语义浅底，首格再加一条状态色竖条。 */
-.result-row.status-Ready > td {
-  background: #f6ffed; /* colorSuccessBg */
+/* 空态只做视觉收敛：插图淡一档、说明文字用次级色，不加边框/骨架/按钮（布局与控件不变）。 */
+.table-empty .ant-empty-image,
+.log-card .ant-table-placeholder .ant-empty-image {
+  opacity: 0.7;
 }
 
-.result-row.status-Incomplete > td {
-  background: #fff2f0; /* colorErrorBg */
+.table-empty .ant-empty-description,
+.log-card .ant-table-placeholder .ant-empty-description {
+  color: rgba(0, 0, 0, 0.45);
 }
 
-.result-row.status-Duplicate > td {
-  background: #fffbe6; /* colorWarningBg */
-}
-
-.result-row.status-Conflict > td {
-  background: #fff0f6; /* magenta-1 */
-}
-
+/* 结果表按状态着色：只在首格用语义浅底 + 3px 状态竖条表达状态，
+   整行不再铺满颜色（高密度时太吵）；整行只在 hover 时给一层极淡底。
+   冲突格的整格高亮（.cell-conflict）不受影响。 */
 .result-row.status-Ready > td:first-child {
+  background: #f6ffed; /* colorSuccessBg */
   box-shadow: inset 3px 0 0 #389e0d;
 }
 
 .result-row.status-Incomplete > td:first-child {
+  background: #fff2f0; /* colorErrorBg */
   box-shadow: inset 3px 0 0 #cf1322;
 }
 
 .result-row.status-Duplicate > td:first-child {
+  background: #fffbe6; /* colorWarningBg */
   box-shadow: inset 3px 0 0 #d48806;
 }
 
 .result-row.status-Conflict > td:first-child {
+  background: #fff0f6; /* magenta-1 */
   box-shadow: inset 3px 0 0 #c41d7f;
+}
+
+.result-row:hover > td {
+  background: rgba(0, 0, 0, 0.03);
 }
 
 /* 缺失格：小号「缺失」标记（不抢眼；导出时该格为空） */
@@ -669,7 +723,7 @@ body {
 }
 
 .log-card > .ant-card-head .ant-card-head-title {
-  color: #da291c; /* theme.ts 的 BRAND_RED */
+  color: rgba(0, 0, 0, 0.88);
 }
 
 .log-card > .ant-card-body {
@@ -680,20 +734,53 @@ body {
   padding: 8px; /* 比 antd 默认的 12px 再省一点，给日志行 */
 }
 
-/* 筛选与排序：标题条下面一行，左边栏目、右边「新日志置顶」。
-   340 宽的一行要装下 5 个栏目 + 文字 + 开关，所以栏目内边距收一点、文字不换行。 */
+/* 筛选与排序：标题条下面一行，仍是 antd Segmented（控件不变），但每项做成
+   与状态片同源的浅底 + 色点 + 留缝，不再是一整条紧挨着的硬块。 */
 .log-toolbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+/* 每项独立圆角 + 左右留缝：视觉上像 5 个胶囊，但仍是同一个 Segmented 控件 */
+.log-toolbar .ant-segmented-item {
+  margin-inline: var(--space-2);
+  border-radius: var(--inner-radius);
 }
 
 .log-toolbar .ant-segmented-item-label {
-  padding-inline: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  line-height: 1;
+  padding-inline: var(--space-8); /* 比原来的 6px 松一档 */
   font-size: 12px; /* 比正文小一号 */
+}
+
+/* 与状态片同构的语义色点：颜色跟文字走（选中红底时自动变白） */
+.log-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1;
+}
+
+.log-filter::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* 未选中项给一层极淡底，和灰色轨道分开；选中项仍由 antd 的红色轨道强调 */
+.log-toolbar .ant-segmented-item:not(.ant-segmented-item-selected) {
+  background: rgba(0, 0, 0, 0.02);
 }
 
 /* 每个栏目的文字颜色与日志里该级别的颜色一致（信息蓝 / 成功绿 / 警告橙 / 错误红） */
@@ -868,7 +955,7 @@ body {
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-8);
 }
 
 /* 待保存提示条：品牌红系淡底，提醒"还没写盘" */
@@ -878,10 +965,10 @@ body {
   border: 1px solid rgba(218, 41, 28, 0.25);
 }
 
-/* 一层一块：直角描边（与功能模块一致），嵌套层用更淡的描边区分 */
+/* 一层一块：内层容器用 4px 圆角 + 淡描边（比外层模块低一档） */
 .settings-block {
   border: 1px solid #e5e5e5;
-  border-radius: 0;
+  border-radius: var(--inner-radius);
   background: #fff;
 }
 
@@ -917,7 +1004,7 @@ body {
 .settings-block-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-4);
   padding: 6px 10px;
 }
 
@@ -1061,7 +1148,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-12);
   padding: 24px 32px;
   border-radius: 8px;
   background: #fff;
@@ -1402,7 +1489,7 @@ body {
 /* 上面一行四个方块；下面一行居中一个（管理员） */
 .login-row {
   display: grid;
-  gap: 12px;
+  gap: var(--space-12);
   width: 100%;
 }
 
@@ -1489,7 +1576,7 @@ body {
 .status-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-16);
   flex: 0 0 auto;
   padding: 4px 12px;
   border-top: 1px solid var(--module-border);
@@ -1533,7 +1620,7 @@ body {
 }
 
 /* ---------- 数据对齐模块（P3，只有 SC/Admin）---------- */
-/* 模块本体用 .card（红底白字标题栏与其它模块一致）。
+/* 模块本体用 .card（浅色标题栏 + 品牌红竖条，与其它模块一致）。
    标题栏右侧 = 发布状态（几份待对齐）+ 自动对齐开关 + 全部对齐；
    卡片里 = 来源/状态/右上角对齐按钮 + 两行版本 + 一行发布时间。 */
 .align-card > .ant-card-body {
@@ -1546,12 +1633,9 @@ body {
   gap: 8px;
 }
 
-/* 红底上的状态标签：白色半透明，避免橙/绿在红底上看不清 */
+/* 状态标签：直接用 antd Tag 的语义浅底（颜色由 color 属性给），不再为红底做反白 */
 .align-card .align-status.ant-tag {
   margin-inline-end: 0;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .align-auto {
@@ -1561,21 +1645,8 @@ body {
 }
 
 .align-auto-label {
-  color: #fff;
+  color: rgba(0, 0, 0, 0.65);
   font-size: 12px;
-}
-
-/* 红底上的开关：开启时白色轨道 + 红把手，关闭时半透明白 */
-.align-card .align-auto .ant-switch {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.align-card .align-auto .ant-switch.ant-switch-checked {
-  background: #fff;
-}
-
-.align-card .align-auto .ant-switch.ant-switch-checked .ant-switch-handle::before {
-  background: var(--brand-red);
 }
 
 
@@ -1586,7 +1657,7 @@ body {
 
 .align-grid {
   display: grid;
-  gap: 8px;
+  gap: var(--space-8);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1601,7 +1672,8 @@ body {
   flex-direction: column;
   min-width: 0;
   padding: 4px 8px 5px;
-  border: 1px solid var(--module-border);
+  border: 1px solid var(--card-border);
+  border-radius: var(--inner-radius);
   background: #fff;
 }
 
@@ -1671,13 +1743,13 @@ body {
 .status-modal {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .status-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-6);
 }
 
 .status-section-head {
@@ -1723,6 +1795,11 @@ body {
 .card.consolidation-card-locked > .ant-card-head {
   background: #f5f5f5;
   border-bottom-color: var(--module-border);
+}
+
+/* 只读模块不参与强调：竖条跟着一起变灰 */
+.card.consolidation-card-locked > .ant-card-head::before {
+  background: var(--module-border);
 }
 
 .card.consolidation-card-locked > .ant-card-head .ant-card-head-title,
@@ -1856,7 +1933,7 @@ body {
 .notify-preview {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-12);
 }
 
 .notify-body {

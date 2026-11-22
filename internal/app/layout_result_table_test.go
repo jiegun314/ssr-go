@@ -43,15 +43,15 @@ func TestTheResultTableUsesAntdDefaults(t *testing.T) {
 	if strings.Contains(styles, ".tblwrap .ant-table-cell") {
 		t.Error("不该再覆盖结果表的单元格内边距")
 	}
-	if strings.Contains(styles, "border-start-start-radius: 4px") || strings.Contains(styles, "border-start-start-radius: 8px") {
-		t.Error("结果表的表头不该再有圆角（功能模块一律直角）")
+	if strings.Contains(styles, "border-start-start-radius: 8px") {
+		t.Error("表头不该再用 antd 默认的 8px 圆角（应跟着内层容器走 4px）")
 	}
 	wrap := cssBlock(t, styles, ".tblwrap {")
-	if !strings.Contains(wrap, "border: 1px solid #f0f0f0;") {
-		t.Errorf(".tblwrap 应当有一条淡色描边，实际块：\n%s", wrap)
+	if !strings.Contains(wrap, "border: 1px solid var(--card-border);") {
+		t.Errorf(".tblwrap 应当用极淡描边 token，实际块：\n%s", wrap)
 	}
-	if strings.Contains(wrap, "border-radius") {
-		t.Errorf(".tblwrap 应当是直角，实际块：\n%s", wrap)
+	if !strings.Contains(wrap, "border-radius: var(--inner-radius);") {
+		t.Errorf(".tblwrap 应当用内层圆角 4px，实际块：\n%s", wrap)
 	}
 	for _, selfDrawn := range []string{"box-shadow", "background"} {
 		if strings.Contains(wrap, selfDrawn) {
@@ -60,6 +60,32 @@ func TestTheResultTableUsesAntdDefaults(t *testing.T) {
 	}
 	if strings.Contains(theme, "Table:") {
 		t.Error("theme.ts 不该再给 Table 写组件级覆盖（用 antd 默认）")
+	}
+}
+
+// TestTheResultTableKeepsItsHeaderVisibleWhenScrolling 固定长表的表头可见性：
+// antd 的 sticky prop 会在滚动容器里生成 .ant-table-sticky-holder，样式再补一层不透明白底
+// 与淡描边，避免行内容从表头透出、让表头与滚动内容混在一起。
+func TestTheResultTableKeepsItsHeaderVisibleWhenScrolling(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	start := strings.Index(panels, "<Table<ConsolidationRow>")
+	if start < 0 {
+		t.Fatal("没找到数据整合结果表")
+	}
+	// 泛型标签 `<Table<ConsolidationRow>` 里的 `>` 不是标签收尾，改在标签后的一段窗口里找 sticky
+	if len(panels) < start+400 {
+		t.Fatal("结果表的 Table 标签内容不足")
+	}
+	if !strings.Contains(panels[start:start+400], "sticky") {
+		t.Error("结果表必须开 antd 的 sticky，长表滚动时表头要钉在顶部")
+	}
+	holder := cssBlock(t, styles, ".tblwrap .ant-table-sticky-holder {")
+	for _, wanted := range []string{"background: #fff;", "box-shadow: 0 1px 0 var(--card-border);"} {
+		if !strings.Contains(holder, wanted) {
+			t.Errorf("sticky 表头缺少 %s，实际块：\n%s", wanted, holder)
+		}
 	}
 }
 
@@ -148,8 +174,8 @@ func TestTheToolbarFitsTheNarrowestWindow(t *testing.T) {
 }
 
 // TestTheExportActionIsSecondaryAndWaitsForReadyRows 固定数据整合标题栏的层级与门禁：
-// 一个区域只留一个**主按钮**（数据整合 = primary 文字按钮）；「生成文件」是红底上的
-// 白色图标按钮（无文字，tooltip / aria-label 说明用途），且没有 Ready 行时禁用。
+// 一个区域只留一个**主按钮**（数据整合 = primary 文字按钮）；「生成文件」是中性灰的
+// 纯图标按钮（无文字，tooltip / aria-label 说明用途），且没有 Ready 行时禁用。
 func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
@@ -170,7 +196,6 @@ func TestTheExportActionIsSecondaryAndWaitsForReadyRows(t *testing.T) {
 	exportButton = exportButton[:end]
 	for _, wanted := range []string{
 		`label="生成文件"`, // hover 提示 + aria-label
-		`inverse`,      // 红底标题栏
 		`icon={<FileDown />}`,
 		`disabled={!can("export") || readyCount === 0}`,
 	} {
@@ -333,25 +358,52 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 	}
 }
 
-// TestTheConsolidationHeadButtonsSitOnTheRedBar 固定数据整合标题栏的两个层级：
-// 「整合」是唯一的品牌红主按钮（白底红字、24px 紧凑档，占标题栏正中）；
-// 「生成文件」是红底上的白色纯图标按钮（24px，tooltip + aria-label），不再用白底文字按钮。
-func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
+// TestTheConsolidationHeadButtonsKeepOnePrimary 固定数据整合标题栏的两个层级：
+// 「整合」是唯一的品牌红填充主按钮（24px 紧凑档，占标题栏正中）；
+// 「强制重跑 / 生成文件」是浅色标题栏上的中性灰纯图标按钮（32px 标准档，tooltip + aria-label），
+// 与工具条查找/导出、左栏导入动作保持同一档尺寸，不再用白底文字按钮。
+func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 
 	runButton := cssRule(t, styles, ".consolidation-card .consolidation-run.ant-btn {")
 	for _, wanted := range []string{
-		"position: absolute;",
-		"top: 50%;",
-		"left: 50%;",
-		"transform: translate(-50%, -50%);",
 		"height: 24px;",
-		"background: #fff;",
-		"color: #da291c;",
+		"background: var(--brand-red);",
+		"color: #fff;",
+		"border-color: var(--brand-red);",
 	} {
 		if !strings.Contains(runButton, wanted) {
 			t.Errorf("「整合」按钮缺少 %s，实际块：\n%s", wanted, runButton)
+		}
+	}
+	if strings.Contains(runButton, "position: absolute;") {
+		t.Error("「整合」按钮不再绝对定位：标题变长会重叠，改用三列网格")
+	}
+	headGrid := cssBlock(t, styles, ".consolidation-card > .ant-card-head {")
+	for _, wanted := range []string{
+		"display: grid;",
+		"grid-template-columns: 1fr auto 1fr;",
+		"align-items: center;",
+		"align-content: center;",
+	} {
+		if !strings.Contains(headGrid, wanted) {
+			t.Errorf("标题栏三列网格缺少 %s，实际块：\n%s", wanted, headGrid)
+		}
+	}
+	for _, wanted := range []string{
+		".consolidation-card > .ant-card-head .ant-card-head-wrapper,",
+		"display: contents;",
+		".consolidation-card > .ant-card-head .consolidation-name {",
+		"grid-column: 1;",
+		".consolidation-card > .ant-card-head .consolidation-run {",
+		"grid-column: 2;",
+		"justify-self: center;",
+		".consolidation-card > .ant-card-head .ant-card-extra {",
+		"grid-column: 3;",
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("标题栏网格布局缺少：%s", wanted)
 		}
 	}
 	start := strings.Index(app, `className="consolidation-export"`)
@@ -364,7 +416,7 @@ func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 		t.Fatal("「生成文件」图标按钮缺少 onClick")
 	}
 	exportButton = exportButton[:end]
-	for _, wanted := range []string{`label="生成文件"`, "inverse", "icon={<FileDown />}"} {
+	for _, wanted := range []string{`label="生成文件"`, `size="middle"`, "icon={<FileDown />}"} {
 		if !strings.Contains(exportButton, wanted) {
 			t.Errorf("「生成文件」图标按钮缺少 %s，实际块：\n%s", wanted, exportButton)
 		}
@@ -374,6 +426,17 @@ func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 	}
 	if strings.Contains(styles, ".consolidation-card .consolidation-export.ant-btn {") {
 		t.Error("旧的「生成文件」白底文字按钮样式应当删掉，改用统一的图标按钮")
+	}
+	forceStart := strings.Index(app, `className="consolidation-force"`)
+	if forceStart < 0 {
+		t.Fatal("没找到标题栏里的「强制重跑」图标按钮")
+	}
+	forceButton := app[forceStart:]
+	if end := strings.Index(forceButton, "/>"); end >= 0 {
+		forceButton = forceButton[:end]
+	}
+	if !strings.Contains(forceButton, `size="middle"`) {
+		t.Error("「强制重跑」应使用 32px 标准图标档")
 	}
 	base := cssBlock(t, styles, ".ui-icon-button.ant-btn {")
 	for _, wanted := range []string{"width: 24px;", "height: 24px;", "color: rgba(0, 0, 0, 0.65);"} {
@@ -387,26 +450,43 @@ func TestTheConsolidationHeadButtonsSitOnTheRedBar(t *testing.T) {
 			t.Errorf("图标按钮标准档缺少 %s，实际块：\n%s", wanted, middle)
 		}
 	}
-	inverse := cssBlock(t, styles, ".ui-icon-button-inverse.ant-btn {")
-	if !strings.Contains(inverse, "color: #fff;") {
-		t.Errorf("红底图标按钮应当是白色，实际块：\n%s", inverse)
-	}
 	danger := cssBlock(t, styles, ".ui-icon-button-danger.ant-btn {")
 	if !strings.Contains(danger, "color: var(--danger-red);") {
 		t.Errorf("危险图标按钮应当用危险红，实际块：\n%s", danger)
 	}
 	// 清空按钮仍走无边框白图标那套基础规则；禁用时退回半透明白
 	clear := cssRule(t, styles, ".card > .ant-card-head .head-icon-action.ant-btn {")
-	for _, wanted := range []string{"color: #fff;", "border: none;", "background: transparent;"} {
+	for _, wanted := range []string{"border: none;", "background: transparent;"} {
 		if !strings.Contains(clear, wanted) {
 			t.Errorf("标题栏图标按钮的基础规则缺少 %s，实际块：\n%s", wanted, clear)
 		}
 	}
-	if !strings.Contains(styles, ".card > .ant-card-head .head-icon-action.ant-btn:disabled,") {
-		t.Error("标题栏图标按钮禁用时应当退回半透明白")
-	}
 	head := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-head-wrapper,")
 	if !strings.Contains(head, "align-items: center;") {
 		t.Errorf("标题栏内容要纵向居中，实际块：\n%s", head)
+	}
+	name := cssRule(t, styles, ".consolidation-card > .ant-card-head .consolidation-name {")
+	if !strings.Contains(name, "line-height: 1;") || !strings.Contains(name, "align-self: center;") {
+		t.Errorf("标题文字要按自身行高居中，实际块：\n%s", name)
+	}
+}
+
+// TestTheResultToolbarIconsUseTheStandardSize 工具条的两个图标动作与标题栏、
+// 左栏导入动作保持同一档：32px 标准图标按钮，不再用 24px 紧凑档。
+func TestTheResultToolbarIconsUseTheStandardSize(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	for _, label := range []string{"查找", "导出当前视图"} {
+		start := strings.Index(panels, `label="`+label+`"`)
+		if start < 0 {
+			t.Fatalf("工具条缺少「%s」图标按钮", label)
+		}
+		block := panels[start:]
+		end := strings.Index(block, "/>")
+		if end < 0 {
+			t.Fatalf("「%s」图标按钮没有闭合", label)
+		}
+		if !strings.Contains(block[:end], `size="middle"`) {
+			t.Errorf("「%s」应使用 32px 标准图标档", label)
+		}
 	}
 }

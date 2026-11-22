@@ -42,6 +42,9 @@ func TestConsolidationModuleSpacingAndReadOnlyState(t *testing.T) {
 	if !strings.Contains(head, "background: #f5f5f5;") {
 		t.Errorf("没有整合权限时标题栏应当变灰，实际块：\n%s", head)
 	}
+	if bar := cssBlock(t, styles, ".card.consolidation-card-locked > .ant-card-head::before {"); !strings.Contains(bar, "background: var(--module-border);") {
+		t.Errorf("只读模块的品牌红竖条应当一起变灰，实际块：\n%s", bar)
+	}
 	title := cssBlock(t, styles, ".card.consolidation-card-locked > .ant-card-head .ant-card-head-title,")
 	if !strings.Contains(title, "color: rgba(0, 0, 0, 0.45);") {
 		t.Errorf("灰化的标题字应当变淡，实际块：\n%s", title)

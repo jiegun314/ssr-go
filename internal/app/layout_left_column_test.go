@@ -74,7 +74,7 @@ func TestTheLeftColumnCanBeCollapsedFromTheDivider(t *testing.T) {
 		"align-self: center;",
 		"width: 12px;",        // 按钮本身尽量窄
 		"margin-inline: 2px;", // 整条分隔只占 16px
-		"border-radius: 0;",   // 与模块一样直角
+		"border-radius: 0;",   // 12px 细分隔条保留直角
 	} {
 		if !strings.Contains(toggle, wanted) {
 			t.Errorf("分隔按钮缺少 %s，实际块：\n%s", wanted, toggle)
@@ -135,7 +135,7 @@ func TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable(t *testing.T) {
 		}
 	}
 
-	// 清空按钮搬到了「数据导入」的标题栏（App.tsx 的 extra）：只有白色图标，无文字无边框，
+	// 清空按钮搬到了「数据导入」的标题栏（App.tsx 的 extra）：只有危险红图标，无文字无边框，
 	// 这样数据导入模块本身少一行高度。
 	app := readFrontendSource(t, "src/App.tsx")
 	if strings.Contains(panels, "清空导入数据") {
@@ -144,6 +144,7 @@ func TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable(t *testing.T) {
 	for _, wanted := range []string{
 		`className="head-icon-action"`,
 		`label="清空导入数据"`,
+		`danger`, // 浅色标题栏上的危险动作：危险红，不再用反白
 		`icon={<Trash2 />}`,
 		"extra={",
 	} {
@@ -158,7 +159,7 @@ func TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable(t *testing.T) {
 		t.Error("标题栏里的清空按钮不该带文字")
 	}
 	action := cssRule(t, styles, ".card > .ant-card-head .head-icon-action.ant-btn {")
-	for _, wanted := range []string{"color: #fff;", "background: transparent;", "border: none;"} {
+	for _, wanted := range []string{"background: transparent;", "border: none;"} {
 		if !strings.Contains(action, wanted) {
 			t.Errorf("标题栏图标按钮缺少 %s，实际块：\n%s", wanted, action)
 		}
@@ -183,7 +184,7 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 			t.Errorf("记录导出应当是居中摆放的一行，缺少 %s，实际块：\n%s", wanted, rangeBlock)
 		}
 	}
-	// 模块本身：左列里的普通卡（红标题栏 + 正文），不再有红块/白条那套
+	// 模块本身：左列里的普通卡（浅色标题栏 + 正文），不再有红块/白条那套
 	if strings.Contains(styles, ".record-row") || strings.Contains(styles, ".record-title") || strings.Contains(styles, ".record-content") {
 		t.Error("记录导出已经是普通模块，不该再有红块/白条（record-row / record-title / record-content）")
 	}
@@ -218,7 +219,7 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 	if strings.Contains(styles, ".range .date-row") {
 		t.Error("日期已经改成并排，不该再有上下两行的 date-row")
 	}
-	// 它住在左列中间：与其余模块同构（antd Card + 红标题栏），标题文字格式自然一致
+	// 它住在左列中间：与其余模块同构（antd Card + 浅色标题栏），标题文字格式自然一致
 	if !strings.Contains(app, `className="card record-card"`) || !strings.Contains(app, `title="记录导出"`) {
 		t.Error("记录导出应当是左列里的普通模块（class=card record-card + title）")
 	}

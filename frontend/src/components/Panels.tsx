@@ -540,6 +540,7 @@ export function ConsolidationPanel({
           />
           <IconButton
             label="查找"
+            size="middle"
             icon={<Search />}
             onClick={() => {
               setAppliedQuery(searchText);
@@ -550,6 +551,7 @@ export function ConsolidationPanel({
             <IconButton
               className="table-export"
               label="导出当前视图"
+              size="middle"
               tooltip={
                 visible.length === 0
                   ? "当前筛选没有可导出的行"

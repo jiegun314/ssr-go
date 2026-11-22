@@ -35,6 +35,7 @@ export function AlignPanel({ sources, aligning, onAlign }: AlignPanelProps) {
               <IconButton
                 className="align-source-run"
                 label="对齐"
+                size="middle"
                 tooltip={
                   source.aligned
                     ? "本机已经是共享盘最新版本"

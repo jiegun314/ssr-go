@@ -63,7 +63,7 @@ func TestTheWailsBuildRunsTheFrontendBuild(t *testing.T) {
 }
 
 // TestTheModulesUseAntdCards 固定四个模块的容器：用 antd 的 Card（size="small"），
-// 标题排版 / 边框 / 圆角都由 antd 给，样式里不再手写卡片外观。
+// 标题排版与内边距交给 antd；圆角与阴影由设计 token 给（分级圆角 + 表面分层）。
 func TestTheModulesUseAntdCards(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -89,8 +89,11 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 		t.Error("操作日志卡片应当也是 antd Card（圆角与其它模块一致）")
 	}
 	card := cssRule(t, styles, ".card {")
-	if !strings.Contains(card, "border-radius: 0;") {
-		t.Errorf("功能模块应当是直角，实际块：\n%s", card)
+	if !strings.Contains(card, "border-radius: var(--module-radius);") {
+		t.Errorf("功能模块应当用外层圆角 token（6px），实际块：\n%s", card)
+	}
+	if !strings.Contains(card, "box-shadow: var(--card-shadow);") {
+		t.Errorf("模块应当靠浅阴影做表面分层，实际块：\n%s", card)
 	}
 	if strings.Contains(card, "background") {
 		t.Errorf(".card 不该自绘底色（交给 antd 的 Card），实际块：\n%s", card)
@@ -98,21 +101,34 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 }
 
 // TestTheModuleHeadersAndBordersSeparateTheModules 固定"模块之间要有区隔"的做法：
-//   - 除操作日志外的三个模块：品牌红底 + 白字的标题条；
-//   - 操作日志：灰底 + 品牌红字的标题条（栏目就放在这一行里）；
-//   - 每个模块一条淡色描边，模块之间只留 8px 间距 —— 区隔靠颜色和线条，不靠留白。
+//   - 所有标题条都是白底 + 左侧 3px 品牌红竖条 + 深色标题；红色从"整条填充"退到"线"；
+//   - 数据整合作为主决策区，额外保留一档品牌红 4% 淡底；
+//   - 操作日志仍是灰底标题条（栏目在这一行里），但标题字与其他模块一致；
+//   - 模块外框是极淡描边 + 浅阴影，窗口底色再深一档 —— 区隔靠表面分层，不靠深灰线。
 func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 	tokens := readFrontendSource(t, "src/design-tokens.ts")
-	brand := themeConstant(t, tokens, "export const BRAND_RED")
+	if !strings.Contains(tokens, `export const BRAND_RED = "#DA291C"`) {
+		t.Error("竖条与主按钮的品牌红仍应当来自 design-tokens.ts")
+	}
 
-	header := cssBlock(t, styles, ".card:not(.log-card) > .ant-card-head {")
-	if !strings.Contains(header, "background: "+brand+";") {
-		t.Errorf("模块标题条应当是品牌红 %s，实际块：\n%s", brand, header)
+	header := cssBlock(t, styles, ".card > .ant-card-head {")
+	if !strings.Contains(header, "background: #fff;") {
+		t.Errorf("模块标题条应当是白底，实际块：\n%s", header)
+	}
+	bar := cssBlock(t, styles, ".card > .ant-card-head::before {")
+	for _, wanted := range []string{"width: 3px;", "background: var(--brand-red);"} {
+		if !strings.Contains(bar, wanted) {
+			t.Errorf("标题条左侧品牌红竖条缺少 %s，实际块：\n%s", wanted, bar)
+		}
 	}
 	title := cssBlock(t, styles, ".card:not(.log-card) > .ant-card-head .ant-card-head-title {")
-	if !strings.Contains(title, "color: #fff;") {
-		t.Errorf("模块标题条文字应当是白色，实际块：\n%s", title)
+	if !strings.Contains(title, "color: rgba(0, 0, 0, 0.88);") {
+		t.Errorf("模块标题应当是深色字，实际块：\n%s", title)
+	}
+	accent := cssBlock(t, styles, ".consolidation-card > .ant-card-head {")
+	if !strings.Contains(accent, "color-mix(in srgb, var(--brand-red)") {
+		t.Errorf("数据整合标题条应当保留品牌红淡底，实际块：\n%s", accent)
 	}
 
 	logHead := cssBlock(t, styles, ".log-card > .ant-card-head {")
@@ -120,13 +136,17 @@ func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 		t.Errorf("操作日志的标题条应当是更深一档的灰底，实际块：\n%s", logHead)
 	}
 	logTitle := cssBlock(t, styles, ".log-card > .ant-card-head .ant-card-head-title {")
-	if !strings.Contains(logTitle, "color: "+brand+";") {
-		t.Errorf("操作日志标题应当是品牌红字，实际块：\n%s", logTitle)
+	if !strings.Contains(logTitle, "color: rgba(0, 0, 0, 0.88);") {
+		t.Errorf("操作日志标题应当与其他模块同色，实际块：\n%s", logTitle)
 	}
 
 	card := cssRule(t, styles, ".card {")
-	if !strings.Contains(card, "border: 1px solid var(--module-border);") {
-		t.Errorf("模块应当有一条淡色描边，实际块：\n%s", card)
+	if !strings.Contains(card, "border: 1px solid var(--card-border);") {
+		t.Errorf("模块外框应当用极淡描边，实际块：\n%s", card)
+	}
+	body := cssBlock(t, styles, "body {")
+	if !strings.Contains(body, "background: var(--app-bg);") {
+		t.Errorf("窗口底色应当比白卡深一档，实际块：\n%s", body)
 	}
 	shell := cssBlock(t, styles, ".app-shell {")
 	if !strings.Contains(shell, "padding: 12px;") {
@@ -136,39 +156,38 @@ func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 	if !strings.Contains(columns, "gap: 0;") {
 		t.Errorf("左右两列之间不留 gap（间距由分隔按钮撑起），实际块：\n%s", columns)
 	}
-	// 日志住在左列里，与数据导入的间距由 .left 的 gap 给
-	// 左右两列之间不再留 gap：整条分隔由收起按钮自己撑（见 TestTheLeftColumnCanBeCollapsedFromTheDivider）
-	columnsBlock := cssRule(t, styles, ".columns {")
-	if !strings.Contains(columnsBlock, "gap: 0;") {
-		t.Errorf(".columns 不该再留 gap（间距由分隔按钮撑起），实际块：\n%s", columnsBlock)
-	}
 	left := cssRule(t, styles, ".left {")
 	if !strings.Contains(left, "gap: 8px;") {
 		t.Errorf("左列两张卡之间的间距应当是 8px，实际块：\n%s", left)
 	}
 }
 
-// TestTheFunctionalModulesAreSquare 固定「功能模块一律直角」：
-// 卡片（含红色标题条）、导入分组框、结果表容器与表头、导入状态框 全部没有圆角。
-func TestTheFunctionalModulesAreSquare(t *testing.T) {
+// TestTheRadiusHierarchy 固定「分级圆角」：外层模块 6px、内层容器 4px，
+// 标题条跟着外层走，表头跟着结果表容器走；控制类细条（分隔按钮）仍是直角。
+func TestTheRadiusHierarchy(t *testing.T) {
 	styles := readFrontendSource(t, "src/styles.css")
 
-	for _, selector := range []string{
-		".card {",
-		".card > .ant-card-head {",
-		".group {",
-		".tblwrap {",
-		".actions .status {",
-	} {
+	if card := cssRule(t, styles, ".card {"); !strings.Contains(card, "border-radius: var(--module-radius);") {
+		t.Errorf("外层模块应当用 --module-radius，实际块：\n%s", card)
+	}
+	if head := cssRule(t, styles, ".card > .ant-card-head {"); !strings.Contains(head, "border-radius: var(--module-radius) var(--module-radius) 0 0;") {
+		t.Errorf("标题条应当只圆上方两角，实际块：\n%s", head)
+	}
+	for _, selector := range []string{".group {", ".tblwrap {", ".actions .status {", ".align-source-card {", ".settings-block {"} {
 		block := cssRule(t, styles, selector)
-		if strings.Contains(block, "border-radius:") && !strings.Contains(block, "border-radius: 0;") {
-			t.Errorf("%s 应当是直角，实际块：\n%s", selector, block)
+		if !strings.Contains(block, "border-radius: var(--inner-radius);") {
+			t.Errorf("%s 应当用内层圆角 4px，实际块：\n%s", selector, block)
 		}
 	}
-	// 表格自己的表头圆角也要抹平（antd 默认给表头首尾格 8px）
+	// 表头首尾格的圆角跟着内层容器走（antd 默认 8px，不抹平会露出尖角）
 	corners := cssRule(t, styles, ".tblwrap .ant-table-container,")
-	if !strings.Contains(corners, "border-start-start-radius: 0;") || !strings.Contains(corners, "border-start-end-radius: 0;") {
-		t.Errorf("表头的圆角也要抹平，实际块：\n%s", corners)
+	if !strings.Contains(corners, "border-start-start-radius: var(--inner-radius);") ||
+		!strings.Contains(corners, "border-start-end-radius: var(--inner-radius);") {
+		t.Errorf("表头圆角应当跟着结果表容器，实际块：\n%s", corners)
+	}
+	// 12px 宽的分隔按钮没有圆角语义
+	if toggle := cssRule(t, styles, ".left-toggle.ant-btn {"); !strings.Contains(toggle, "border-radius: 0;") {
+		t.Errorf("分隔按钮仍应是直角，实际块：\n%s", toggle)
 	}
 }
 
@@ -210,8 +229,9 @@ func TestTheUIKeepsTheProductColorsAndFont(t *testing.T) {
 }
 
 // TestNoPySideLeftoversInTheDesign 固定"不再残留 PySide6 原型的设计语言"：
-// 手工 4px 圆角、红底白字标题条、13px 基准字号、36px 日期框、2px 表格内边距、
-// 仿只读输入框的状态条、居中按钮的 QDialog 底栏——这些手工值一个都不许再出现。
+// 写死的 4px 圆角字面量（现在只走 var(--inner-radius)）、旧红底白字标题条、13px 基准字号、
+// 36px 日期框、2px 表格内边距、仿只读输入框的状态条、居中按钮的 QDialog 底栏——
+// 这些手工值一个都不许再出现。
 func TestNoPySideLeftoversInTheDesign(t *testing.T) {
 	text := frontendSourceText(t)
 
