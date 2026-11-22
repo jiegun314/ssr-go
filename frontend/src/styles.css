@@ -2470,7 +2470,7 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 4px 8px 5px;
+  padding: 3px 8px 4px;
   border: 1px solid var(--card-border);
   border-radius: var(--inner-radius);
   background: #fff;
@@ -2481,7 +2481,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 22px;
+  min-height: 20px;
 }
 
 .align-source-label {

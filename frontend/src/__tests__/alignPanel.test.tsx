@@ -38,7 +38,8 @@ const renderPanel = (sources: SourceStatus[]) => {
 };
 
 describe("数据对齐面板", () => {
-  it("四个来源各一张卡片，显示共享盘/本机版本与状态", () => {
+  it("四个来源各一张卡片，显示状态与发布时间；共享盘/本机版本hover后显示", async () => {
+    const user = userEvent.setup();
     renderPanel([
       status({ source: "ra_input", label: "RA信息", localVersion: "v0", remoteVersion: "v1" }),
       status({
@@ -58,16 +59,29 @@ describe("数据对齐面板", () => {
     expect(cards).toHaveLength(4);
     const first = cards[0] as HTMLElement;
     expect(within(first).getByText("RA信息")).toBeInTheDocument();
-    expect(within(first).getByText("v1")).toBeInTheDocument();
-    expect(within(first).getByText("v0")).toBeInTheDocument();
     expect(within(first).getByText("未对齐")).toBeInTheDocument();
+    // 共享盘/本机版本不再直接显示
+    expect(within(first).queryByText("v1")).not.toBeInTheDocument();
+    expect(within(first).queryByText("v0")).not.toBeInTheDocument();
+
+    await user.hover(within(first).getByText("未对齐"));
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("共享盘：v1");
+    expect(tooltip).toHaveTextContent("本机：v0");
 
     const second = cards[1] as HTMLElement;
     expect(within(second).getByText("已对齐")).toBeInTheDocument();
     expect(within(second).getByText(/2026-11-01 00:00:00 · 6 行 · zhangsan/)).toBeInTheDocument();
-    // 未发布的来源显示"未发布"
-    const third = cards[2] as HTMLElement;
-    expect(within(third).getByText("未发布")).toBeInTheDocument();
+  });
+
+  it("未发布的来源 hover 状态标签后 tooltip 显示共享盘：未发布", async () => {
+    const user = userEvent.setup();
+    renderPanel([status({ source: "product_category", label: "产品类别" })]);
+
+    const card = document.querySelector(".align-source-card") as HTMLElement;
+    await user.hover(within(card).getByText("未对齐"));
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("共享盘：未发布");
   });
 
   it("未对齐的可单行对齐，已对齐/未发布的按钮禁用", async () => {
