@@ -274,6 +274,10 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
   标题用 `flex: 1` 吃掉剩余宽度；不再用三列网格把主按钮悬在正中。标题栏高 44px，动作按钮 24px、
   图标 14px，标题与按钮共用一条水平轴。结果表行高统一 36px，保留 antd `sticky` 表头；
   `.tblwrap .ant-table-sticky-holder` 补不透明白底、淡描边与极淡下投影，长表滚动时表头始终可见。
+- **结果表支持列宽拖拽与列头筛选**：列宽拖拽保存到 `localStorage`；每列头部有小漏斗图标，
+  点击后输入关键字，多列筛选按 AND 叠加，都是前端内存过滤。
+- **记录导出贴在数据整合底部分页行左侧**：与分页器共享一行，窄窗口可换行；导出按钮用
+  图标 + 文字「导出」。左列只保留数据导入与操作日志。
 - **按钮统一走 `frontend/src/components/IconButton.tsx`**：工具 / 导航动作用纯图标
   （`label` 同时作为 `aria-label` 与默认 Tooltip），只有主操作和对话框决策保留文字。
   尺寸只有两档：紧凑 24px（`small`，图标 14）与标准 32px（`middle`，图标 16）；状态栏 20px 是特例。
@@ -321,19 +325,19 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
      （来源的 `db_field` 经 `Config.Fields[col].source.{file,field}` 反查导出列名）；
      只有值多于一个的字段才算冲突的格，反查不到导出列的字段没有可标记的单元格；
      验证：`internal/consolidation/conflict_cells_test.go`。
-  2. `mapResultRow` 调 `conflictNotes(...)`，得到本行 `map[导出列名]提示文本`
-     （简版口径：`来源 + 键 + 候选值前 3 条`，键里的 `\x00` 换成 `+`）。
-  3. `Outcome` 增加 `ConflictNotes [][]string`（与 `Rows` 同形同序，列顺序 = `Config.FieldNames`，
-     空串 = 该格不冲突；`Rows`/`Statuses`/`Counts` 语义不变），golden 基线不变。
+  2. `mapResultRow` 调 `conflictNotes(...)`，得到本行 `map[导出列名]结构化提示`
+     （`ConflictCell{Source, Key, Column, Candidates}`，候选值最多前 3 条，键里的 `\x00` 换成 `+`）。
+  3. `Outcome` 增加 `ConflictNotes [][]*ConflictCell`（与 `Rows` 同形同序，列顺序 = `Config.FieldNames`，
+     nil = 该格不冲突；`Rows`/`Statuses`/`Counts` 语义不变），golden 基线不变。
   4. `internal/app/app_methods.go` 的整合返回值带上该矩阵（`ConsolidateResult.Conflicts`，与 `Rows`/`Columns`
-     同形同序 —— status 那一格永远是空串），并**重新生成** Wails 模型
+     同形同序 —— status 那一格永远是 nil），并**重新生成** Wails 模型
      （`frontend/wailsjs/go/models.ts`）；验证：`npm run build --prefix frontend`
      与根包契约测试 `consolidate_conflicts_test.go`。
-  5. 前端 `ConsolidationPanel` 增加 `conflicts?: string[][]`，冲突格渲染
-     `<Tooltip title={note} mouseEnterDelay={0.1}><span className="cell-conflict">…</span></Tooltip>`；
+  5. 前端 `ConsolidationPanel` 增加 `conflicts?: (app.ConflictCell | null)[][]`，冲突格渲染
+     `<Tooltip title={<ConflictTooltip cell={cell} />} mouseEnterDelay={0.1}><span className="cell-conflict">…</span></Tooltip>`；
      **不用原生 `title`**（延迟由系统控制、且要精确停在文字上），`.cell-conflict` 用 `display: block`
      撑满整格；`layout_result_table_test.go` 加样式契约；
-     验证：前端行为测试（标记 + 悬停出提示）+ `make check` 退出码 0。
+     验证：前端行为测试（标记 + 悬停出结构化提示）+ `make check` 退出码 0。
 - 前端类型的来源：`frontend/src/types.ts` 从生成的 `frontend/wailsjs/go/models.ts` **派生**
   （`Data<>` 剥掉生成类上的 `convertValues`，需要收窄的用 `Omit` + 交叉类型补联合类型），
   只有纯前端的 `SourceDefinition` 手写（`AboutInfo` 已由 Go 结构体生成）。
