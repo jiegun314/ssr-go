@@ -93,6 +93,30 @@ describe("数据整合结果表", () => {
     expect(screen.getByText("没有找到匹配的数据")).toBeInTheDocument();
   });
 
+  it("每列表头有小漏斗，输入后按该列内容筛选", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    // sticky 表头会克隆一份，只取第一个 thead 里的漏斗
+    const firstThead = document.querySelector(".ant-table-thead");
+    const filters = firstThead?.querySelectorAll(".th-filter, .th-filter-active");
+    expect(filters).toHaveLength(COLUMNS.length);
+
+    const headers = Array.from(firstThead?.querySelectorAll("th") ?? []);
+    const primaryDI = headers.find((th) => th.textContent?.includes("Primary DI"));
+    expect(primaryDI).toBeDefined();
+    const filterIcon = primaryDI?.querySelector(".th-filter, .th-filter-active");
+    expect(filterIcon).toBeInTheDocument();
+    await user.click(filterIcon!);
+
+    const input = await screen.findByPlaceholderText("筛选内容");
+    await user.type(input, "DI-001");
+    await waitFor(() => expect(visibleCells()).toHaveLength(1));
+    expect(visibleCells()[0]).toContain("DI-001");
+
+    await user.clear(input);
+    await waitFor(() => expect(visibleCells()).toHaveLength(3));
+  });
+
   it("没有数据时给空态而不是空表格", () => {
     render(
       <AntApp>

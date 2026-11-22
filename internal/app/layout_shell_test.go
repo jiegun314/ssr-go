@@ -133,15 +133,12 @@ func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 	}
 	accent := cssBlock(t, styles, ".consolidation-card > .ant-card-head {")
 	for _, wanted := range []string{
-		"background: var(--brand-red);",
-		"border-bottom: 1px solid var(--brand-red-deep);",
+		"background: var(--brand-red-soft);",
+		"border-bottom: 1px solid var(--brand-red-border);",
 	} {
 		if !strings.Contains(accent, wanted) {
-			t.Errorf("数据整合标题条应当是实底品牌红（缺 %s），实际块：\n%s", wanted, accent)
+			t.Errorf("数据整合标题条应当是浅红标题带（缺 %s），实际块：\n%s", wanted, accent)
 		}
-	}
-	if strings.Contains(accent, "color-mix") {
-		t.Errorf("数据整合标题条不再用 4%% 淡底，实际块：\n%s", accent)
 	}
 
 	logHead := cssBlock(t, styles, ".log-card > .ant-card-head {")

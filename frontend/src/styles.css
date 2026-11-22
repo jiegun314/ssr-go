@@ -295,19 +295,21 @@ body {
 /* ---------- 数据整合的标题栏 ---------- */
 
 /* D：标题靠左，右侧形成一条动作区。不再用三列网格把「整合」悬在正中；
-   标题、刷新、导出、主按钮共用一条 44px 高的水平轴，主按钮固定在最右。 */
+   标题、刷新、导出、主按钮共用一条 44px 高的水平轴，主按钮固定在最右。
+   标题栏本身用浅红标题带，与左列模块统一；「整合」按钮用实底品牌红作为
+   该区域唯一的主决策锚点。 */
 .consolidation-card > .ant-card-head {
   display: flex;
   align-items: center;
   min-height: 44px;
   padding-block: 0;
-  background: var(--brand-red);
-  border-bottom: 1px solid var(--brand-red-deep);
+  background: var(--brand-red-soft);
+  border-bottom: 1px solid var(--brand-red-border);
 }
 
-/* 实底红标题上的 3px 书脊用深红，避免与底同色看不见 */
+/* 浅红标题带上的 3px 书脊用品牌红，与普通模块同一套红色分级 */
 .consolidation-card > .ant-card-head::before {
-  background: var(--brand-red-deep);
+  background: var(--brand-red);
 }
 
 .consolidation-card > .ant-card-head .ant-card-head-wrapper {
@@ -321,6 +323,7 @@ body {
   min-width: 0;
   padding: 0;
   overflow: visible;
+  color: var(--brand-red-deep);
 }
 
 .consolidation-card > .ant-card-head .consolidation-name {
@@ -328,7 +331,7 @@ body {
   align-items: center;
   min-width: 0;
   line-height: 1;
-  color: #fff;
+  color: var(--brand-red-deep);
 }
 
 .consolidation-card > .ant-card-head .ant-card-extra {
@@ -339,6 +342,7 @@ body {
   margin-inline-start: 16px;
 }
 
+/* 「整合」按钮：实底品牌红，作为数据整合区域唯一的主决策锚点 */
 .consolidation-card > .ant-card-head .consolidation-run {
   flex: 0 0 auto;
   height: 24px;
@@ -346,9 +350,9 @@ body {
   padding: 0 10px;
   display: inline-flex;
   align-items: center;
-  background: #fff;
-  color: var(--brand-red);
-  border-color: #fff;
+  background: var(--brand-red);
+  color: #fff;
+  border-color: var(--brand-red);
 }
 
 .consolidation-card > .ant-card-head .consolidation-run svg {
@@ -358,45 +362,22 @@ body {
 
 .consolidation-card > .ant-card-head .consolidation-run:hover,
 .consolidation-card > .ant-card-head .consolidation-run:focus-visible {
-  background: var(--brand-red-soft);
-  color: var(--brand-red-deep);
-  border-color: var(--brand-red-soft);
+  background: var(--brand-red-hover);
+  color: #fff;
+  border-color: var(--brand-red-hover);
 }
 
 .consolidation-card > .ant-card-head .consolidation-run:active {
-  background: var(--brand-red-border);
-  color: var(--brand-red-deep);
-  border-color: var(--brand-red-border);
-}
-
-/* 红底标题上的图标统一反白；hover 用半透明白，不引入第二个底色 */
-.card.consolidation-card > .ant-card-head .ant-card-head-title,
-.consolidation-card > .ant-card-head .head-icon-action.ant-btn,
-.consolidation-card > .ant-card-head .consolidation-force.ant-btn,
-.consolidation-card > .ant-card-head .consolidation-export.ant-btn {
+  background: var(--brand-red-deep);
   color: #fff;
+  border-color: var(--brand-red-deep);
 }
 
-.consolidation-card > .ant-card-head .head-icon-action.ant-btn:hover,
-.consolidation-card > .ant-card-head .head-icon-action.ant-btn:focus-visible,
-.consolidation-card > .ant-card-head .consolidation-force.ant-btn:hover,
-.consolidation-card > .ant-card-head .consolidation-force.ant-btn:focus-visible,
-.consolidation-card > .ant-card-head .consolidation-export.ant-btn:hover,
-.consolidation-card > .ant-card-head .consolidation-export.ant-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
-}
-
-.consolidation-card > .ant-card-head .head-icon-action.ant-btn:focus-visible,
-.consolidation-card > .ant-card-head .consolidation-force.ant-btn:focus-visible,
-.consolidation-card > .ant-card-head .consolidation-export.ant-btn:focus-visible {
-  outline-color: #fff;
-}
-
-.consolidation-card > .ant-card-head .head-icon-action.ant-btn:disabled,
-.consolidation-card > .ant-card-head .consolidation-force.ant-btn:disabled,
-.consolidation-card > .ant-card-head .consolidation-export.ant-btn:disabled {
-  color: rgba(255, 255, 255, 0.45);
+.consolidation-card > .ant-card-head .consolidation-run:disabled,
+.consolidation-card > .ant-card-head .consolidation-run.ant-btn-disabled {
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.18);
+  border-color: transparent;
 }
 
 /* 标题块放开 antd 的 textEllipsis：模块名较长时不被裁切（按钮由右侧动作区单独布局） */
@@ -2660,6 +2641,45 @@ body {
   height: 6px;
   border-radius: 50%;
   background: #c41d7f;
+}
+
+.th-title-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 列头筛选漏斗：默认极淡，hover 或当前列有筛选值时变品牌红 */
+.th-filter,
+.th-filter-active {
+  flex: 0 0 auto;
+  cursor: pointer;
+  transition: color var(--motion-fast) ease;
+}
+
+.th-filter {
+  color: rgba(0, 0, 0, 0.25);
+}
+
+.th-filter:hover,
+.th-filter-active {
+  color: var(--brand-red);
+}
+
+/* 列宽拖拽把手：表头右侧 4px，hover 时给出品牌红反馈 */
+.th-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  z-index: 1;
+  transition: background-color var(--motion-fast) ease;
+}
+
+.th-resize-handle:hover {
+  background: var(--brand-red);
 }
 
 .status-strip .locate-conflict.ant-btn {

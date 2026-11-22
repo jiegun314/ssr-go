@@ -359,7 +359,8 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 }
 
 // TestTheConsolidationHeadButtonsKeepOnePrimary 固定 D 阶段的数据整合标题栏：
-// 标题靠左，右侧是刷新 / 导出 / 白底红字「整合」；不再用三列网格把主按钮悬在正中。
+// 标题靠左，右侧是刷新 / 导出 / 实底红字「整合」；不再用三列网格把主按钮悬在正中。
+// 标题栏本身用浅红标题带，「整合」按钮作为该区域唯一的主决策锚点使用实底品牌红。
 func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -367,9 +368,9 @@ func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 	runButton := cssRule(t, styles, ".consolidation-card > .ant-card-head .consolidation-run {")
 	for _, wanted := range []string{
 		"height: 24px;",
-		"background: #fff;",
-		"color: var(--brand-red);",
-		"border-color: #fff;",
+		"background: var(--brand-red);",
+		"color: #fff;",
+		"border-color: var(--brand-red);",
 		"margin-inline-start: 4px;",
 	} {
 		if !strings.Contains(runButton, wanted) {
@@ -386,7 +387,8 @@ func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 		"align-items: center;",
 		"min-height: 44px;",
 		"padding-block: 0;",
-		"background: var(--brand-red);",
+		"background: var(--brand-red-soft);",
+		"border-bottom: 1px solid var(--brand-red-border);",
 	} {
 		if !strings.Contains(head, wanted) {
 			t.Errorf("数据整合标题栏缺少 %s，实际块：\n%s", wanted, head)
@@ -402,7 +404,7 @@ func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 		}
 	}
 	title := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-head-title {")
-	for _, wanted := range []string{"flex: 1 1 auto;", "min-width: 0;", "padding: 0;"} {
+	for _, wanted := range []string{"flex: 1 1 auto;", "min-width: 0;", "padding: 0;", "color: var(--brand-red-deep);"} {
 		if !strings.Contains(title, wanted) {
 			t.Errorf("标题栏 title 缺少 %s，实际块：\n%s", wanted, title)
 		}
@@ -420,8 +422,10 @@ func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 		}
 	}
 	name := cssRule(t, styles, ".consolidation-card > .ant-card-head .consolidation-name {")
-	if !strings.Contains(name, "line-height: 1;") {
-		t.Errorf("标题文字要按自身行高居中，实际块：\n%s", name)
+	for _, wanted := range []string{"line-height: 1;", "color: var(--brand-red-deep);"} {
+		if !strings.Contains(name, wanted) {
+			t.Errorf("标题文字要按自身行高居中且为深红，实际块：\n%s", name)
+		}
 	}
 
 	// 主按钮在 extra 里，位于刷新/导出之后（最右），并且图标缩到 14px。
@@ -449,17 +453,6 @@ func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 	}
 	if !strings.Contains(app, "icon={<Merge size={14} />}") {
 		t.Error("「整合」按钮图标应当是 14px")
-	}
-	for _, wanted := range []string{
-		".card.consolidation-card > .ant-card-head .ant-card-head-title,",
-		".consolidation-card > .ant-card-head .consolidation-force.ant-btn,",
-		".consolidation-card > .ant-card-head .consolidation-export.ant-btn {",
-		"color: #fff;",
-		"background: rgba(255, 255, 255, 0.16);",
-	} {
-		if !strings.Contains(styles, wanted) {
-			t.Errorf("红底标题栏的反白标题/图标缺少：%s", wanted)
-		}
 	}
 }
 

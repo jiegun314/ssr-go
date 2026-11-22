@@ -17,6 +17,7 @@ import {
   Empty,
   Flex,
   Modal,
+  Popover,
   Segmented,
   Spin,
   Switch,
@@ -44,7 +45,7 @@ import {
   Table as TableIcon,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "./IconButton";
 
@@ -336,6 +337,79 @@ type ConsolidationRow = {
   rowConflict: string;
 };
 
+const COLUMN_WIDTHS_KEY = "ssr.consolidation.columnWidths";
+
+function loadColumnWidths(): Record<number, number> {
+  try {
+    const raw = localStorage.getItem(COLUMN_WIDTHS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, number>;
+    const result: Record<number, number> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      const index = Number(key);
+      if (!Number.isNaN(index) && value > 0) result[index] = value;
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function saveColumnWidths(widths: Record<number, number>) {
+  try {
+    localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(widths));
+  } catch {
+    // 隐私模式或存储已满时不阻塞主流程
+  }
+}
+
+type ResizableHeaderCellProps = React.ThHTMLAttributes<HTMLTableHeaderCellElement> & {
+  index?: number;
+  width?: number;
+  onResize?: (index: number, width: number) => void;
+};
+
+/** 可拖拽调整列宽的表头单元格：右侧 4px 把手，最小 60px。 */
+const ResizableHeaderCell = forwardRef<HTMLTableHeaderCellElement, ResizableHeaderCellProps>(
+  ({ children, index = 0, width, onResize, style, ...rest }, ref) => {
+    const startX = useRef(0);
+    const startWidth = useRef(0);
+
+    const handleMouseMove = useCallback(
+      (event: MouseEvent) => {
+        const next = Math.max(60, startWidth.current + (event.clientX - startX.current));
+        onResize?.(index, next);
+      },
+      [index, onResize],
+    );
+
+    const handleMouseUp = useCallback(() => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    }, [handleMouseMove]);
+
+    const handleMouseDown = useCallback(
+      (event: React.MouseEvent) => {
+        event.preventDefault();
+        const th = (event.target as HTMLElement).closest("th");
+        startX.current = event.clientX;
+        startWidth.current = width ?? th?.offsetWidth ?? 120;
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+      },
+      [handleMouseMove, handleMouseUp, width],
+    );
+
+    return (
+      <th ref={ref} style={{ ...style, width }} {...rest}>
+        {children}
+        <span className="th-resize-handle" onMouseDown={handleMouseDown} />
+      </th>
+    );
+  },
+);
+ResizableHeaderCell.displayName = "ResizableHeaderCell";
+
 export function ConsolidationPanel({
   locked = false,
   columns,
@@ -357,8 +431,10 @@ export function ConsolidationPanel({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [exportingView, setExportingView] = useState(false);
-
-
+  // 列宽：从 localStorage 读取，拖拽时持久化
+  const [columnWidths, setColumnWidths] = useState<Record<number, number>>(loadColumnWidths);
+  // 列头筛选：多列叠加（AND），前端内存筛选
+  const [columnFilters, setColumnFilters] = useState<Record<number, string>>({});
 
   const dataSource: ConsolidationRow[] = useMemo(
     () =>
@@ -404,24 +480,62 @@ export function ConsolidationPanel({
 
   const tableColumns: ColumnsType<ConsolidationRow> = useMemo(
     () =>
-      displayColumns.map(({ title, index }) => ({
-        className: index === statusIndex ? "result-status-cell" : undefined,
-        title:
-          index === statusIndex ? (
-            "状态"
-          ) : conflictColumns.has(index) ? (
-            <Tooltip title="此列有冲突单元格" mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
-              <span className="th-title">
-                {title}
-                <span className="conflict-dot" aria-label="此列有冲突" />
-              </span>
-            </Tooltip>
-          ) : (
-            title
+      displayColumns.map(({ title, index }) => {
+        const hasFilter = Boolean(columnFilters[index]);
+        return {
+          className: index === statusIndex ? "result-status-cell" : undefined,
+          title: (
+            <span className="th-title">
+              {conflictColumns.has(index) ? (
+                <Tooltip title="此列有冲突单元格" mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
+                  <span className="th-title-inner">
+                    {index === statusIndex ? (
+                      "状态"
+                    ) : (
+                      title
+                    )}
+                    <span className="conflict-dot" aria-label="此列有冲突" />
+                  </span>
+                </Tooltip>
+              ) : (
+                <span className="th-title-inner">
+                  {index === statusIndex ? (
+                    "状态"
+                  ) : (
+                    title
+                  )}
+                </span>
+              )}
+              <Popover
+                content={
+                  <Input
+                    size="small"
+                    allowClear
+                    value={columnFilters[index] ?? ""}
+                    placeholder="筛选内容"
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setColumnFilters((current) => ({ ...current, [index]: value }));
+                      setPage(1);
+                    }}
+                  />
+                }
+                title="筛选"
+                trigger="click"
+                placement="bottom"
+              >
+                <Filter
+                  size={12}
+                  className={hasFilter ? "th-filter-active" : "th-filter"}
+                  aria-label="筛选此列"
+                />
+              </Popover>
+            </span>
           ),
-        key: String(index),
-        ellipsis: false,
-        render: (_: unknown, entry: ConsolidationRow) => {
+          key: String(index),
+          ellipsis: false,
+          onHeaderCell: () => ({ index, width: columnWidths[index] }),
+          render: (_: unknown, entry: ConsolidationRow) => {
           // 状态列用中文胶囊，不再露出后端英文常量；左侧 3px 竖条由行样式负责。
           if (index === statusIndex) {
             return (
@@ -461,26 +575,65 @@ export function ConsolidationPanel({
             value
           );
         },
-      })),
-    [displayColumns, conflictColumns, statusIndex],
+      };
+    }),
+    [displayColumns, conflictColumns, statusIndex, columnFilters, columnWidths],
   );
+
+  const getCellText = useCallback(
+    (entry: ConsolidationRow, index: number) => {
+      if (index === statusIndex) return statusLabel(entry.status);
+      return String(entry.cells[index] ?? "");
+    },
+    [statusIndex],
+  );
+
   const needle = appliedQuery.trim().toLowerCase();
+  const activeFilters = useMemo(
+    () => Object.entries(columnFilters).filter(([, value]) => value.trim() !== ""),
+    [columnFilters],
+  );
   const visible = useMemo(
     () =>
       dataSource
         .filter((entry) => statusFilter === null || entry.status === statusFilter)
-        .filter(
-          (entry) =>
+        .filter((entry) => {
+          const matchesNeedle =
             needle === "" ||
-            entry.cells.some((cell) => String(cell ?? "").toLowerCase().includes(needle)),
-        ),
-    [dataSource, statusFilter, needle],
+            entry.cells.some((cell) => String(cell ?? "").toLowerCase().includes(needle));
+          const matchesFilters = activeFilters.every(([colIndex, value]) =>
+            getCellText(entry, Number(colIndex))
+              .toLowerCase()
+              .includes(value.trim().toLowerCase()),
+          );
+          return matchesNeedle && matchesFilters;
+        }),
+    [dataSource, statusFilter, needle, activeFilters, getCellText],
   );
 
   // 只把当前页交给 Table 渲染：数据量大时这是"不卡"的关键
   const paged = useMemo(
     () => visible.slice((page - 1) * pageSize, page * pageSize),
     [visible, page, pageSize],
+  );
+
+  const handleColumnResize = useCallback((index: number, width: number) => {
+    setColumnWidths((current) => {
+      const next = { ...current, [index]: width };
+      saveColumnWidths(next);
+      return next;
+    });
+  }, []);
+
+  const components = useMemo(
+    () => ({
+      header: {
+        cell: (props: React.ThHTMLAttributes<HTMLTableHeaderCellElement> & { index?: number; width?: number }) => (
+          <ResizableHeaderCell {...props} onResize={handleColumnResize} />
+        ),
+      },
+    }),
+    [handleColumnResize],
   );
 
   // 导出当前视图：全部筛选结果（不是当前页），表头就是界面上的列名。
@@ -660,6 +813,7 @@ export function ConsolidationPanel({
             pagination={false}
             dataSource={paged}
             columns={tableColumns}
+            components={components}
             rowKey={(entry) => entry.key}
             rowClassName={(entry) => `result-row status-${entry.status}`}
             scroll={{ x: "max-content" }}
@@ -672,7 +826,9 @@ export function ConsolidationPanel({
                       ? "没有找到匹配的数据"
                       : statusFilter
                         ? `${statusLabel(statusFilter)} 状态没有数据`
-                        : "暂无数据"
+                        : activeFilters.length > 0
+                          ? "当前列筛选没有匹配的数据"
+                          : "暂无数据"
                   }
                 />
               ),
