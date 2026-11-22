@@ -358,27 +358,97 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 	}
 }
 
-// TestTheConsolidationHeadButtonsKeepOnePrimary 固定数据整合标题栏的两个层级：
-// 标题条是唯一的实底品牌红，红底上「整合」是白色主按钮（24px 紧凑档，占正中）；
-// 「强制重跑 / 生成文件」是红底上的白色纯图标按钮（32px 标准档，tooltip + aria-label），
-// 与工具条查找/导出、左栏导入动作保持同一档尺寸。
+// TestTheConsolidationHeadButtonsKeepOnePrimary 固定 D 阶段的数据整合标题栏：
+// 标题靠左，右侧是刷新 / 导出 / 白底红字「整合」；不再用三列网格把主按钮悬在正中。
 func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	runButton := cssRule(t, styles, ".consolidation-card .consolidation-run.ant-btn {")
+	runButton := cssRule(t, styles, ".consolidation-card > .ant-card-head .consolidation-run {")
 	for _, wanted := range []string{
 		"height: 24px;",
 		"background: #fff;",
 		"color: var(--brand-red);",
 		"border-color: #fff;",
+		"margin-inline-start: 4px;",
 	} {
 		if !strings.Contains(runButton, wanted) {
 			t.Errorf("「整合」按钮缺少 %s，实际块：\n%s", wanted, runButton)
 		}
 	}
 	if strings.Contains(runButton, "position: absolute;") {
-		t.Error("「整合」按钮不再绝对定位：标题变长会重叠，改用三列网格")
+		t.Error("「整合」按钮不再绝对定位：标题变长会重叠")
+	}
+
+	head := cssRule(t, styles, ".consolidation-card > .ant-card-head {")
+	for _, wanted := range []string{
+		"display: flex;",
+		"align-items: center;",
+		"min-height: 44px;",
+		"padding-block: 0;",
+		"background: var(--brand-red);",
+	} {
+		if !strings.Contains(head, wanted) {
+			t.Errorf("数据整合标题栏缺少 %s，实际块：\n%s", wanted, head)
+		}
+	}
+	if strings.Contains(head, "grid-template-columns") {
+		t.Error("D 阶段不再使用三列网格标题栏")
+	}
+	wrapper := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-head-wrapper {")
+	for _, wanted := range []string{"display: flex;", "align-items: center;", "width: 100%;"} {
+		if !strings.Contains(wrapper, wanted) {
+			t.Errorf("标题栏 wrapper 缺少 %s，实际块：\n%s", wanted, wrapper)
+		}
+	}
+	title := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-head-title {")
+	for _, wanted := range []string{"flex: 1 1 auto;", "min-width: 0;", "padding: 0;"} {
+		if !strings.Contains(title, wanted) {
+			t.Errorf("标题栏 title 缺少 %s，实际块：\n%s", wanted, title)
+		}
+	}
+	extra := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-extra {")
+	for _, wanted := range []string{
+		"flex: 0 0 auto;",
+		"display: flex;",
+		"align-items: center;",
+		"gap: 8px;",
+		"margin-inline-start: 16px;",
+	} {
+		if !strings.Contains(extra, wanted) {
+			t.Errorf("标题栏动作区缺少 %s，实际块：\n%s", wanted, extra)
+		}
+	}
+	name := cssRule(t, styles, ".consolidation-card > .ant-card-head .consolidation-name {")
+	if !strings.Contains(name, "line-height: 1;") {
+		t.Errorf("标题文字要按自身行高居中，实际块：\n%s", name)
+	}
+
+	// 主按钮在 extra 里，位于刷新/导出之后（最右），并且图标缩到 14px。
+	exportStart := strings.Index(app, `className="consolidation-export"`)
+	runStart := strings.Index(app, `className="consolidation-run"`)
+	if exportStart < 0 || runStart < 0 || runStart < exportStart {
+		t.Error("「整合」主按钮应当位于标题栏右侧动作区，且在刷新/导出之后")
+	}
+	exportBlock := app[exportStart:]
+	if end := strings.Index(exportBlock, "onClick={handleExport}"); end >= 0 {
+		exportBlock = exportBlock[:end]
+	}
+	for _, wanted := range []string{`label="生成文件"`, `size="small"`, "icon={<FileDown />}"} {
+		if !strings.Contains(exportBlock, wanted) {
+			t.Errorf("「生成文件」图标按钮缺少 %s，实际块：\n%s", wanted, exportBlock)
+		}
+	}
+	forceStart := strings.Index(app, `className="consolidation-force"`)
+	forceBlock := app[forceStart:]
+	if end := strings.Index(forceBlock, "/>"); end >= 0 {
+		forceBlock = forceBlock[:end]
+	}
+	if !strings.Contains(forceBlock, `size="small"`) {
+		t.Error("「强制重跑」应使用 24px 紧凑图标档")
+	}
+	if !strings.Contains(app, "icon={<Merge size={14} />}") {
+		t.Error("「整合」按钮图标应当是 14px")
 	}
 	for _, wanted := range []string{
 		".card.consolidation-card > .ant-card-head .ant-card-head-title,",
@@ -390,96 +460,6 @@ func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 		if !strings.Contains(styles, wanted) {
 			t.Errorf("红底标题栏的反白标题/图标缺少：%s", wanted)
 		}
-	}
-	headGrid := cssBlock(t, styles, ".consolidation-card > .ant-card-head {")
-	for _, wanted := range []string{
-		"display: grid;",
-		"grid-template-columns: 1fr auto 1fr;",
-		"align-items: center;",
-		"align-content: center;",
-		"background: var(--brand-red);",
-	} {
-		if !strings.Contains(headGrid, wanted) {
-			t.Errorf("标题栏三列网格缺少 %s，实际块：\n%s", wanted, headGrid)
-		}
-	}
-	for _, wanted := range []string{
-		".consolidation-card > .ant-card-head .ant-card-head-wrapper,",
-		"display: contents;",
-		".consolidation-card > .ant-card-head .consolidation-name {",
-		"grid-column: 1;",
-		".consolidation-card > .ant-card-head .consolidation-run {",
-		"grid-column: 2;",
-		"justify-self: center;",
-		".consolidation-card > .ant-card-head .ant-card-extra {",
-		"grid-column: 3;",
-	} {
-		if !strings.Contains(styles, wanted) {
-			t.Errorf("标题栏网格布局缺少：%s", wanted)
-		}
-	}
-	start := strings.Index(app, `className="consolidation-export"`)
-	if start < 0 {
-		t.Fatal("没找到标题栏里的「生成文件」图标按钮")
-	}
-	exportButton := app[start:]
-	end := strings.Index(exportButton, "onClick={handleExport}")
-	if end < 0 {
-		t.Fatal("「生成文件」图标按钮缺少 onClick")
-	}
-	exportButton = exportButton[:end]
-	for _, wanted := range []string{`label="生成文件"`, `size="middle"`, "icon={<FileDown />}"} {
-		if !strings.Contains(exportButton, wanted) {
-			t.Errorf("「生成文件」图标按钮缺少 %s，实际块：\n%s", wanted, exportButton)
-		}
-	}
-	if strings.Contains(exportButton, "生成文件</") {
-		t.Error("「生成文件」改成纯图标按钮后不该再带文字")
-	}
-	if strings.Contains(styles, ".consolidation-card .consolidation-export.ant-btn {") {
-		t.Error("旧的「生成文件」白底文字按钮样式应当删掉，改用统一的图标按钮")
-	}
-	forceStart := strings.Index(app, `className="consolidation-force"`)
-	if forceStart < 0 {
-		t.Fatal("没找到标题栏里的「强制重跑」图标按钮")
-	}
-	forceButton := app[forceStart:]
-	if end := strings.Index(forceButton, "/>"); end >= 0 {
-		forceButton = forceButton[:end]
-	}
-	if !strings.Contains(forceButton, `size="middle"`) {
-		t.Error("「强制重跑」应使用 32px 标准图标档")
-	}
-	base := cssBlock(t, styles, ".ui-icon-button.ant-btn {")
-	for _, wanted := range []string{"width: 24px;", "height: 24px;", "color: rgba(0, 0, 0, 0.65);"} {
-		if !strings.Contains(base, wanted) {
-			t.Errorf("图标按钮基础档缺少 %s，实际块：\n%s", wanted, base)
-		}
-	}
-	middle := cssBlock(t, styles, ".ui-icon-button-middle.ant-btn {")
-	for _, wanted := range []string{"width: 32px;", "height: 32px;"} {
-		if !strings.Contains(middle, wanted) {
-			t.Errorf("图标按钮标准档缺少 %s，实际块：\n%s", wanted, middle)
-		}
-	}
-	danger := cssBlock(t, styles, ".ui-icon-button-danger.ant-btn {")
-	if !strings.Contains(danger, "color: var(--danger-red);") {
-		t.Errorf("危险图标按钮应当用危险红，实际块：\n%s", danger)
-	}
-	// 清空按钮仍走无边框白图标那套基础规则；禁用时退回半透明白
-	clear := cssRule(t, styles, ".card > .ant-card-head .head-icon-action.ant-btn {")
-	for _, wanted := range []string{"border: none;", "background: transparent;"} {
-		if !strings.Contains(clear, wanted) {
-			t.Errorf("标题栏图标按钮的基础规则缺少 %s，实际块：\n%s", wanted, clear)
-		}
-	}
-	head := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-head-wrapper,")
-	if !strings.Contains(head, "align-items: center;") {
-		t.Errorf("标题栏内容要纵向居中，实际块：\n%s", head)
-	}
-	name := cssRule(t, styles, ".consolidation-card > .ant-card-head .consolidation-name {")
-	if !strings.Contains(name, "line-height: 1;") || !strings.Contains(name, "align-self: center;") {
-		t.Errorf("标题文字要按自身行高居中，实际块：\n%s", name)
 	}
 }
 

@@ -870,11 +870,36 @@ export default function App() {
             <Card
               className={`card grow consolidation-card${canConsolidate ? "" : " consolidation-card-locked"}`}
               size="small"
-              title={
-                // 标题栏：模块名在左，「整合」主按钮由三列网格放在整条栏正中（见 styles.css）
-                <>
-                  <span className="consolidation-name">数据整合</span>
-                  {canConsolidate ? (
+              title={<span className="consolidation-name">数据整合</span>}
+              extra={
+                // D：标题靠左，右侧形成一条动作区：刷新 / 导出 / 白底红字「整合」。
+                // 没有整合权限时只保留「只读」标签。
+                canConsolidate ? (
+                  <>
+                    <IconButton
+                      className="consolidation-force"
+                      label="强制重跑"
+                      size="small"
+                      tooltip={forceTitle}
+                      icon={<RefreshCw />}
+                      disabled={shareBlocked || !allAligned || busy !== null}
+                      onClick={handleConsolidateForce}
+                    />
+                    <IconButton
+                      className="consolidation-export"
+                      label="生成文件"
+                      size="small"
+                      tooltip={
+                        !can("export")
+                          ? "当前身份没有导出权限"
+                          : readyCount === 0
+                            ? "还没有可导出的行（只有合格的行会导出）"
+                            : "生成文件"
+                      }
+                      icon={<FileDown />}
+                      disabled={!can("export") || readyCount === 0}
+                      onClick={handleExport}
+                    />
                     <Tooltip
                       title={
                         shareBlocked
@@ -888,44 +913,13 @@ export default function App() {
                         className="consolidation-run"
                         type="primary"
                         size="small"
-                        icon={<Merge size={16} />}
+                        icon={<Merge size={14} />}
                         disabled={shareBlocked || !allAligned}
                         onClick={handleConsolidate}
                       >
                         整合
                       </Button>
                     </Tooltip>
-                  ) : null}
-                </>
-              }
-              extra={
-                // 右侧动作：强制重跑 + 生成文件；没有整合权限的身份只显示「只读」
-                canConsolidate ? (
-                  <>
-                    <IconButton
-                      className="consolidation-force"
-                      label="强制重跑"
-                      size="middle"
-                      tooltip={forceTitle}
-                      icon={<RefreshCw />}
-                      disabled={shareBlocked || !allAligned || busy !== null}
-                      onClick={handleConsolidateForce}
-                    />
-                    <IconButton
-                      className="consolidation-export"
-                      label="生成文件"
-                      size="middle"
-                      tooltip={
-                        !can("export")
-                          ? "当前身份没有导出权限"
-                          : readyCount === 0
-                            ? "还没有可导出的行（只有合格的行会导出）"
-                            : "生成文件"
-                      }
-                      icon={<FileDown />}
-                      disabled={!can("export") || readyCount === 0}
-                      onClick={handleExport}
-                    />
                   </>
                 ) : (
                   <Tag className="consolidation-locked-tag">只读</Tag>

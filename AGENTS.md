@@ -263,9 +263,10 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
   「暂无数据」，只做插图/文字的视觉收敛，不加边框、骨架或按钮。
 - **间距刻度** `--space-2/4/6/8/12/16` 只收拢未被契约固定的声明；窗口 padding、列间距、
   分组留白等尺寸由 `layout_*_test.go` 固定，保持字面量不动，避免 token 与契约漂移。
-- **数据整合标题栏用三列网格**（`1fr auto 1fr` + `display: contents`）放模块名 /「整合」主按钮 /
-  右侧动作，按钮不再绝对定位；结果表保留 antd `sticky` 表头，`.tblwrap .ant-table-sticky-holder`
-  补不透明白底与淡描边，长表滚动时表头始终可见。
+- **数据整合标题栏标题靠左，右侧是动作区**：刷新 / 生成文件 / 白底红字「整合」按此顺序靠右，
+  标题用 `flex: 1` 吃掉剩余宽度；不再用三列网格把主按钮悬在正中。标题栏高 44px，动作按钮 24px、
+  图标 14px，标题与按钮共用一条水平轴。结果表保留 antd `sticky` 表头，
+  `.tblwrap .ant-table-sticky-holder` 补不透明白底与淡描边，长表滚动时表头始终可见。
 - **按钮统一走 `frontend/src/components/IconButton.tsx`**：工具 / 导航动作用纯图标
   （`label` 同时作为 `aria-label` 与默认 Tooltip），只有主操作和对话框决策保留文字。
   尺寸只有两档：紧凑 24px（`small`，图标 14）与标准 32px（`middle`，图标 16）；状态栏 20px 是特例。

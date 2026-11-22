@@ -160,9 +160,17 @@ body {
 .card > .ant-card-head {
   position: relative; /* 左侧品牌红竖条的定位基准 */
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-block: 0;
   background: var(--brand-red-soft);
   border-bottom: 1px solid var(--brand-red-border);
   border-radius: var(--module-radius) var(--module-radius) 0 0;
+}
+
+.card > .ant-card-head > .ant-card-head-wrapper {
+  width: 100%;
 }
 
 /* 标题条左侧 3px 品牌红竖条：普通模块用浅红标题带，只有数据整合用实底红。 */
@@ -281,15 +289,13 @@ body {
 
 /* ---------- 数据整合的标题栏 ---------- */
 
-/* 标题栏三列网格：模块名（左）| 整合主按钮（整条栏正中）| 强制重跑/生成文件（右）。
-   用 display: contents 让 antd 的 wrapper/title 不再参与布局，按钮直接成为网格项 ——
-   标题变长也不会和按钮重叠；三列固定 1fr / auto / 1fr，按钮相对整条栏居中。 */
+/* D：标题靠左，右侧形成一条动作区。不再用三列网格把「整合」悬在正中；
+   标题、刷新、导出、主按钮共用一条 44px 高的水平轴，主按钮固定在最右。 */
 .consolidation-card > .ant-card-head {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  align-content: center;
-  /* 唯一实底品牌红标题：全屏只有一个红色主锚点，其余模块用浅红标题带 */
+  min-height: 44px;
+  padding-block: 0;
   background: var(--brand-red);
   border-bottom: 1px solid var(--brand-red-deep);
 }
@@ -299,21 +305,20 @@ body {
   background: var(--brand-red-deep);
 }
 
-.consolidation-card > .ant-card-head .ant-card-head-wrapper,
-.consolidation-card > .ant-card-head .ant-card-head-title,
-.consolidation-card > .ant-card-head .ant-card-extra {
+.consolidation-card > .ant-card-head .ant-card-head-wrapper {
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
-.consolidation-card > .ant-card-head .ant-card-head-wrapper,
 .consolidation-card > .ant-card-head .ant-card-head-title {
-  display: contents;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  overflow: visible;
 }
 
 .consolidation-card > .ant-card-head .consolidation-name {
-  grid-column: 1;
-  align-self: center;
   display: flex;
   align-items: center;
   min-width: 0;
@@ -321,25 +326,45 @@ body {
   color: #fff;
 }
 
-.consolidation-card > .ant-card-head .consolidation-run {
-  grid-column: 2;
-  align-self: center;
-  justify-self: center;
-}
-
 .consolidation-card > .ant-card-head .ant-card-extra {
-  grid-column: 3;
-  align-self: center;
-  justify-self: end;
-}
-
-/* 标题与右侧动作（强制重跑/生成文件）之间留出间隔，两个动作之间也隔开 */
-.consolidation-card > .ant-card-head .ant-card-extra {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
   gap: 8px;
   margin-inline-start: 16px;
 }
 
-/* 红底上标题与右侧图标统一反白；图标 hover 用半透明白，不引入第二个底色 */
+.consolidation-card > .ant-card-head .consolidation-run {
+  flex: 0 0 auto;
+  height: 24px;
+  margin-inline-start: 4px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  color: var(--brand-red);
+  border-color: #fff;
+}
+
+.consolidation-card > .ant-card-head .consolidation-run svg {
+  width: 14px;
+  height: 14px;
+}
+
+.consolidation-card > .ant-card-head .consolidation-run:hover,
+.consolidation-card > .ant-card-head .consolidation-run:focus-visible {
+  background: var(--brand-red-soft);
+  color: var(--brand-red-deep);
+  border-color: var(--brand-red-soft);
+}
+
+.consolidation-card > .ant-card-head .consolidation-run:active {
+  background: var(--brand-red-border);
+  color: var(--brand-red-deep);
+  border-color: var(--brand-red-border);
+}
+
+/* 红底标题上的图标统一反白；hover 用半透明白，不引入第二个底色 */
 .card.consolidation-card > .ant-card-head .ant-card-head-title,
 .consolidation-card > .ant-card-head .head-icon-action.ant-btn,
 .consolidation-card > .ant-card-head .consolidation-force.ant-btn,
@@ -369,38 +394,10 @@ body {
   color: rgba(255, 255, 255, 0.45);
 }
 
-/* 标题块放开 antd 的 textEllipsis：模块名较长时不被裁切（按钮已由网格单独布局） */
+/* 标题块放开 antd 的 textEllipsis：模块名较长时不被裁切（按钮由右侧动作区单独布局） */
 .consolidation-card > .ant-card-head .ant-card-head-title {
   overflow: visible;
 }
-
-/* 「整合」：红标题栏里的白色主按钮（24px 紧凑档），由三列网格放在正中；
-   红底上只有这一个白色实底按钮，刷新 / 导出保持白色图标。 */
-.consolidation-card .consolidation-run.ant-btn {
-  height: 24px;
-  background: #fff;
-  color: var(--brand-red);
-  border-color: #fff;
-}
-
-.consolidation-card .consolidation-run.ant-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.consolidation-card .consolidation-run.ant-btn:hover,
-.consolidation-card .consolidation-run.ant-btn:focus-visible {
-  background: var(--brand-red-soft);
-  color: var(--brand-red-deep);
-  border-color: var(--brand-red-soft);
-}
-
-.consolidation-card .consolidation-run.ant-btn:active {
-  background: var(--brand-red-border);
-  color: var(--brand-red-deep);
-  border-color: var(--brand-red-border);
-}
-
 
 /* ---------- 竖向分隔上的收起 / 展开按钮 ---------- */
 

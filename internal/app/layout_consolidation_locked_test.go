@@ -33,9 +33,10 @@ func TestConsolidationModuleSpacingAndReadOnlyState(t *testing.T) {
 	if !strings.Contains(panels, "consolidation-locked-hint") {
 		t.Error("数据窗口应当有只读说明")
 	}
-	// 标题与右侧动作的间隔（用整段匹配：同一个选择器前面还有一条分组规则）
-	if !strings.Contains(styles, ".consolidation-card > .ant-card-head .ant-card-extra {\n  gap: 8px;\n  margin-inline-start: 16px;") {
-		t.Error("标题与右侧动作之间应当留出 gap: 8px 与左边距 16px")
+	// 标题与右侧动作的间隔
+	extra := cssRule(t, styles, ".consolidation-card > .ant-card-head .ant-card-extra {")
+	if !strings.Contains(extra, "gap: 8px;") || !strings.Contains(extra, "margin-inline-start: 16px;") {
+		t.Errorf("标题与右侧动作之间应当留出 gap: 8px 与左边距 16px，实际块：\n%s", extra)
 	}
 	// 灰化：标题栏变浅灰、标题字变浅灰、正文变淡
 	head := cssBlock(t, styles, ".card.consolidation-card-locked > .ant-card-head {")
