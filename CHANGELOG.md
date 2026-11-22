@@ -7,6 +7,27 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.7] - 2026-11-22
+
+界面视觉规范与排版统一。
+
+### 变更
+
+- 模块标题栏改为浅色底 + 左侧 3px 品牌红竖条；窗口底色、模块描边/圆角/阴影与内层圆角
+  统一由 design token 控制，表面分层依靠底色差与阴影，不再用深灰描边堆叠。
+- 新增 `--space-2/4/6/8/12/16` 间距刻度，收拢未被布局契约固定的间距声明。
+- 数据整合标题栏内容垂直居中；操作日志的筛选栏目文字垂直居中，不再偏下。
+- 数据整合区域的图标按钮统一为 32×32、图标 16px：强制重跑、生成文件、全部对齐、
+  单卡对齐、查找、导出当前视图，与左侧数据来源区的操作图标同档。
+- 状态筛选片、日志筛选与结果表状态列统一语义浅底 + 色点/状态竖条；结果表只保留
+  首格状态标识，冲突格高亮不变。
+
+### 验证
+
+- `make check` 通过：全部 Go 测试、前端 16 个文件 96 例、`genlogcolumns --check`、
+  `gofmt`、`go vet`；
+- 两个平台的正式产物由 CI 在打 tag 后构建并挂到 Release。
+
 ## [3.1.6] - 2026-11-21
 
 全界面按钮统一为图标化、分级尺寸与语义配色。
@@ -697,7 +718,9 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.5...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.7...HEAD
+[3.1.7]: https://github.com/jiegun314/ssr-go/compare/v3.1.6...v3.1.7
+[3.1.6]: https://github.com/jiegun314/ssr-go/compare/v3.1.5...v3.1.6
 [3.1.5]: https://github.com/jiegun314/ssr-go/compare/v3.1.4...v3.1.5
 [3.1.4]: https://github.com/jiegun314/ssr-go/compare/v3.1.3...v3.1.4
 [3.1.3]: https://github.com/jiegun314/ssr-go/compare/v3.1.2...v3.1.3
