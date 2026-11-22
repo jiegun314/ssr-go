@@ -74,17 +74,25 @@ func TestConsolidateReturnsAlignedConflictCells(t *testing.T) {
 			t.Fatalf("第 %d 行的提示有 %d 格; want %d（与 Columns 同形同序）",
 				index, len(notes), len(result.Columns))
 		}
-		for position, note := range notes {
+		for position, cell := range notes {
 			if position == column && result.Statuses[index] == consolidation.StatusConflict {
-				if !strings.Contains(note, strings.Join(candidates, ", ")) {
-					t.Errorf("第 %d 行 %q 的提示 = %q; want 含 %q",
-						index, result.Columns[position], note, strings.Join(candidates, ", "))
+				if cell == nil {
+					t.Errorf("第 %d 行 %q 的冲突格应当有提示", index, result.Columns[position])
+				} else {
+					joined := strings.Join(cell.Candidates, ", ")
+					if !strings.Contains(joined, strings.Join(candidates, ", ")) {
+						t.Errorf("第 %d 行 %q 的候选值 = %v; want 含 %q",
+							index, result.Columns[position], cell.Candidates, strings.Join(candidates, ", "))
+					}
+					if cell.Source == "" || cell.Key == "" || cell.Column == "" {
+						t.Errorf("第 %d 行 %q 的结构化提示字段不完整：%+v", index, result.Columns[position], cell)
+					}
 				}
 				marked++
 				continue
 			}
-			if note != "" {
-				t.Errorf("第 %d 行 %q 不该有提示：%q", index, result.Columns[position], note)
+			if cell != nil {
+				t.Errorf("第 %d 行 %q 不该有提示：%+v", index, result.Columns[position], cell)
 			}
 		}
 	}

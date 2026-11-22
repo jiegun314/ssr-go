@@ -8,6 +8,10 @@ import (
 	"github.com/jiegun314/ssr-go/internal/store"
 )
 
+func candidatesString(candidates []string) string {
+	return strings.Join(candidates, ",")
+}
+
 // 这些用例覆盖 AGENTS.md §11 第 1 步：收口时除行级冲突文案外，
 // 还要产出「来源键 → 导出列名 → 候选值集合」，只标真正冲突的格。
 
@@ -138,7 +142,7 @@ func TestR14AConflictFreeRunMarksNoCells(t *testing.T) {
 // --- 第 2 步：单元格级提示文案 ---
 
 // TestR14ConflictNotesLandOnTheConflictingColumn 覆盖 one_to_many 的提示文案：
-// 提示按**导出列名**归位，文案是「来源 + 键 + 候选值」。
+// 提示按**导出列名**归位，结构化数据里包含来源、键、列名和候选值。
 func TestR14ConflictNotesLandOnTheConflictingColumn(t *testing.T) {
 	service, _, repository := consolidated(t)
 	original := ""
@@ -165,14 +169,21 @@ func TestR14ConflictNotesLandOnTheConflictingColumn(t *testing.T) {
 	}
 	candidates := []string{original, "999"}
 	sort.Strings(candidates)
-	want := "UDI团队信息：" + strings.ReplaceAll(key, "\x00", "+") +
-		" 有多个候选值：" + strings.Join(candidates, ", ")
-	if note != want {
-		t.Errorf("提示 = %q; want %q", note, want)
+	if note.Source != "UDI团队信息" {
+		t.Errorf("来源 = %q; want UDI团队信息", note.Source)
+	}
+	if note.Key != strings.ReplaceAll(key, "\x00", "+") {
+		t.Errorf("键 = %q; want %q", note.Key, strings.ReplaceAll(key, "\x00", "+"))
+	}
+	if note.Column != "Quantity of Device" {
+		t.Errorf("列 = %q; want Quantity of Device", note.Column)
+	}
+	if candidatesString(note.Candidates) != candidatesString(candidates) {
+		t.Errorf("候选值 = %v; want %v", note.Candidates, candidates)
 	}
 }
 
-// TestR14ConflictNotesListAtMostThreeCandidates 固定简版口径：候选值只列前 3 条。
+// TestR14ConflictNotesListAtMostThreeCandidates 固定口径：候选值最多只列前 3 条。
 //
 // 同样用手写的 many_to_one 冲突规则（仓库配置对医保来源已改成 merge_records）。
 func TestR14ConflictNotesListAtMostThreeCandidates(t *testing.T) {
@@ -194,13 +205,18 @@ func TestR14ConflictNotesListAtMostThreeCandidates(t *testing.T) {
 
 	all := []string{base, base + "-1", base + "-2", base + "-3"}
 	sort.Strings(all)
-	want := "医保编码信息：" + materialCode + " 有多个候选值：" +
-		strings.Join(all[:conflictNoteLimit], ", ")
-	if notes["Medical Insurance Code"] != want {
-		t.Errorf("提示 = %q; want %q", notes["Medical Insurance Code"], want)
+	note := notes["Medical Insurance Code"]
+	if note == nil {
+		t.Fatal("Medical Insurance Code 应当有冲突提示")
 	}
-	if strings.Contains(notes["Medical Insurance Code"], base+"-3") {
-		t.Errorf("超过 3 条的候选值不该列出来：%q", notes["Medical Insurance Code"])
+	if note.Source != "医保编码信息" {
+		t.Errorf("来源 = %q; want 医保编码信息", note.Source)
+	}
+	if candidatesString(note.Candidates) != candidatesString(all[:conflictNoteLimit]) {
+		t.Errorf("候选值 = %v; want %v", note.Candidates, all[:conflictNoteLimit])
+	}
+	if contains(note.Candidates, base+"-3") {
+		t.Errorf("超过 3 条的候选值不该列出来：%v", note.Candidates)
 	}
 }
 
@@ -275,7 +291,7 @@ func TestR14NoMatchRowsCarryNoCellNotes(t *testing.T) {
 // --- 第 3 步：Outcome.ConflictNotes 矩阵 ---
 
 // TestR14ConflictNotesMatrixAlignsWithRows：ConflictNotes 与 Rows 同形同序，
-// 列顺序 = Config.FieldNames，空串 = 该格不冲突。
+// 列顺序 = Config.FieldNames，nil = 该格不冲突。
 func TestR14ConflictNotesMatrixAlignsWithRows(t *testing.T) {
 	service, _, repository := consolidated(t)
 	original := ""
@@ -308,18 +324,20 @@ func TestR14ConflictNotesMatrixAlignsWithRows(t *testing.T) {
 			t.Fatalf("第 %d 行的提示有 %d 格; want %d",
 				index, len(notes), len(service.Config.FieldNames))
 		}
-		for position, text := range notes {
+		for position, cell := range notes {
 			if row.Values["status"] == StatusConflict && position == column {
-				if !strings.Contains(text, strings.Join(candidates, ", ")) {
-					t.Errorf("第 %d 行 %q 的提示 = %q; want 含 %q",
-						index, service.Config.FieldNames[position], text, strings.Join(candidates, ", "))
+				if cell == nil {
+					t.Errorf("第 %d 行 %q 的冲突格应当有提示", index, service.Config.FieldNames[position])
+				} else if candidatesString(cell.Candidates) != candidatesString(candidates) {
+					t.Errorf("第 %d 行 %q 的候选值 = %v; want %v",
+						index, service.Config.FieldNames[position], cell.Candidates, candidates)
 				}
 				marked++
 				continue
 			}
-			if text != "" {
-				t.Errorf("第 %d 行 %q 不该有提示：%q",
-					index, service.Config.FieldNames[position], text)
+			if cell != nil {
+				t.Errorf("第 %d 行 %q 不该有提示：%+v",
+					index, service.Config.FieldNames[position], cell)
 			}
 		}
 	}
@@ -329,7 +347,7 @@ func TestR14ConflictNotesMatrixAlignsWithRows(t *testing.T) {
 }
 
 // TestR14AConflictFreeRunHasAnEmptyNotesMatrix：样本本身没有冲突（现有场景 Conflict = 0），
-// 矩阵仍然与 Rows 同形同序，但每一格都是空串 —— 结果与 golden 基线都不受影响。
+// 矩阵仍然与 Rows 同形同序，但每一格都是 nil —— 结果与 golden 基线都不受影响。
 func TestR14AConflictFreeRunHasAnEmptyNotesMatrix(t *testing.T) {
 	service, outcome, _ := consolidated(t)
 
@@ -342,10 +360,10 @@ func TestR14AConflictFreeRunHasAnEmptyNotesMatrix(t *testing.T) {
 			t.Fatalf("第 %d 行的提示有 %d 格; want %d",
 				index, len(notes), len(service.Config.FieldNames))
 		}
-		for position, text := range notes {
-			if text != "" {
-				t.Errorf("没有冲突时第 %d 行 %q 不该有提示：%q",
-					index, service.Config.FieldNames[position], text)
+		for position, cell := range notes {
+			if cell != nil {
+				t.Errorf("没有冲突时第 %d 行 %q 不该有提示：%+v",
+					index, service.Config.FieldNames[position], cell)
 			}
 		}
 	}

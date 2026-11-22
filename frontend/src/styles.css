@@ -835,6 +835,52 @@ body {
   border-left: 6px solid transparent;
 }
 
+/* 冲突格 Tooltip：来源/键/列 + 候选值表格 */
+.conflict-tooltip {
+  max-width: 320px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.conflict-tooltip-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+
+.conflict-tooltip-meta > div {
+  display: contents;
+}
+
+.conflict-tooltip-meta span {
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+}
+
+.conflict-tooltip-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.conflict-tooltip-table th,
+.conflict-tooltip-table td {
+  padding: 3px 8px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.conflict-tooltip-table th {
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 500;
+}
+
+.conflict-tooltip-table td:first-child {
+  width: 28px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.65);
+}
+
 /* ---------- 操作日志 ---------- */
 
 /**

@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ConsolidationPanel, RecordExportPanel } from "../components/Panels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
+import type { app } from "../../wailsjs/go/models";
 
 const COLUMNS = ["Primary DI", "Product Name", "Medical Insurance Code"];
 const ROWS = [
@@ -237,8 +238,14 @@ describe("数据整合结果表", () => {
 });
 
 // 冲突单元格的标记（AGENTS.md §11 第 5 步）：只有带提示的格套 .cell-conflict，
-// 提示文案原样进 title；没有提示的格保持原样（缺失格显示小号「缺失」标记）。
-const CONFLICT_NOTE = "UDI团队信息：000MAT-001+DI-001 有多个候选值：10, 999";
+// 提示用结构化 Tooltip（来源/键/列 + 候选值表格）；没有提示的格保持原样。
+const emptyConflictCell = (): app.ConflictCell => ({ source: "", key: "", column: "", candidates: [] });
+const CONFLICT_CELL: app.ConflictCell = {
+  source: "UDI团队信息",
+  key: "000MAT-001+DI-001",
+  column: "Product Name",
+  candidates: ["10", "999"],
+};
 
 describe("数据整合结果表的冲突单元格", () => {
   const renderWithConflicts = () =>
@@ -253,8 +260,8 @@ describe("数据整合结果表的冲突单元格", () => {
           statuses={["Conflict", "Incomplete"]}
           counts={{ Ready: 0, Incomplete: 1, Duplicate: 0, Conflict: 1 }}
           conflicts={[
-            ["", "", CONFLICT_NOTE, ""],
-            ["", "", "", ""],
+            [emptyConflictCell(), emptyConflictCell(), CONFLICT_CELL, emptyConflictCell()],
+            [emptyConflictCell(), emptyConflictCell(), emptyConflictCell(), emptyConflictCell()],
           ]}
         />
       </AntApp>,
@@ -268,12 +275,17 @@ describe("数据整合结果表的冲突单元格", () => {
     expect(marked[0]).toHaveTextContent("超声探头");
   });
 
-  it("鼠标停上去立刻出提示（不用停在文字上等系统延迟）", async () => {
+  it("鼠标停上去立刻出结构化提示（来源/键/列 + 候选值表格）", async () => {
     const user = userEvent.setup();
     renderWithConflicts();
 
     await user.hover(document.querySelector(".cell-conflict") as HTMLElement);
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(CONFLICT_NOTE);
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("UDI团队信息");
+    expect(tooltip).toHaveTextContent("000MAT-001+DI-001");
+    expect(tooltip).toHaveTextContent("Product Name");
+    expect(tooltip).toHaveTextContent("10");
+    expect(tooltip).toHaveTextContent("999");
   });
 
   it("缺失格显示小号「缺失」标记，不套冲突样式", () => {
@@ -512,8 +524,8 @@ describe("冲突的定位", () => {
           statuses={["Ready", "Conflict"]}
           counts={{ Ready: 1, Incomplete: 0, Duplicate: 0, Conflict: 1 }}
           conflicts={[
-            ["", "", "", ""],
-            ["", "", CONFLICT_NOTE, ""],
+            [emptyConflictCell(), emptyConflictCell(), emptyConflictCell(), emptyConflictCell()],
+            [emptyConflictCell(), emptyConflictCell(), CONFLICT_CELL, emptyConflictCell()],
           ]}
         />
       </AntApp>,

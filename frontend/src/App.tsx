@@ -37,6 +37,7 @@ import { IconButton } from "./components/IconButton";
 import { StatusModal } from "./components/StatusModal";
 import { recordIconClick } from "./iconClicks";
 import { LoginScreen } from "./components/LoginScreen";
+import type { app } from "../wailsjs/go/models";
 import {
   AboutModal,
   HiddenModal,
@@ -98,7 +99,7 @@ export default function App() {
   const [rows, setRows] = useState<string[][]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   // 单元格级冲突提示：与 rows 同形同序（空串 = 该格不冲突）
-  const [conflicts, setConflicts] = useState<string[][]>([]);
+  const [conflicts, setConflicts] = useState<app.ConflictCell[][]>([]);
   // 行级冲突原因：与 rows 同形同序（空串 = 该行不冲突）
   const [rowConflicts, setRowConflicts] = useState<string[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});

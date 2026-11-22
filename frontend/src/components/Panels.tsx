@@ -53,6 +53,7 @@ import { IconButton } from "./IconButton";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 
 import { CLEANED_SOURCES, SOURCES, copyToClipboard } from "../bridge";
+import type { app } from "../../wailsjs/go/models";
 import {
   LOG_LEVELS,
   LOG_LEVEL_LABELS,
@@ -315,9 +316,9 @@ type ConsolidationPanelProps = {
   counts: Record<string, number>;
   /**
    * 单元格级的冲突提示：与 rows 同形同序（同一行、同一列下标），
-   * 空串 = 该格不冲突（见 AGENTS.md §11）。
+   * source 为空 = 该格不冲突（见 AGENTS.md §11）。
    */
-  conflicts?: string[][];
+  conflicts?: app.ConflictCell[][];
   /** 行级冲突原因：与 rows 同形同序（空串 = 该行不冲突），用于冲突字段不在导出列时的悬浮提示 */
   rowConflicts?: string[];
   /**
@@ -339,8 +340,8 @@ type ConsolidationRow = {
   key: string;
   status: string;
   cells: string[];
-  /** 与 cells 同下标的冲突提示（空串 = 不冲突）。 */
-  notes: string[];
+  /** 与 cells 同下标的冲突提示（source 为空 = 不冲突）。 */
+  notes: app.ConflictCell[];
   /** 行级冲突原因（空串 = 该行不冲突）：鼠标停在行内任何一格都浮出这段说明。 */
   rowConflict: string;
 };
@@ -418,6 +419,44 @@ const ResizableHeaderCell = forwardRef<HTMLTableHeaderCellElement, ResizableHead
 );
 ResizableHeaderCell.displayName = "ResizableHeaderCell";
 
+/** 冲突单元格的悬停提示：来源、键、列名 + 候选值表格。 */
+function ConflictTooltip({ cell }: { cell: app.ConflictCell }) {
+  return (
+    <div className="conflict-tooltip">
+      <div className="conflict-tooltip-meta">
+        <div>
+          <span>来源</span>
+          {cell.source}
+        </div>
+        <div>
+          <span>键</span>
+          {cell.key}
+        </div>
+        <div>
+          <span>列</span>
+          {cell.column}
+        </div>
+      </div>
+      <table className="conflict-tooltip-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>候选值</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cell.candidates.map((value, index) => (
+            <tr key={index}>
+              <td>{index + 1}</td>
+              <td>{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function ConsolidationPanel({
   locked = false,
   columns,
@@ -463,7 +502,7 @@ export function ConsolidationPanel({
     const set = new Set<number>();
     for (const entry of dataSource) {
       entry.notes.forEach((note, index) => {
-        if (note) set.add(index);
+        if (note.source) set.add(index);
       });
     }
     return set;
@@ -557,13 +596,13 @@ export function ConsolidationPanel({
             );
           }
           const value = entry.cells[index];
-          const note = entry.notes[index];
+          const cell = entry.notes[index];
           // 冲突的格：提示用 antd Tooltip 而不是原生 title —— 原生 title 的延迟由系统定
           // （要停在文字上等好几秒），这里 0.1s 就出来；span 撑满整格（见 .cell-conflict），
           // 不用把鼠标精确停在文字上。
-          if (note) {
+          if (cell?.source) {
             return (
-              <Tooltip title={note} mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
+              <Tooltip title={<ConflictTooltip cell={cell} />} mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
                 <span className="cell-conflict">{value}</span>
               </Tooltip>
             );

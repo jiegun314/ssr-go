@@ -189,6 +189,14 @@ func LoadChangeRule(loader *config.Loader) (*changedetect.Rule, error) {
 	}, nil
 }
 
+// ConflictCell 是冲突单元格的结构化提示：哪个来源、哪个键、哪一列、有哪些候选值。
+type ConflictCell struct {
+	Source     string
+	Key        string
+	Column     string
+	Candidates []string
+}
+
 // Outcome 是一次整合的结果。
 type Outcome struct {
 	Rows          []changedetect.Row
@@ -199,8 +207,8 @@ type Outcome struct {
 	ChangedData               []string
 	ConflictData              []string
 	// ConflictNotes 是冲突的**单元格级**提示：与 Rows 同形同序（同一行、同一列索引），
-	// 列顺序 = Config.FieldNames，空串 = 该格不冲突。行级冲突仍看 ConflictData。
-	ConflictNotes [][]string
+	// 列顺序 = Config.FieldNames，nil = 该格不冲突。行级冲突仍看 ConflictData。
+	ConflictNotes [][]*ConflictCell
 	// RowConflicts 是**行级**冲突原因：与 Rows 同形同序，空串 = 该行不冲突。
 	// 冲突字段没有映射到任何导出列时，只能靠它告诉用户"这一行为什么冲突"。
 	RowConflicts []string
@@ -678,7 +686,7 @@ func (service *Service) consolidateRows(
 		DuplicateData: []string{},
 		ChangedData:   []string{},
 		ConflictData:  []string{},
-		ConflictNotes: [][]string{},
+		ConflictNotes: [][]*ConflictCell{},
 		RowConflicts:  []string{},
 	}
 	base := data.keyed[service.Config.BaseSource]
@@ -781,7 +789,7 @@ func (service *Service) consolidateRows(
 //
 // selected 是每个来源"取来的一条记录"；merged 是声明了 merge_records 的来源在该键上的
 // **全部**记录（导出列声明 record_separator 时才会用到，用来把多条连成一格）。
-// 返回值是本行的单元格级冲突提示（导出列名 → 提示文本，见 conflictNotes）；
+// 返回值是本行的单元格级冲突提示（导出列名 → 结构化提示，见 conflictNotes）；
 // 它与行的取值无关，只取决于收口时记下的冲突。
 func (service *Service) mapResultRow(
 	row store.Row,
@@ -793,7 +801,7 @@ func (service *Service) mapResultRow(
 	scope conflictScope,
 	expansionFields []string,
 	noMatchValue string,
-) (map[string]string, error) {
+) (map[string]*ConflictCell, error) {
 	notes := service.conflictNotes(scope)
 	for _, columnName := range service.Config.FieldNames {
 		definition := service.Config.Fields[columnName]
@@ -1103,36 +1111,39 @@ func (service *Service) conflictDetails(scope conflictScope) []string {
 const conflictNoteLimit = 3
 
 // conflictNotes 是当前结果行的单元格级冲突提示（AGENTS.md §11 第 2 步）：
-// 导出列名 → 提示文本；没有冲突的格不出现在 map 里（= 第 3 步"空串 = 不冲突"）。
+// 导出列名 → 结构化提示；没有冲突的格不出现在 map 里（= 第 3 步"nil = 不冲突"）。
 //
 // 一个导出列只由一个来源喂（source.file 唯一），所以同一列不会有两个来源争着写；
 // 来源按 Config.SourceOrder 遍历，顺序稳定。
-func (service *Service) conflictNotes(scope conflictScope) map[string]string {
-	notes := map[string]string{}
+func (service *Service) conflictNotes(scope conflictScope) map[string]*ConflictCell {
+	notes := map[string]*ConflictCell{}
 	for _, sourceName := range service.Config.SourceOrder {
 		key, present := scope.keyFor(sourceName)
 		if !present {
 			continue
 		}
 		for columnName, candidates := range scope.Conflicts[sourceName].Candidates[key] {
-			notes[columnName] = service.conflictNote(sourceName, key, candidates)
+			notes[columnName] = service.conflictNote(sourceName, key, columnName, candidates)
 		}
 	}
 	return notes
 }
 
-// conflictNote 是简版提示文案：来源 + 键 + 候选值前 3 条。键里的分隔符（\x00）
-// 换成 "+"，与行级冲突文案的写法一致，免得 NUL 进到界面的 title 里。
-func (service *Service) conflictNote(sourceName string, key string, candidates []string) string {
-	return service.sourceLabel(sourceName) + "：" +
-		strings.ReplaceAll(key, "\x00", "+") + " 有多个候选值：" +
-		strings.Join(firstCandidates(candidates, conflictNoteLimit), ", ")
+// conflictNote 把来源、键、列名和候选值（最多前 3 条）打包成结构化提示。
+// 键里的分隔符（\x00）换成 "+"，与行级冲突文案的写法一致，免得 NUL 进到界面。
+func (service *Service) conflictNote(sourceName string, key string, columnName string, candidates []string) *ConflictCell {
+	return &ConflictCell{
+		Source:     service.sourceLabel(sourceName),
+		Key:        strings.ReplaceAll(key, "\x00", "+"),
+		Column:     columnName,
+		Candidates: firstCandidates(candidates, conflictNoteLimit),
+	}
 }
 
-// conflictNotesRow 把一行提示摊平成导出列顺序的切片（空串 = 该格不冲突）：
+// conflictNotesRow 把一行提示摊平成导出列顺序的切片（nil = 该格不冲突）：
 // Outcome.ConflictNotes 与 Rows 同形同序，列顺序就是 Config.FieldNames。
-func (service *Service) conflictNotesRow(notes map[string]string) []string {
-	row := make([]string, len(service.Config.FieldNames))
+func (service *Service) conflictNotesRow(notes map[string]*ConflictCell) []*ConflictCell {
+	row := make([]*ConflictCell, len(service.Config.FieldNames))
 	for position, columnName := range service.Config.FieldNames {
 		row[position] = notes[columnName]
 	}

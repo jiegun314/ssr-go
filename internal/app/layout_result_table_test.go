@@ -277,9 +277,10 @@ func TestTheStatusColorsStayInSyncWithTheTheme(t *testing.T) {
 }
 
 // TestConflictCellsAreMarkedInPlace 固定冲突单元格的标识口径（AGENTS.md §11 第 5 步）：
-// 有提示的格渲染成 antd Tooltip 包着的 <span className="cell-conflict">，样式与状态色
-// Conflict 同色、加粗，并且 span 撑满整格 —— 原生 title 的延迟由系统定（几秒），
-// 而且要精确停在文字上，所以提示一律走 Tooltip。
+// 有提示的格渲染成 antd Tooltip 包着的 <span className="cell-conflict">，Tooltip 内容用
+// 结构化组件 ConflictTooltip（来源/键/列 + 候选值表格）；样式与状态色 Conflict 同色、加粗，
+// 并且 span 撑满整格 —— 原生 title 的延迟由系统定（几秒），而且要精确停在文字上，
+// 所以提示一律走 Tooltip。
 func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -287,9 +288,10 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 
 	for _, wanted := range []string{
 		// 提示矩阵与表格同形同序，冲突格按格取值（不写死列下标）
-		`conflicts?: string[][];`,
-		`const note = entry.notes[index];`,
-		`<Tooltip title={note} mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>`,
+		`conflicts?: app.ConflictCell[][];`,
+		`const cell = entry.notes[index];`,
+		`function ConflictTooltip({ cell }: { cell: app.ConflictCell })`,
+		`<Tooltip title={<ConflictTooltip cell={cell} />} mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>`,
 		`<span className="cell-conflict">{value}</span>`,
 	} {
 		if !strings.Contains(panels, wanted) {
@@ -301,6 +303,19 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 	}
 	if strings.Contains(panels, `className="cell-conflict" title=`) {
 		t.Error("冲突格不该再用原生 title（延迟由系统控制，且要停在文字上）")
+	}
+	// 结构化提示：来源/键/列 + 候选值表格
+	for _, wanted := range []string{
+		`.conflict-tooltip {`,
+		`.conflict-tooltip-table {`,
+		"cell.source",
+		"cell.key",
+		"cell.column",
+		"cell.candidates",
+	} {
+		if !strings.Contains(panels+styles, wanted) {
+			t.Errorf("结构化冲突提示缺少：%s", wanted)
+		}
 	}
 
 	block := cssBlock(t, styles, ".cell-conflict {")

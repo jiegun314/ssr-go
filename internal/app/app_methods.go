@@ -271,6 +271,14 @@ func (app *App) ClearImportedData() ClearResult {
 	return ClearResult{Log: app.logText(), Title: "成功", Message: message, Cleared: names}
 }
 
+// ConflictCell 是冲突单元格的结构化提示：哪个来源、哪个键、哪一列、有哪些候选值。
+type ConflictCell struct {
+	Source     string   `json:"source"`
+	Key        string   `json:"key"`
+	Column     string   `json:"column"`
+	Candidates []string `json:"candidates"`
+}
+
 // ConsolidateResult 是一次整合回给界面的结果（结果表按状态着色，MISSING 加粗）。
 type ConsolidateResult struct {
 	Log      string     `json:"log"`
@@ -281,8 +289,8 @@ type ConsolidateResult struct {
 	Rows     [][]string `json:"rows"`
 	Statuses []string   `json:"statuses"`
 	// Conflicts 是单元格级的冲突提示（AGENTS.md §11）：与 Rows 同形同序
-	// （同一行、同一列下标 = Columns），空串 = 该格不冲突。
-	Conflicts [][]string `json:"conflicts"`
+	// （同一行、同一列下标 = Columns），nil = 该格不冲突。
+	Conflicts [][]*ConflictCell `json:"conflicts"`
 	// Notice 是"整合期间有新版本发布"之类的提示（空串 = 无）。
 	Notice string `json:"notice"`
 	// RowConflicts 是行级冲突原因（与 Rows 同形同序，空串 = 该行不冲突）：
@@ -337,7 +345,7 @@ func (app *App) consolidateOnce(force bool) ConsolidateResult {
 	columns := append([]string{"status"}, app.service.Config.FieldNames...)
 	rows := make([][]string, 0, len(outcome.Rows))
 	statuses := make([]string, 0, len(outcome.Rows))
-	conflicts := make([][]string, 0, len(outcome.Rows))
+	conflicts := make([][]*ConflictCell, 0, len(outcome.Rows))
 	for index, row := range outcome.Rows {
 		values := make([]string, 0, len(columns))
 		for _, column := range columns {
@@ -345,8 +353,22 @@ func (app *App) consolidateOnce(force bool) ConsolidateResult {
 		}
 		rows = append(rows, values)
 		statuses = append(statuses, row.Values["status"])
-		// 提示矩阵与 Rows 同形同序（同一行、同一列下标）：首列 status 没有提示，补一个空串
-		conflicts = append(conflicts, append([]string{""}, outcome.ConflictNotes[index]...))
+		// 提示矩阵与 Rows 同形同序（同一行、同一列下标）：首列 status 没有提示，补 nil
+		rowNotes := make([]*ConflictCell, 0, len(outcome.ConflictNotes[index])+1)
+		rowNotes = append(rowNotes, nil)
+		for _, note := range outcome.ConflictNotes[index] {
+			if note == nil {
+				rowNotes = append(rowNotes, nil)
+				continue
+			}
+			rowNotes = append(rowNotes, &ConflictCell{
+				Source:     note.Source,
+				Key:        note.Key,
+				Column:     note.Column,
+				Candidates: note.Candidates,
+			})
+		}
+		conflicts = append(conflicts, rowNotes)
 	}
 	return ConsolidateResult{
 		Log: app.logText(), Columns: columns, Rows: rows,
