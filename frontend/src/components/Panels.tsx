@@ -316,9 +316,9 @@ type ConsolidationPanelProps = {
   counts: Record<string, number>;
   /**
    * 单元格级的冲突提示：与 rows 同形同序（同一行、同一列下标），
-   * source 为空 = 该格不冲突（见 AGENTS.md §11）。
+   * null 或 source 为空 = 该格不冲突（见 AGENTS.md §11）。
    */
-  conflicts?: app.ConflictCell[][];
+  conflicts?: (app.ConflictCell | null)[][];
   /** 行级冲突原因：与 rows 同形同序（空串 = 该行不冲突），用于冲突字段不在导出列时的悬浮提示 */
   rowConflicts?: string[];
   /**
@@ -340,8 +340,8 @@ type ConsolidationRow = {
   key: string;
   status: string;
   cells: string[];
-  /** 与 cells 同下标的冲突提示（source 为空 = 不冲突）。 */
-  notes: app.ConflictCell[];
+  /** 与 cells 同下标的冲突提示（null 或 source 为空 = 不冲突）。 */
+  notes: (app.ConflictCell | null)[];
   /** 行级冲突原因（空串 = 该行不冲突）：鼠标停在行内任何一格都浮出这段说明。 */
   rowConflict: string;
 };
@@ -445,7 +445,7 @@ function ConflictTooltip({ cell }: { cell: app.ConflictCell }) {
           </tr>
         </thead>
         <tbody>
-          {cell.candidates.map((value, index) => (
+          {(cell.candidates ?? []).map((value, index) => (
             <tr key={index}>
               <td>{index + 1}</td>
               <td>{value}</td>
@@ -502,7 +502,7 @@ export function ConsolidationPanel({
     const set = new Set<number>();
     for (const entry of dataSource) {
       entry.notes.forEach((note, index) => {
-        if (note.source) set.add(index);
+        if (note?.source) set.add(index);
       });
     }
     return set;

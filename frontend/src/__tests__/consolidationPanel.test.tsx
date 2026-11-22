@@ -238,14 +238,19 @@ describe("数据整合结果表", () => {
 });
 
 // 冲突单元格的标记（AGENTS.md §11 第 5 步）：只有带提示的格套 .cell-conflict，
-// 提示用结构化 Tooltip（来源/键/列 + 候选值表格）；没有提示的格保持原样。
-const emptyConflictCell = (): app.ConflictCell => ({ source: "", key: "", column: "", candidates: [] });
+// 提示用结构化 Tooltip（来源/键/列 + 候选值表格）；没有提示的格在运行时实际是 null。
 const CONFLICT_CELL: app.ConflictCell = {
   source: "UDI团队信息",
   key: "000MAT-001+DI-001",
   column: "Product Name",
   candidates: ["10", "999"],
 };
+
+// Wails 把 nil *ConflictCell 序列化成 null，测试要覆盖这种真实运行时数据。
+const NULL_CONFLICTS: (app.ConflictCell | null)[][] = [
+  [null, null, CONFLICT_CELL, null],
+  [null, null, null, null],
+];
 
 describe("数据整合结果表的冲突单元格", () => {
   const renderWithConflicts = () =>
@@ -259,10 +264,7 @@ describe("数据整合结果表的冲突单元格", () => {
           ]}
           statuses={["Conflict", "Incomplete"]}
           counts={{ Ready: 0, Incomplete: 1, Duplicate: 0, Conflict: 1 }}
-          conflicts={[
-            [emptyConflictCell(), emptyConflictCell(), CONFLICT_CELL, emptyConflictCell()],
-            [emptyConflictCell(), emptyConflictCell(), emptyConflictCell(), emptyConflictCell()],
-          ]}
+          conflicts={NULL_CONFLICTS as app.ConflictCell[][]}
         />
       </AntApp>,
     );
@@ -524,9 +526,9 @@ describe("冲突的定位", () => {
           statuses={["Ready", "Conflict"]}
           counts={{ Ready: 1, Incomplete: 0, Duplicate: 0, Conflict: 1 }}
           conflicts={[
-            [emptyConflictCell(), emptyConflictCell(), emptyConflictCell(), emptyConflictCell()],
-            [emptyConflictCell(), emptyConflictCell(), CONFLICT_CELL, emptyConflictCell()],
-          ]}
+            [null, null, null, null],
+            [null, null, CONFLICT_CELL, null],
+          ] as app.ConflictCell[][]}
         />
       </AntApp>,
     );

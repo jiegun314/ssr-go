@@ -288,7 +288,7 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 
 	for _, wanted := range []string{
 		// 提示矩阵与表格同形同序，冲突格按格取值（不写死列下标）
-		`conflicts?: app.ConflictCell[][];`,
+		`conflicts?: (app.ConflictCell | null)[][];`,
 		`const cell = entry.notes[index];`,
 		`function ConflictTooltip({ cell }: { cell: app.ConflictCell })`,
 		`<Tooltip title={<ConflictTooltip cell={cell} />} mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>`,
