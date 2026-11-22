@@ -1,4 +1,5 @@
 // 主界面的四块：数据导入、记录导出、数据整合、操作日志，加上载入图层与结果弹窗。
+// 布局：左列放数据导入与操作日志；记录导出贴在数据整合底部分页行左侧。
 //
 // 组件选型按 antd 默认语言来：
 //   状态 → Badge / Tag（不再自绘圆点、不再做"仿只读输入框"的状态条）；
@@ -271,14 +272,16 @@ export function RecordExportPanel({
     />
   );
 
-  // 记录导出在左列（340 宽）：两个日期 + 箭头 + 纯图标「回顾」，一行正好放下并整组居中。
-  // 回顾改成纯图标是为了让这一行塞进窄栏（带文字会多 52px，一行放不下），语义靠 Tooltip + aria-label。
+  // 记录导出贴在数据整合底部分页行左侧：两个日期 + 箭头 + 图标文字「导出」按钮。
+  // 不再使用 Card 标题栏，也不单独占一行高度。
   return (
     <div className="range">
       {picker(start, onStartChange, "起始日期")}
       <ArrowRight className="date-sep" size={14} aria-hidden="true" />
       {picker(end, onEndChange, "结束日期")}
-      <IconButton label="回顾" size="middle" icon={<History />} onClick={onReview} />
+      <Button icon={<History size={16} />} onClick={onReview}>
+        导出
+      </Button>
     </div>
   );
 }
@@ -324,6 +327,11 @@ type ConsolidationPanelProps = {
   onExportView?: (columns: string[], rows: string[][]) => void | Promise<void>;
   /** 结果为空时的角色化引导；不传则保留原来的通用“暂无数据”。 */
   emptyState?: { title: string; description: string };
+  /**
+   * 记录导出控件：放在结果表底部分页行的左侧，与分页器共享一行。
+   * 没有提供时不显示，也不占用额外高度。
+   */
+  recordExport?: React.ReactNode;
 };
 
 /** 结果表的一行：原始单元格 + 状态（状态筛选与行底色都要用，所以连下标一起包起来）。 */
@@ -420,6 +428,7 @@ export function ConsolidationPanel({
   rowConflicts,
   onExportView,
   emptyState,
+  recordExport,
 }: ConsolidationPanelProps) {
   // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（「导出当前视图」按筛选结果导出；
   // 标题栏的正式「生成文件」仍只导 Ready 行，两者互不影响）
@@ -836,10 +845,10 @@ export function ConsolidationPanel({
           />
         </div>
       )}
-      {/* 分页：默认 100 行/页，可切 50/100/200/500，带上一页 / 下一页。
-          放在滚动容器外，翻页键始终可见。 */}
-      {visible.length > 0 && (
-        <div className="table-pager">
+      {/* 分页行：左侧放记录导出，右侧放分页器。没有数据时隐藏分页器，但导出控件始终保留。 */}
+      <div className="table-pager">
+        {recordExport}
+        {visible.length > 0 && (
           <Pagination
             current={page}
             pageSize={pageSize}
@@ -853,8 +862,8 @@ export function ConsolidationPanel({
               setPageSize(nextPageSize);
             }}
           />
-        </div>
-      )}
+        )}
+      </div>
     </>
   );
 }

@@ -8,7 +8,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { ConsolidationPanel } from "../components/Panels";
+import { ConsolidationPanel, RecordExportPanel } from "../components/Panels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 
 const COLUMNS = ["Primary DI", "Product Name", "Medical Insurance Code"];
@@ -528,5 +528,51 @@ describe("冲突的定位", () => {
       (th.textContent ?? "").includes("Product Name"),
     );
     expect(headers.some((th) => th.querySelector(".conflict-dot") !== null)).toBe(true);
+  });
+});
+
+// 记录导出从左侧模块列表移到底部：通过 recordExport prop 放进 ConsolidationPanel 的分页行左侧。
+describe("记录导出", () => {
+  it("RecordExportPanel 的按钮显示「导出」两个字", () => {
+    render(
+      <AntApp>
+        <RecordExportPanel start="" end="" onStartChange={() => {}} onEndChange={() => {}} onReview={() => {}} />
+      </AntApp>,
+    );
+    expect(screen.getByRole("button", { name: "导出" })).toBeInTheDocument();
+  });
+
+  it("RecordExportPanel 点击导出按钮触发 onReview", async () => {
+    const user = userEvent.setup();
+    const onReview = vi.fn();
+    render(
+      <AntApp>
+        <RecordExportPanel start="" end="" onStartChange={() => {}} onEndChange={() => {}} onReview={onReview} />
+      </AntApp>,
+    );
+    await user.click(screen.getByRole("button", { name: "导出" }));
+    expect(onReview).toHaveBeenCalledTimes(1);
+  });
+
+  it("ConsolidationPanel 把 recordExport 渲染在分页行左侧", () => {
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={COLUMNS}
+          rows={ROWS}
+          statuses={STATUSES}
+          counts={COUNTS}
+          recordExport={<div data-testid="record-export">记录导出</div>}
+        />
+      </AntApp>,
+    );
+    const pager = document.querySelector(".table-pager");
+    expect(pager).toBeTruthy();
+    expect(pager?.querySelector('[data-testid="record-export"]')).toBeInTheDocument();
+  });
+
+  it("没有提供 recordExport 时，分页行仍然保留（不占新高度）", () => {
+    renderPanel();
+    expect(document.querySelector(".table-pager")).toBeTruthy();
   });
 });

@@ -137,17 +137,6 @@ body {
   min-height: 320px;
 }
 
-/* 记录导出：左列里的普通模块（红标题栏 + 正文一行），内容只有一行控件。 */
-.record-card {
-  flex: 0 0 auto;
-}
-
-/* 正文上下留白收到 8px（antd 默认 12px）：模块 38 + 8 + 32 + 8 = 86px，
-   窄栏里这一行控件不需要那么多上下空间。 */
-.record-card > .ant-card-body {
-  padding: 8px 12px;
-}
-
 /* 模块：antd Card（size="small"）+ 分级圆角 + 极淡描边 + 浅阴影。
    表面分层靠"底色差 + 阴影"，不再靠一圈深灰线把模块框成铁板。 */
 .card {
@@ -501,19 +490,17 @@ body {
 
 /* ---------- 记录导出 ---------- */
 
-/* 记录导出：两个日期并排、中间一个箭头、后面跟纯图标的「回顾」，整组在模块里居中。
-   左列正文可用宽 314px（340 − 边框 2 − 正文内边距 24）：
-   2×122 + 8 + 14 + 8 + 8 + 32 = 314 ✓ 一行放得下，不换行、不出横向滚动条。 */
+/* 记录导出：两个日期并排、中间一个箭头、右侧「导出」按钮。
+   现在贴在数据整合底部分页行左侧，与分页器共享一行，不再居中。 */
 .range {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
   min-width: 0;
 }
 
 .range .ant-picker {
-  flex: 0 1 122px; /* 窄栏里按可用宽度收窄，最小 110px 仍能完整显示 YYYY-MM-DD */
+  flex: 0 1 130px;
   min-width: 110px;
   max-width: 100%;
 }
@@ -625,12 +612,20 @@ body {
   opacity: 0.5;
 }
 
-/* 分页器：在结果表滚动容器**外面**（翻页键始终可见），沿用 antd 默认样式与右对齐 */
+/* 分页行：左侧放记录导出，右侧放分页器；窄窗口时允许换行，不额外增加纵向高度。
+   没有数据时分页器隐藏，导出控件仍然保留。 */
 .table-pager {
   flex: 0 0 auto;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: var(--space-8);
+}
+
+.table-pager:empty {
+  display: none;
 }
 
 /* 结果表的滚动容器：只加一条淡色描边把表格和卡片内容区分开，

@@ -12,7 +12,7 @@ import (
 //
 //	左列 = 数据导入（按内容高度）+ 操作日志（flex-basis 0，吃掉剩余高度），日志上沿可拖动；
 //	flex-basis 必须是 0：否则日志正文的固有高度会把左列（乃至整行）撑得比窗口还高。
-//	右列 = 数据整合（吃剩余高度）+ 记录导出（贴底，标题与内容同一行）。
+//	右列 = 数据整合（吃剩余高度），记录导出贴在数据整合底部分页行左侧。
 func TestTheLeftColumnHoldsImportAndLog(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -31,15 +31,18 @@ func TestTheLeftColumnHoldsImportAndLog(t *testing.T) {
 		t.Errorf("数据导入卡应当保持内容高度，实际块：\n%s", importCard)
 	}
 
-	// DOM：数据导入 → 操作日志（都在左列），然后才是分隔按钮与右列
-	importIndex := strings.Index(app, `title="数据导入"`)
+	// DOM：数据导入 → 操作日志（都在左列），然后才是分隔按钮与右列的数据整合
+	importIndex := strings.Index(app, `title={alignMode ? "数据来源" : "数据导入"}`)
 	logIndex := strings.Index(app, "<LogPanel text={log} />")
 	toggleIndex := strings.Index(app, "left-toggle")
 	tableIndex := strings.Index(app, `card grow consolidation-card`)
-	recordIndex := strings.Index(app, `className="card record-card"`)
-	if !(importIndex < recordIndex && recordIndex < logIndex && logIndex < toggleIndex && toggleIndex < tableIndex) {
-		t.Errorf("App.tsx 顺序应当是 数据导入 → 记录导出 → 操作日志 → 分隔按钮 → 数据整合，实际 %d/%d/%d/%d/%d",
-			importIndex, recordIndex, logIndex, toggleIndex, tableIndex)
+	if !(importIndex < logIndex && logIndex < toggleIndex && toggleIndex < tableIndex) {
+		t.Errorf("App.tsx 顺序应当是 数据导入 → 操作日志 → 分隔按钮 → 数据整合，实际 %d/%d/%d/%d",
+			importIndex, logIndex, toggleIndex, tableIndex)
+	}
+	// 记录导出已移出左列，不再以 Card 形式出现
+	if strings.Contains(app, `className="card record-card"`) || strings.Contains(app, `title="记录导出"`) {
+		t.Error("记录导出不再应当是左列里的 Card（已移到数据整合底部分页行左侧）")
 	}
 
 	// 高度由 flex 决定，没有手动拖动：数据导入不动、窗口变化全给日志
@@ -177,10 +180,10 @@ func TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable(t *testing.T) {
 	}
 }
 
-// TestTheLogExportRowSurvivesWiderPlatformFonts 固定「记录导出」在右列顶上的横条布局：
-// 两个日期并排、中间一个箭头、回顾按钮靠右；日期框固定宽度且可压缩，
-// 任何窗口宽度下都不会换行或冒出横向滚动条。
-func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
+// TestTheLogExportRowSitsAtTheBottomOfConsolidation 固定「记录导出」在数据整合底部分页行左侧：
+// 两个日期并排、中间一个箭头、「导出」按钮带文字；分页行使用 space-between，
+// 窄窗口下允许换行，不额外占用纵向高度。
+func TestTheLogExportRowSitsAtTheBottomOfConsolidation(t *testing.T) {
 	panels := readFrontendSource(t, "src/components/Panels.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 	app := readFrontendSource(t, "src/App.tsx")
@@ -189,30 +192,29 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 	for _, wanted := range []string{
 		"display: flex;",
 		"align-items: center;",
-		"justify-content: center;",
+		"gap: 8px;",
 	} {
 		if !strings.Contains(rangeBlock, wanted) {
-			t.Errorf("记录导出应当是居中摆放的一行，缺少 %s，实际块：\n%s", wanted, rangeBlock)
+			t.Errorf("记录导出应当是一行 flex，缺少 %s，实际块：\n%s", wanted, rangeBlock)
 		}
 	}
-	// 模块本身：左列里的普通卡（浅色标题栏 + 正文），不再有红块/白条那套
+	// 不再居中（已贴在分页行左侧）
+	if strings.Contains(rangeBlock, "justify-content: center;") {
+		t.Error("记录导出不再需要在模块内居中")
+	}
+	// 不再有 record-card 相关样式（已移出左列 Card）
 	if strings.Contains(styles, ".record-row") || strings.Contains(styles, ".record-title") || strings.Contains(styles, ".record-content") {
-		t.Error("记录导出已经是普通模块，不该再有红块/白条（record-row / record-title / record-content）")
+		t.Error("记录导出已经是普通行，不该再有红块/白条（record-row / record-title / record-content）")
 	}
-	recordCard := cssRule(t, styles, ".record-card {")
-	if !strings.Contains(recordCard, "flex: 0 0 auto;") {
-		t.Errorf("记录导出应当按内容高度排在左列中间，实际块：\n%s", recordCard)
-	}
-	recordBody := cssRule(t, styles, ".record-card > .ant-card-body {")
-	if !strings.Contains(recordBody, "padding: 8px 12px;") {
-		t.Errorf("记录导出正文上下留白应当是 8px（模块 86px），实际块：\n%s", recordBody)
+	if strings.Contains(styles, ".record-card {") || strings.Contains(styles, ".record-card > .ant-card-body {") {
+		t.Error("记录导出不再使用 record-card（已移出左列）")
 	}
 	if strings.Contains(styles, ".range .spacer") {
-		t.Error("日期与按钮整组居中，不需要把按钮推到右边的 spacer")
+		t.Error("日期与按钮整组靠左，不需要把按钮推到右边的 spacer")
 	}
 	picker := cssBlock(t, styles, ".range .ant-picker {")
-	if !strings.Contains(picker, "flex: 0 1 122px;") || !strings.Contains(picker, "min-width: 110px;") {
-		t.Errorf("日期框应当按窄栏收窄到 122px 且可压缩到 110px，实际块：\n%s", picker)
+	if !strings.Contains(picker, "min-width: 110px;") {
+		t.Errorf("日期框应当可压缩到 110px，实际块：\n%s", picker)
 	}
 	for _, wanted := range []string{
 		".range .date-sep {",
@@ -222,7 +224,7 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 			t.Errorf("记录导出样式缺少：%s", wanted)
 		}
 	}
-	for _, wanted := range []string{`className="date-sep"`, `label="回顾"`} {
+	for _, wanted := range []string{`className="date-sep"`, "导出"} {
 		if !strings.Contains(panels, wanted) && !strings.Contains(app, wanted) {
 			t.Errorf("记录导出结构缺少：%s", wanted)
 		}
@@ -230,21 +232,44 @@ func TestTheLogExportRowSurvivesWiderPlatformFonts(t *testing.T) {
 	if strings.Contains(styles, ".range .date-row") {
 		t.Error("日期已经改成并排，不该再有上下两行的 date-row")
 	}
-	// 它住在左列中间：与其余模块同构（antd Card + 浅色标题栏），标题文字格式自然一致
-	if !strings.Contains(app, `className="card record-card"`) || !strings.Contains(app, `title="记录导出"`) {
-		t.Error("记录导出应当是左列里的普通模块（class=card record-card + title）")
+	// 它不再以 Card 形式出现在左列
+	if strings.Contains(app, `className="card record-card"`) || strings.Contains(app, `title="记录导出"`) {
+		t.Error("记录导出不再应当是左列里的普通模块（已移到数据整合底部分页行左侧）")
 	}
-	// 回顾是纯图标按钮（窄栏里带文字一行放不下），语义靠 aria-label + Tooltip
-	reviewStart := strings.Index(panels, `label="回顾"`)
-	if reviewStart < 0 {
-		t.Fatal("没找到「回顾」图标按钮")
+	// 作为 prop 传给 ConsolidationPanel，渲染在分页行左侧
+	if !strings.Contains(app, "recordExport={") || !strings.Contains(panels, "recordExport?:") {
+		t.Error("记录导出应当通过 recordExport prop 传给 ConsolidationPanel")
 	}
-	reviewButton := panels[strings.LastIndex(panels[:reviewStart], "<IconButton"):]
-	reviewButton = reviewButton[:strings.Index(reviewButton, "/>")]
-	if strings.Contains(reviewButton, "回顾<") || strings.Contains(reviewButton, ">回顾") {
-		t.Error("「回顾」在窄栏里应当是纯图标按钮，不该带文字")
+	// 分页行：space-between + 允许换行
+	pager := cssRule(t, styles, ".table-pager {")
+	for _, wanted := range []string{
+		"justify-content: space-between;",
+		"align-items: center;",
+		"flex-wrap: wrap;",
+		"gap: 8px;",
+	} {
+		if !strings.Contains(pager, wanted) {
+			t.Errorf("分页行缺少 %s，实际块：\n%s", wanted, pager)
+		}
 	}
-
+	// 「导出」按钮带文字（不再纯图标）：先定位图标，再回退到所在的 Button 标签。
+	iconIdx := strings.Index(panels, "icon={<History size={16} />}")
+	if iconIdx < 0 {
+		t.Fatal("没找到「导出」按钮的 History 图标")
+	}
+	buttonStart := strings.LastIndex(panels[:iconIdx], "<Button")
+	if buttonStart < 0 {
+		t.Fatal("没找到「导出」所在的 Button 标签")
+	}
+	exportButton := panels[buttonStart:]
+	closeTag := strings.Index(exportButton, "</Button>")
+	if closeTag < 0 {
+		t.Fatal("Button 标签未闭合")
+	}
+	exportButton = exportButton[:closeTag+9]
+	if !strings.Contains(exportButton, "导出") {
+		t.Error("Button 里应当包含「导出」文字")
+	}
 }
 
 // TestTheImportPanelKeepsTheSourceOrderAndIcons 固定导入区：四个来源的顺序（医保代码信息

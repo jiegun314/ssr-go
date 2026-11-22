@@ -73,12 +73,14 @@ func TestTheModulesUseAntdCards(t *testing.T) {
 		`title={alignMode ? "数据来源" : "数据导入"}`,
 		`card grow consolidation-card`,
 		`className="consolidation-name"`,
-		`className="card record-card"`,
-		`title="记录导出"`,
 	} {
 		if !strings.Contains(app, wanted) {
 			t.Errorf("App.tsx 的模块应当用 antd Card：找不到 %s", wanted)
 		}
+	}
+	// 记录导出已移出左列 Card，贴在数据整合底部分页行左侧
+	if strings.Contains(app, `className="card record-card"`) || strings.Contains(app, `title="记录导出"`) {
+		t.Error("记录导出不再以 antd Card 形式出现在左列")
 	}
 	if !strings.Contains(app, `<Card`) || !strings.Contains(app, `from "antd"`) {
 		t.Error("App.tsx 应当从 antd 引入 Card")

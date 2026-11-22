@@ -1,4 +1,4 @@
-// 主界面：左列（数据导入 / 记录导出）+ 右列（数据整合）+ 底部（操作日志）+ 四个弹窗。
+// 主界面：左列（数据导入 / 操作日志）+ 右列（数据整合 / 记录导出贴底）+ 底部状态栏 + 四个弹窗。
 // 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
 import { Button, Card, Switch, Tag, Tooltip } from "antd";
@@ -835,16 +835,6 @@ export default function App() {
                 onReviewCleaned={openCleanedReview}
               />
             </Card>
-            {/* 记录导出：与其余模块同构（浅色标题栏 + 正文一行），位置在数据导入与操作日志之间 */}
-            <Card className="card record-card" size="small" title="记录导出">
-              <RecordExportPanel
-                start={startDate}
-                end={endDate}
-                onStartChange={setStartDate}
-                onEndChange={setEndDate}
-                onReview={openLogReview}
-              />
-            </Card>
             {/* 操作日志住在左列最下面：按左列剩余高度撑满，窗口越高日志越长，不留空白 */}
             <LogPanel text={log} />
           </div>
@@ -962,6 +952,15 @@ export default function App() {
                 rowConflicts={rowConflicts}
                 onExportView={canConsolidate ? handleExportView : undefined}
                 emptyState={consolidationEmpty}
+                recordExport={
+                  <RecordExportPanel
+                    start={startDate}
+                    end={endDate}
+                    onStartChange={setStartDate}
+                    onEndChange={setEndDate}
+                    onReview={openLogReview}
+                  />
+                }
               />
             </Card>
           </div>
