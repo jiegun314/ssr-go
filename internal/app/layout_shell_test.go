@@ -186,11 +186,18 @@ func TestTheRadiusHierarchy(t *testing.T) {
 	if head := cssRule(t, styles, ".card > .ant-card-head {"); !strings.Contains(head, "border-radius: var(--module-radius) var(--module-radius) 0 0;") {
 		t.Errorf("标题条应当只圆上方两角，实际块：\n%s", head)
 	}
-	for _, selector := range []string{".tblwrap {", ".align-source-card {", ".settings-block {"} {
+	for _, selector := range []string{".tblwrap {", ".align-source-card {"} {
 		block := cssRule(t, styles, selector)
 		if !strings.Contains(block, "border-radius: var(--inner-radius);") {
 			t.Errorf("%s 应当用内层圆角 4px，实际块：\n%s", selector, block)
 		}
+	}
+	// 参数设定的顶层配置块是模块卡；嵌套层只留引导线，不再描边、不再做圆角。
+	if block := cssRule(t, styles, `.settings-block[data-depth="0"] {`); !strings.Contains(block, "border-radius: var(--module-radius);") {
+		t.Errorf("参数设定顶层配置块应当用模块圆角 6px，实际块：\n%s", block)
+	}
+	if block := cssRule(t, styles, ".settings-block {"); !strings.Contains(block, "border-radius: 0;") {
+		t.Errorf("参数设定嵌套块应当是直角无卡片，实际块：\n%s", block)
 	}
 	// 表头首尾格的圆角跟着内层容器走（antd 默认 8px，不抹平会露出尖角）
 	corners := cssRule(t, styles, ".tblwrap .ant-table-container,")

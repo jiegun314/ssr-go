@@ -112,11 +112,10 @@ const NODES: SettingsNode[] = [
 type Handlers = {
   onChange: ReturnType<typeof vi.fn>;
   onResetPath: ReturnType<typeof vi.fn>;
-  onReset: ReturnType<typeof vi.fn>;
 };
 
 const renderForm = (pending: SettingsChange[] = []): Handlers => {
-  const handlers: Handlers = { onChange: vi.fn(), onResetPath: vi.fn(), onReset: vi.fn() };
+  const handlers: Handlers = { onChange: vi.fn(), onResetPath: vi.fn() };
   render(
     <AntApp>
       <SettingsForm
@@ -124,7 +123,6 @@ const renderForm = (pending: SettingsChange[] = []): Handlers => {
         pending={pending}
         onChange={handlers.onChange}
         onResetPath={handlers.onResetPath}
-        onReset={handlers.onReset}
       />
     </AntApp>,
   );
@@ -243,18 +241,6 @@ describe("参数设定结构化表单", () => {
       (node) => node.textContent ?? "",
     );
     expect(readonly).toContain("db_0");
-  });
-
-  it("有未保存改动时给出条数，并能整批撤销", async () => {
-    const user = userEvent.setup();
-    const { onReset } = renderForm([
-      { path: ["startup", "cleanup_on_startup"], value: "true" },
-      { path: ["export_template", "header_row"], value: "7" },
-    ]);
-    const banner = document.querySelector(".settings-pending") as HTMLElement;
-    expect(banner.textContent).toContain("2");
-    await user.click(screen.getByRole("button", { name: /全部撤销/ }));
-    expect(onReset).toHaveBeenCalledTimes(1);
   });
 
   it("待保存的值直接体现在控件上（不依赖重新拉配置）", () => {

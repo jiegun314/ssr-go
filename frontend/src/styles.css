@@ -1142,11 +1142,263 @@ body {
   border: 1px solid #f0f0f0;
 }
 
-/* ---------- 参数设定：结构化表单 ---------- */
+/* ---------- 参数设定：配置工作台 ---------- */
 
-/* 表单区：超高就自己滚，不把窗口撑爆 */
+.settings-window .ant-modal-content {
+  height: 78vh;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.settings-window .ant-modal-header {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.settings-window .ant-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+}
+
+.settings-window .ant-modal-footer {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--card-border);
+  background: #fff;
+}
+
+.settings-window .ant-modal-close {
+  top: 14px;
+  inset-inline-end: 16px;
+}
+
+.settings-window-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 36px;
+}
+
+.settings-window-title > span:first-child {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.settings-window-subtitle {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.settings-shell {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+/* 左侧配置文件导航：比顶部 Tabs 更像"工作台"，也容得下文件说明 */
+.settings-nav {
+  flex: 0 0 206px;
+  width: 206px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 10px;
+  overflow: auto;
+  background: #fafafa;
+  border-right: 1px solid var(--card-border);
+}
+
+.settings-nav-heading {
+  padding: 4px 10px 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.settings-nav-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--inner-radius);
+  background: transparent;
+  color: rgba(0, 0, 0, 0.88);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.settings-nav-item:hover {
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.settings-nav-item:focus-visible {
+  outline: 2px solid var(--brand-red);
+  outline-offset: -2px;
+}
+
+.settings-nav-item.is-active {
+  background: var(--brand-red-soft);
+  color: var(--brand-red-deep);
+}
+
+.settings-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--brand-red);
+}
+
+.settings-nav-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.settings-nav-item.is-active .settings-nav-icon {
+  color: var(--brand-red);
+}
+
+.settings-nav-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-title {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.settings-nav-hint {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(0, 0, 0, 0.45);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.settings-nav-count {
+  flex: 0 0 auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--brand-red);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.settings-nav-foot {
+  margin-top: auto;
+  padding: 12px 10px 4px;
+  border-top: 1px solid var(--card-border);
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.settings-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.settings-main-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.settings-file {
+  min-width: 0;
+}
+
+.settings-file-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.settings-file-title svg {
+  color: var(--brand-red);
+}
+
+.settings-file-path {
+  margin-top: 3px;
+  overflow: hidden;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-file-note {
+  margin-top: 2px;
+  overflow: hidden;
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-view-tools {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-main-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 18px 0;
+  overflow: hidden;
+}
+
 .settings-form-wrap {
-  max-height: 58vh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding-right: 4px;
 }
@@ -1154,72 +1406,250 @@ body {
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  gap: 10px;
+  padding-bottom: 12px;
 }
 
-/* 待保存提示条：品牌红系淡底，提醒"还没写盘" */
-.settings-pending {
-  padding: 6px 10px;
-  background: rgba(218, 41, 28, 0.06);
-  border: 1px solid rgba(218, 41, 28, 0.25);
-}
-
-/* 一层一块：内层容器用 4px 圆角 + 淡描边（比外层模块低一档） */
+/* 一级分节是卡片；二级以下只留引导线，不再一层套一个盒子 */
 .settings-block {
-  border: 1px solid #e5e5e5;
-  border-radius: var(--inner-radius);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.settings-block[data-depth="0"] {
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  border-radius: var(--module-radius);
   background: #fff;
+  box-shadow: var(--card-shadow);
+}
+
+.settings-block:not([data-depth="0"]) {
+  margin-left: 10px;
+  padding-left: 12px;
+  border-left: 2px solid #f0f0f0;
 }
 
 .settings-block-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 10px;
+  min-height: 38px;
+  padding: 0 12px;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.settings-block[data-depth="0"] > .settings-block-head {
-  background: #fafafa;
+.settings-block:not([data-depth="0"]) > .settings-block-head {
+  min-height: 30px;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.settings-block-toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.88);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-block-toggle svg {
+  flex: 0 0 auto;
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.settings-block-toggle:focus-visible {
+  outline: 2px solid var(--brand-red);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .settings-block-key {
+  overflow: hidden;
+  font-size: 14px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.88);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-block:not([data-depth="0"]) .settings-block-key {
+  font-weight: 500;
 }
 
 .settings-block-meta {
+  flex: 0 0 auto;
+  color: rgba(0, 0, 0, 0.35);
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
   font-variant-numeric: tabular-nums;
 }
 
 .settings-block-reason {
+  flex: 0 0 auto;
   margin-left: auto;
+  color: #ad6800;
   font-size: 12px;
-  color: #d48806;
 }
 
 .settings-block-body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: 6px 10px;
+  gap: 0;
+  padding: 4px 12px 8px;
 }
 
-.settings-block .settings-block {
-  border-color: #f0f0f0;
+.settings-block:not([data-depth="0"]) > .settings-block-body {
+  padding: 2px 0 4px;
 }
 
-.settings-block-body > .settings-block {
-  margin-left: 4px;
+/* 注释默认收起，标题行只占一行；点开仍保留原始换行 */
+.settings-comment-wrap {
+  margin: 4px 12px 0 30px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
 }
 
-/* 标量列表：一行一条，右侧删除；底部一行"新条目 + 添加" */
+.settings-comment-wrap summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.settings-comment-wrap summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-comment-wrap summary:hover {
+  color: var(--brand-red-deep);
+}
+
+.settings-comment-preview {
+  overflow: hidden;
+  max-width: 560px;
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-comment {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border-left: 2px solid var(--card-border);
+  background: #fafafa;
+  color: rgba(0, 0, 0, 0.45);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* 标量行：标签 | 控件 | 撤销；键名与说明在控件下方 */
+.settings-field {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 10px;
+  padding: 6px 8px;
+  border-radius: var(--inner-radius);
+  transition: background-color var(--motion-fast) ease;
+}
+
+.settings-field + .settings-field {
+  border-top: 1px solid #f7f7f7;
+}
+
+.settings-field:hover {
+  background: #fafafa;
+}
+
+.settings-field[data-dirty] {
+  background: var(--brand-red-soft);
+  box-shadow: inset 2px 0 0 var(--brand-red);
+}
+
+.settings-field-label {
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 22px;
+}
+
+.settings-field-control {
+  min-width: 0;
+}
+
+.settings-field-key {
+  grid-column: 2;
+  overflow: hidden;
+  color: rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-field-note {
+  grid-column: 2;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.settings-field-reason {
+  grid-column: 2;
+  color: #ad6800;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.settings-field-reset {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.settings-readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.settings-lock {
+  flex: 0 0 auto;
+  color: rgba(0, 0, 0, 0.3);
+}
+
+.settings-dirty {
+  color: var(--brand-red);
+  font-weight: 600;
+}
+
+.settings-number {
+  width: 160px;
+}
+
+.settings-select {
+  min-width: 200px;
+}
+
+.settings-input {
+  width: 100%;
+}
+
 .settings-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .settings-list-row {
@@ -1233,97 +1663,28 @@ body {
 }
 
 .settings-list-index {
-  flex: 0 0 40px;
+  flex: 0 0 44px;
+  color: rgba(0, 0, 0, 0.35);
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .settings-list-add {
-  margin-top: 2px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px dashed var(--card-border);
+  border-radius: var(--inner-radius);
+  background: #fafafa;
 }
 
 .settings-list-add .ant-input {
-  flex: 0 1 320px;
-}
-
-/* 注释：原样换行显示（所有注释都要看得见） */
-.settings-comment {
-  margin: 0;
-  padding: 4px 10px;
-  font-family: inherit;
-  font-size: 12px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  color: rgba(0, 0, 0, 0.45);
-  background: rgba(0, 0, 0, 0.02);
-}
-
-/* 标量行：三列网格（标签 | 控件 | 撤销），键名与说明换到控件下面一行 ——
-   这样在窄抽屉里也不会把控件挤变形。 */
-.settings-field {
-  display: grid;
-  grid-template-columns: 170px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 2px 8px;
-  padding: 3px 0;
-}
-
-.settings-field[data-dirty] {
-  background: rgba(218, 41, 28, 0.05);
-}
-
-.settings-field-label {
-  color: rgba(0, 0, 0, 0.88);
-}
-
-.settings-field-control {
-  min-width: 0;
-}
-
-.settings-field-key {
-  grid-column: 2;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.35);
-}
-
-.settings-field-note,
-.settings-field-reason {
-  grid-column: 2;
-  font-size: 12px;
-  color: #d48806;
-}
-
-.settings-field-reset {
-  grid-column: 3;
-  grid-row: 1;
-}
-
-.settings-readonly {
-  color: rgba(0, 0, 0, 0.45);
-}
-
-.settings-dirty {
-  color: #da291c;
-  font-weight: 600;
-}
-
-.settings-number {
-  width: 140px;
-}
-
-.settings-select {
-  min-width: 180px;
-}
-
-.settings-input {
-  width: 100%;
+  flex: 1 1 auto;
 }
 
 .settings-list-hint {
   display: block;
-  margin: 4px 0;
+  margin: 4px 0 8px;
   font-size: 12px;
 }
 
@@ -1331,57 +1692,26 @@ body {
   margin-top: 4px;
 }
 
-/* ---------- 载入图层 ---------- */
-
-.loading-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.65);
+.settings-columns .ant-table-tbody > tr > td {
+  transition: background-color var(--motion-fast) ease;
 }
 
-.loading-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-12);
-  padding: 24px 32px;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow:
-    0 6px 16px 0 rgba(0, 0, 0, 0.08),
-    0 3px 6px -4px rgba(0, 0, 0, 0.12),
-    0 9px 28px 8px rgba(0, 0, 0, 0.05);
+.settings-columns .ant-table-tbody > tr:hover > td {
+  background: #f8fafc;
 }
 
-.loading-text {
-  color: rgba(0, 0, 0, 0.65); /* colorTextSecondary */
-}
-
-/* ---------- 统一提示弹窗（导入 / 导出 / 错误） ---------- */
-
-/* 正文可能带换行（导入反馈就是两行中文），保留原样换行。 */
-.message-text {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* ---------- 参数设定：树 ---------- */
+/* ---------- 参数设定：结构树 / 原文 ---------- */
 
 .settings-path {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  margin-bottom: 8px;
   min-height: 22px;
-  font-size: 12px; /* fontSizeSM */
+  margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
   line-height: 20px;
-  color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
 }
 
 .settings-path .crumb-sep {
@@ -1389,18 +1719,20 @@ body {
 }
 
 .settings-tree {
-  max-height: 56vh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  padding-bottom: 12px;
 }
 
 .settings-tree .tree-key {
-  color: rgba(0, 0, 0, 0.88); /* colorText */
+  color: rgba(0, 0, 0, 0.88);
 }
 
 .settings-tree .tree-meta {
   margin-left: 6px;
-  font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
 }
 
 .settings-tree .tree-sep {
@@ -1408,7 +1740,6 @@ body {
   color: rgba(0, 0, 0, 0.65);
 }
 
-/* 值文本的类型配色：与 theme.ts 的 VALUE_COLORS 一一对应（测试会校对）。 */
 .settings-tree .tree-value.type-string {
   color: #237804;
 }
@@ -1427,27 +1758,73 @@ body {
 }
 
 .settings-tree .tree-empty {
-  font-style: italic;
   color: rgba(0, 0, 0, 0.45);
-}
-
-.settings-head {
-  margin-bottom: 12px;
-}
-
-.settings-head > .settings-note {
-  flex: 1 1 auto;
-}
-
-.settings-note {
-  min-width: 0;
-  overflow-wrap: anywhere;
+  font-style: italic;
 }
 
 .settings-editor.ant-input {
-  min-height: 40vh;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  margin-bottom: 12px;
+  border-radius: var(--inner-radius);
+  font-size: 12px;
+  line-height: 22px;
   white-space: pre;
   overflow: auto;
+}
+
+.settings-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px;
+}
+
+.settings-save-state {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  .settings-shell {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    flex: 0 0 auto;
+    width: 100%;
+    flex-direction: row;
+    padding: 8px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .settings-nav-heading,
+  .settings-nav-foot,
+  .settings-nav-hint {
+    display: none;
+  }
+
+  .settings-nav-item {
+    min-width: 136px;
+    padding: 8px;
+  }
+
+  .settings-main-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-view-tools {
+    justify-content: flex-end;
+  }
+
+  .settings-form-wrap {
+    padding-right: 0;
+  }
 }
 
 /* ---------- 数据回顾：把弹窗内部撑成一条竖直弹性链 ---------- */

@@ -23,7 +23,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 
 import { IconButton } from "./IconButton";
-import { Plus, RotateCcw, Trash2, Undo2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Lock, Plus, RotateCcw, Trash2, Undo2 } from "lucide-react";
 import { useState } from "react";
 
 import type { SettingsChange, SettingsNode } from "../types";
@@ -63,6 +63,15 @@ function isPending(pending: PendingList, path: string[]): boolean {
   return pending.some((item) => item.action !== "remove" && samePath(item.path, path));
 }
 
+/** 折叠注释时露出的那一行：取第一行非空内容，避免整段注释占地方。 */
+function commentPreview(comment?: string): string {
+  const first = stripCommentMarks(comment ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .find(Boolean);
+  return first ?? "";
+}
+
 type BlockProps = {
   node: SettingsNode;
   depth: number;
@@ -73,36 +82,58 @@ type BlockProps = {
 
 /** 一个块：map / seq 是「分块 + 子项」，标量是「标签 + 控件」。 */
 export function SettingsBlock({ node, depth, pending, onChange, onResetPath }: BlockProps) {
+  const [open, setOpen] = useState(true);
   if (node.kind === "map" || node.kind === "seq") {
     return (
       <section className="settings-block" data-depth={depth} data-kind={node.kind}>
         <header className="settings-block-head">
-          <span className="settings-block-key">{node.label || node.key}</span>
+          <button
+            type="button"
+            className="settings-block-toggle"
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span className="settings-block-key">{node.label || node.key}</span>
+          </button>
           <span className="settings-block-meta">
-            {node.kind === "map" ? `{${node.children?.length ?? 0}}` : `[${node.children?.length ?? 0}]`}
+            {node.kind === "map" ? `${node.children?.length ?? 0} 项` : `${node.children?.length ?? 0} 项`}
           </span>
           {/* 只读容器的说明（例如生成物、样本工厂专用块） */}
           {node.reason && <span className="settings-block-reason">{node.reason}</span>}
         </header>
-        {node.comment && <pre className="settings-comment">{stripCommentMarks(node.comment)}</pre>}
-        <div className="settings-block-body">
-          {isColumnList(node) ? (
-            <ColumnList node={node} depth={depth} pending={pending} onChange={onChange} onResetPath={onResetPath} />
-          ) : isScalarList(node) ? (
-            <ScalarList node={node} pending={pending} onChange={onChange} />
-          ) : (
-            (node.children ?? []).map((child) => (
-              <SettingsBlock
-                key={pathKey(child.path ?? [child.key])}
-                node={child}
-                depth={depth + 1}
-                pending={pending}
-                onChange={onChange}
-                onResetPath={onResetPath}
-              />
-            ))
-          )}
-        </div>
+        {open && (
+          <>
+            {node.comment && (
+              <details className="settings-comment-wrap">
+                <summary>
+                  <Info size={12} />
+                  说明
+                  <span className="settings-comment-preview">{commentPreview(node.comment)}</span>
+                </summary>
+                <pre className="settings-comment">{stripCommentMarks(node.comment)}</pre>
+              </details>
+            )}
+            <div className="settings-block-body">
+              {isColumnList(node) ? (
+                <ColumnList node={node} depth={depth} pending={pending} onChange={onChange} onResetPath={onResetPath} />
+              ) : isScalarList(node) ? (
+                <ScalarList node={node} pending={pending} onChange={onChange} />
+              ) : (
+                (node.children ?? []).map((child) => (
+                  <SettingsBlock
+                    key={pathKey(child.path ?? [child.key])}
+                    node={child}
+                    depth={depth + 1}
+                    pending={pending}
+                    onChange={onChange}
+                    onResetPath={onResetPath}
+                  />
+                ))
+              )}
+            </div>
+          </>
+        )}
       </section>
     );
   }
@@ -148,7 +179,10 @@ function ScalarControl({
     const shown = node.alias ? `*${node.alias}` : current === "" ? "（空）" : current;
     return (
       <Tooltip title={node.reason || "只读"}>
-        <span className={`settings-readonly type-${node.kind}`}>{shown}</span>
+        <span className={`settings-readonly type-${node.kind}`}>
+          <Lock size={12} className="settings-lock" />
+          {shown}
+        </span>
       </Tooltip>
     );
   }
@@ -156,7 +190,6 @@ function ScalarControl({
     case "switch":
       return (
         <Switch
-          size="small"
           checked={current === "true"}
           onChange={(checked) => onChange({ path, value: checked ? "true" : "false" })}
         />
@@ -164,7 +197,6 @@ function ScalarControl({
     case "number":
       return (
         <InputNumber
-          size="small"
           className="settings-number"
           min={node.min}
           max={node.max}
@@ -176,7 +208,6 @@ function ScalarControl({
     case "select":
       return (
         <Select
-          size="small"
           className="settings-select"
           value={current === "" ? undefined : current}
           placeholder="（未设置）"
@@ -187,7 +218,6 @@ function ScalarControl({
     default:
       return (
         <Input
-          size="small"
           className="settings-input"
           value={current}
           placeholder={node.kind === "null" ? "（null）" : undefined}
@@ -232,7 +262,6 @@ function ScalarList({
           <div className="settings-list-row" key={pathKey(item.path ?? [item.key])}>
             <span className="settings-list-index">{index}</span>
             <Input
-              size="small"
               value={pendingValue(pending, item.path ?? [], item.value ?? "")}
               placeholder={item.value === "" ? "（空字符串）" : undefined}
               onChange={(event) => onChange({ path: item.path ?? [], value: event.target.value })}
@@ -250,7 +279,7 @@ function ScalarList({
       {appended.map((item, index) => (
         <div className="settings-list-row" key={`appended-${index}`}>
           <span className="settings-list-index">新增</span>
-          <Input size="small" value={item.value} readOnly />
+          <Input value={item.value} readOnly />
           <IconButton
             label="撤销新增"
             icon={<Undo2 />}
@@ -262,7 +291,6 @@ function ScalarList({
       ))}
       <Flex className="settings-list-add" gap={8} align="center">
         <Input
-          size="small"
           value={draft}
           aria-label={`向 ${node.label || node.key} 添加一条`}
           placeholder="新条目内容"
@@ -386,24 +414,14 @@ export function SettingsForm({
   pending,
   onChange,
   onResetPath,
-  onReset,
 }: {
   nodes: SettingsNode[];
   pending: PendingList;
   onChange: (change: SettingsChange) => void;
   onResetPath: (path: string[]) => void;
-  onReset: () => void;
 }) {
   return (
     <div className="settings-form">
-      {pending.length > 0 && (
-        <Flex className="settings-pending" align="center" justify="space-between" gap={8}>
-          <Typography.Text>
-            有 <strong>{pending.length}</strong> 项改动待保存（保存后立即热重载）
-          </Typography.Text>
-          <IconButton label="全部撤销" icon={<Undo2 />} onClick={onReset} />
-        </Flex>
-      )}
       {nodes.map((node) => (
         <SettingsBlock
           key={pathKey(node.path ?? [node.key])}

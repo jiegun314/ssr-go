@@ -16,14 +16,26 @@ import {
   Space,
   Table,
   Tag,
-  Tabs,
   Tooltip,
   Tree,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { DataNode } from "antd/es/tree";
-import { ChevronsDown, ChevronsUp, FileDown, Pencil, Search } from "lucide-react";
+import {
+  ChevronsDown,
+  ChevronsUp,
+  FileCog,
+  FileDown,
+  FileText,
+  ListTree,
+  Merge,
+  Pencil,
+  Search,
+  Share2,
+  SlidersHorizontal,
+  Undo2,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "./IconButton";
@@ -186,6 +198,9 @@ type SettingsModalProps = {
 /** 参数设定的三种视图：结构化表单（默认）/ 结构树 / 原文。 */
 type SettingsView = "form" | "tree" | "raw";
 
+/** 左侧配置导航的图标按后端固定的配置文件顺序取，避免把文件名散落在前端。 */
+const SETTINGS_TAB_ICONS = [FileCog, SlidersHorizontal, Merge, ListTree, Share2];
+
 export function SettingsModal({
   open,
   tabs,
@@ -225,6 +240,11 @@ export function SettingsModal({
       current.filter((item) => !(item.action !== "remove" && item.path.join("\u0000") === path.join("\u0000"))),
     );
   const resetAll = () => setPending([]);
+
+  const startRawEdit = () => {
+    setView("raw");
+    onStartEdit();
+  };
 
   const submit = async () => {
     if (pending.length === 0) return;
@@ -289,117 +309,181 @@ export function SettingsModal({
     [active?.key, active?.tree],
   );
 
-  return (
-    <Modal
-      open={open}
-      title="参数设定"
-      width="min(80vw, 900px)"
-      centered
-      onCancel={onClose}
-      // 底栏：表单模式是「撤销改动 / 保存改动」；原文模式沿用「取消 / 保存」；结构树只有「关闭」。
-      footer={
-        view === "raw" ? (
-          editing ? (
-            <Space>
+  const activeIndex = Math.max(0, tabs.findIndex((tab) => tab.key === active?.key));
+  const ActiveIcon = SETTINGS_TAB_ICONS[activeIndex] ?? FileText;
+
+  const footer =
+    view === "form" ? (
+      <div className="settings-footer">
+        <span className="settings-save-state">
+          {pending.length > 0 ? `${pending.length} 项未保存` : "当前文件无未保存改动"}
+        </span>
+        <Space>
+          <IconButton
+            label="撤销全部"
+            icon={<Undo2 />}
+            disabled={pending.length === 0 || saving}
+            onClick={resetAll}
+          />
+          <Button
+            type="primary"
+            loading={saving}
+            disabled={pending.length === 0}
+            onClick={() => void submit()}
+          >
+            保存改动
+          </Button>
+        </Space>
+      </div>
+    ) : view === "raw" ? (
+      <div className="settings-footer">
+        <span className="settings-save-state">
+          {editing ? "正在编辑原文 · 保存前会整体校验" : "原文只读"}
+        </span>
+        <Space>
+          {editing ? (
+            <>
               <Button onClick={onCancelEdit}>取消</Button>
               <Button type="primary" onClick={onSave}>
                 保存
               </Button>
-            </Space>
-          ) : (
-            <Button type="primary" onClick={onClose}>
-              关闭
-            </Button>
-          )
-        ) : view === "form" ? (
-          <Space>
-            <Button disabled={pending.length === 0 || saving} onClick={resetAll}>
-              撤销改动
-            </Button>
-            <Button type="primary" loading={saving} disabled={pending.length === 0} onClick={() => void submit()}>
-              保存改动
-            </Button>
-          </Space>
-        ) : (
-          <Button type="primary" onClick={onClose}>
-            关闭
-          </Button>
-        )
-      }
-      destroyOnHidden
-    >
-      <Tabs
-        items={tabs.map((tab) => ({ key: tab.key, label: tab.title }))}
-        activeKey={active?.key}
-        onChange={onSelectTab}
-      />
-      <Flex className="settings-head" align="center" justify="space-between" gap={12}>
-        <Typography.Text className="settings-note" type="secondary">
-          {active?.title}（{active?.path}）
-          {active?.note ? " · " + active.note : ""}
-        </Typography.Text>
-        <Space>
-          <Segmented
-            size="small"
-            value={view}
-            onChange={(value) => {
-              setView(value as SettingsView);
-              if (value === "raw") onStartEdit();
-            }}
-            options={[
-              { label: "表单", value: "form" },
-              { label: "结构树", value: "tree" },
-              { label: "原文", value: "raw" },
-            ]}
-          />
-          {view === "tree" && (
-            <>
-              <IconButton label="全部展开" icon={<ChevronsDown />} onClick={() => onToggleAll(true)} />
-              <IconButton label="全部折叠" icon={<ChevronsUp />} onClick={() => onToggleAll(false)} />
             </>
-          )}
-          {view === "tree" && (
-            <IconButton label="编辑原文" icon={<Pencil />} onClick={onStartEdit} />
+          ) : (
+            <Button type="primary" onClick={startRawEdit}>
+              编辑原文
+            </Button>
           )}
         </Space>
-      </Flex>
-      {view === "form" ? (
-        <div className="settings-form-wrap">
-          <SettingsForm
-            nodes={active?.tree ?? []}
-            pending={pending}
-            onChange={applyChange}
-            onResetPath={resetPath}
-            onReset={resetAll}
-          />
+      </div>
+    ) : (
+      <div className="settings-footer">
+        <span className="settings-save-state">结构树只读预览</span>
+        <Button onClick={startRawEdit}>编辑原文</Button>
+      </div>
+    );
+
+  return (
+    <Modal
+      className="settings-window"
+      open={open}
+      width="min(94vw, 1040px)"
+      centered
+      onCancel={onClose}
+      footer={footer}
+      destroyOnHidden
+      title={
+        <div className="settings-window-title">
+          <span>参数设定</span>
+          <span className="settings-window-subtitle">配置文件 · 保存后立即热重载</span>
         </div>
-      ) : view === "raw" || editing ? (
-        <Input.TextArea
-          className="settings-editor"
-          spellCheck={false}
-          value={editorValue}
-          onChange={(event) => onEditorChange(event.target.value)}
-        />
-      ) : (
-        <>
-          <div className="settings-path" aria-live="polite">
-            {path.map((part, index) => (
-              <span key={`${part}-${index}`}>
-                {index > 0 && <span className="crumb-sep">▸</span>}
-                {part}
-              </span>
-            ))}
+      }
+    >
+      <div className="settings-shell">
+        <aside className="settings-nav" aria-label="配置文件">
+          <div className="settings-nav-heading">配置文件</div>
+          {tabs.map((tab, index) => {
+            const NavIcon = SETTINGS_TAB_ICONS[index] ?? FileText;
+            const isActive = tab.key === active?.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                className={`settings-nav-item${isActive ? " is-active" : ""}`}
+                aria-current={isActive ? "page" : undefined}
+                onClick={() => onSelectTab(tab.key)}
+              >
+                <span className="settings-nav-icon">
+                  <NavIcon size={16} />
+                </span>
+                <span className="settings-nav-copy">
+                  <span className="settings-nav-title">{tab.title}</span>
+                  <span className="settings-nav-hint">{tab.note || tab.key}</span>
+                </span>
+                {isActive && pending.length > 0 && (
+                  <span className="settings-nav-count">{pending.length}</span>
+                )}
+              </button>
+            );
+          })}
+          <div className="settings-nav-foot">共 {tabs.length} 份配置</div>
+        </aside>
+
+        <section className="settings-main">
+          <header className="settings-main-head">
+            <div className="settings-file">
+              <div className="settings-file-title">
+                <ActiveIcon size={16} />
+                <span>{active?.title}</span>
+              </div>
+              <div className="settings-file-path" title={active?.path}>
+                {active?.path}
+              </div>
+              {active?.note && <div className="settings-file-note">{active.note}</div>}
+            </div>
+            <div className="settings-view-tools">
+              <Segmented
+                size="small"
+                value={view}
+                onChange={(value) => {
+                  setView(value as SettingsView);
+                  if (value === "raw") startRawEdit();
+                }}
+                options={[
+                  { label: "表单", value: "form" },
+                  { label: "结构树", value: "tree" },
+                  { label: "原文", value: "raw" },
+                ]}
+              />
+              {view === "tree" && (
+                <>
+                  <IconButton label="全部展开" icon={<ChevronsDown />} onClick={() => onToggleAll(true)} />
+                  <IconButton label="全部折叠" icon={<ChevronsUp />} onClick={() => onToggleAll(false)} />
+                  <IconButton label="编辑原文" icon={<Pencil />} onClick={startRawEdit} />
+                </>
+              )}
+            </div>
+          </header>
+
+          <div className="settings-main-body">
+            {view === "form" ? (
+              <div className="settings-form-wrap">
+                <SettingsForm
+                  nodes={active?.tree ?? []}
+                  pending={pending}
+                  onChange={applyChange}
+                  onResetPath={resetPath}
+                />
+              </div>
+            ) : view === "raw" || editing ? (
+              <Input.TextArea
+                className="settings-editor"
+                spellCheck={false}
+                value={editorValue}
+                onChange={(event) => onEditorChange(event.target.value)}
+              />
+            ) : (
+              <>
+                <div className="settings-path" aria-live="polite">
+                  {path.map((part, index) => (
+                    <span key={`${part}-${index}`}>
+                      {index > 0 && <span className="crumb-sep">▸</span>}
+                      {part}
+                    </span>
+                  ))}
+                </div>
+                <div className="settings-tree">
+                  <Tree
+                    treeData={treeData}
+                    expandedKeys={expandedKeys}
+                    onExpand={(keys) => onExpandedChange(keys as string[])}
+                    onSelect={(keys) => onSelectNode(paths.current[String(keys[0])] ?? [])}
+                  />
+                </div>
+              </>
+            )}
           </div>
-          <div className="settings-tree">
-            <Tree
-              treeData={treeData}
-              expandedKeys={expandedKeys}
-              onExpand={(keys) => onExpandedChange(keys as string[])}
-              onSelect={(keys) => onSelectNode(paths.current[String(keys[0])] ?? [])}
-            />
-          </div>
-        </>
-      )}
+        </section>
+      </div>
     </Modal>
   );
 }

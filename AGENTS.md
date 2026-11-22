@@ -246,8 +246,9 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
 - **字号、间距、控件高度、表格内边距一律用 antd 默认值**，只覆盖品牌色：
   `BRAND_RED = #DA291C`（强生企业红）、`DANGER_RED = #CF1322`（真源在 `frontend/src/design-tokens.ts`，
   `theme.ts` 只做转出）。
-- **圆角分级**：外层功能模块 6px（`--module-radius`）、仍存在的内层容器（结果表 / 状态框 /
-  设置块）4px（`--inner-radius`），细分隔条仍是直角；控件用 antd 默认。模块外框是
+- **圆角分级**：外层功能模块 6px（`--module-radius`）、仍存在的内层容器（结果表 / 状态框）4px
+  （`--inner-radius`），细分隔条仍是直角；参数设定的顶层配置块是 6px 模块卡，嵌套层不再描边。
+  控件用 antd 默认。模块外框是
   `1px solid var(--card-border)`（`#f0f0f0`）+ 浅阴影（`--card-shadow`），窗口底色 `--app-bg`
   比白卡深一档 —— 表面分层靠底色差与阴影，不靠深灰描边堆叠。
 - **标题条按三级红色分级**：普通模块用浅红标题带（`--brand-red-soft`）+ 深红标题
@@ -282,6 +283,10 @@ go run ./cmd/ssr-core release --out release            # 正式发布（HEAD 打
 - **动效克制**：悬停 / 展开 / 弹窗只用 120–180ms（`--motion-fast/base/slow`），只过渡颜色、
   背景与阴影，不改变布局；`prefers-reduced-motion: reduce` 下所有过渡与动画立即结束。
   不要加弹跳、视差或大面积位移。
+- **参数设定是工作台**：左侧配置文件导航（当前项浅红 + 3px 红条，未保存数在项内），
+  右侧文件头显示路径与 表单/结构树/原文，底部固定显示未保存数与保存按钮；顶层配置块是
+  6px 卡片，嵌套块只用细引导线缩进，注释默认收进「说明 + 首行摘要」，改动字段浅红 + 2px
+  左边线。不要给参数设定加深红标题栏。
 - 数字一律千分位（`internal/numfmt`）；文案中文；日期格式统一。
 - **错误文案分两层**：内部错误保持英文（便于检索与对照上游库），**给用户看的对话框文案统一走
   `userMessage`**（`user_message.go`：认识的错误给中文说法，不认识的用"操作失败："起头并附原文；

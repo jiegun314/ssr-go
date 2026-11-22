@@ -81,7 +81,7 @@ func TestTheSettingsFormIsWiredToStructuredSave(t *testing.T) {
 		`{ label: "原文", value: "raw" }`,
 		"onSaveValues",
 		"保存改动",
-		"撤销改动",
+		"撤销全部",
 		"<SettingsForm",
 		"settings-editor", // 原文编辑作为兜底必须保留
 	} {
@@ -111,9 +111,37 @@ func TestTheSettingsModalUsesAntdFooterAndKeepsTheCloseIcon(t *testing.T) {
 	if strings.Contains(settings, "closable={false}") {
 		t.Error("参数设定窗口应当保留 antd 默认的右上角关闭按钮")
 	}
-	for _, wanted := range []string{"关闭", "取消", "保存", "全部展开", "全部折叠", "编辑原文"} {
+	for _, wanted := range []string{"取消", "保存", "全部展开", "全部折叠", "编辑原文"} {
 		if !strings.Contains(settings, wanted) {
 			t.Errorf("参数设定窗口缺少底栏/工具按钮：%s", wanted)
 		}
+	}
+}
+
+// TestTheSettingsWindowIsAWorkspace 固定 1+2 的窗口骨架：
+// 左侧配置文件导航、右侧文件头、固定底栏；不再用顶部 Tabs。
+func TestTheSettingsWindowIsAWorkspace(t *testing.T) {
+	modals := readFrontendSource(t, "src/components/Modals.tsx")
+
+	for _, wanted := range []string{
+		`className="settings-window"`,
+		`width="min(94vw, 1040px)"`,
+		`className="settings-nav"`,
+		`settings-nav-item`,
+		`className="settings-main"`,
+		`className="settings-main-head"`,
+		`className="settings-footer"`,
+		`className="settings-save-state"`,
+		"配置文件",
+		"配置文件 · 保存后立即热重载",
+		"保存改动",
+		"撤销全部",
+	} {
+		if !strings.Contains(modals, wanted) {
+			t.Errorf("参数设定工作台缺少：%s", wanted)
+		}
+	}
+	if strings.Contains(modals, "<Tabs") {
+		t.Error("参数设定不应再使用顶部 Tabs，应改成左侧配置文件导航")
 	}
 }
