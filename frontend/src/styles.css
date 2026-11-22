@@ -437,51 +437,78 @@ body {
 
 /* ---------- 数据导入 ---------- */
 
-/* 一个来源＝一个内嵌小容器：白底 + 次级描边 + 大圆角（antd 的嵌套容器语言）。
-   竖向留白刻意收紧：四组叠起来要能在最小窗口（760 高）里完整显示，不留纵向滚动条。 */
+/* C1：四个来源是同一张连续列表，不再各自做成“卡片套卡片”。
+   行之间只用一根浅红发丝线分隔，最后一行收掉；留白收紧，四组在 760 高窗口内完整显示。 */
 .group {
-  margin-bottom: 6px;
-  padding: 8px;
-  background: #fff;
-  border: 1px solid var(--card-border); /* colorBorderSecondary */
-  border-radius: var(--inner-radius);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 10px 6px 10px 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--brand-red-border);
+  border-radius: 0;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.group:last-child {
+  border-bottom: 0;
+}
+
+/* C2：只有鼠标所在的那一行出现浅红底与左侧 2px 红线，不整列铺红；
+   行内图标同时加深，提示这一行的操作是可用的。 */
+.group:hover {
+  background: var(--brand-red-soft);
+  box-shadow: inset 2px 0 0 var(--brand-red);
+}
+
+.group:hover .ui-icon-button.ant-btn {
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.source-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .title-row {
   display: flex;
   align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
 .title-row .group-title {
   font-weight: 500;
-}
-
-/* 动作行沿用原界面的顺序：载入文件 / 状态文字 / 数据回顾。 */
-.actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
-  margin-top: var(--space-6);
-  min-width: 0;
-}
-
-/* 状态框夹在两个图标按钮之间：淡灰底、文字居中、单行不换行（过长才省略号），
-   高度与两边的图标按钮一致（32px），整行看起来是齐平的。 */
-.actions .status {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: block;
-  height: 32px;
-  padding: 0 8px;
-  line-height: 32px;
-  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 动作图标只占右侧一列；状态文字是标题下面的次级信息，不再是夹在按钮中间的灰色输入框。 */
+.actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 0;
+  min-width: 0;
+}
+
+.source-meta {
+  display: block;
+  min-width: 0;
   font-size: 12px;
-  background: rgba(0, 0, 0, 0.04); /* colorFillTertiary：淡灰底 */
-  border-radius: var(--inner-radius);
+  line-height: 18px;
+  color: rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .clean-row {

@@ -186,7 +186,7 @@ func TestTheRadiusHierarchy(t *testing.T) {
 	if head := cssRule(t, styles, ".card > .ant-card-head {"); !strings.Contains(head, "border-radius: var(--module-radius) var(--module-radius) 0 0;") {
 		t.Errorf("标题条应当只圆上方两角，实际块：\n%s", head)
 	}
-	for _, selector := range []string{".group {", ".tblwrap {", ".actions .status {", ".align-source-card {", ".settings-block {"} {
+	for _, selector := range []string{".tblwrap {", ".align-source-card {", ".settings-block {"} {
 		block := cssRule(t, styles, selector)
 		if !strings.Contains(block, "border-radius: var(--inner-radius);") {
 			t.Errorf("%s 应当用内层圆角 4px，实际块：\n%s", selector, block)

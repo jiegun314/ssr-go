@@ -117,23 +117,33 @@ func TestTheLeftColumnIsNarrowAndTheStatusBoxIsReadable(t *testing.T) {
 	if !strings.Contains(importCard, "flex: 0 0 auto;") {
 		t.Errorf("数据导入应当保持内容高度，实际块：\n%s", importCard)
 	}
-	// 四个来源分组竖着叠起来要能在最小窗口（760 高）里放得下，所以留白是收紧过的
+	// C1：四个来源是同一张连续列表，行高收紧到 10px 垂直留白；
+	// C2：状态文字移到标题下方，不再做 32px 高的灰色输入框。
 	group := cssRule(t, styles, ".group {")
-	if !strings.Contains(group, "padding: 8px;") {
-		t.Errorf("导入分组的竖向留白应当是收紧后的 8px，实际块：\n%s", group)
+	for _, wanted := range []string{
+		"padding: 10px 6px 10px 8px;",
+		"border: 0;",
+		"border-bottom: 1px solid var(--brand-red-border);",
+		"border-radius: 0;",
+	} {
+		if !strings.Contains(group, wanted) {
+			t.Errorf("导入来源行缺少 %s，实际块：\n%s", wanted, group)
+		}
 	}
 
-	status := cssBlock(t, styles, ".actions .status {")
+	meta := cssRule(t, styles, ".source-meta {")
 	for _, wanted := range []string{
-		"background: rgba(0, 0, 0, 0.04);", // 淡灰底
-		"text-align: center;",              // 信息居中
-		"white-space: nowrap;",             // 不换行
-		"text-overflow: ellipsis;",         // 真放不下才省略号
-		"height: 32px;",                    // 与两侧图标按钮同高
+		"font-size: 12px;",
+		"line-height: 18px;",
+		"white-space: nowrap;",
+		"text-overflow: ellipsis;",
 	} {
-		if !strings.Contains(status, wanted) {
-			t.Errorf("导入状态框缺少 %s，实际块：\n%s", wanted, status)
+		if !strings.Contains(meta, wanted) {
+			t.Errorf("来源行状态文字缺少 %s，实际块：\n%s", wanted, meta)
 		}
+	}
+	if strings.Contains(meta, "background:") || strings.Contains(meta, "height: 32px;") {
+		t.Errorf("来源行状态文字不再使用灰色状态框，实际块：\n%s", meta)
 	}
 
 	// 清空按钮搬到了「数据导入」的标题栏（App.tsx 的 extra）：只有危险红图标，无文字无边框，
@@ -261,8 +271,8 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 		t.Error("第一个分组之后的额外空行已经去掉，不该再有 GROUP_GAP_AFTER / group-gap")
 	}
 	group := cssRule(t, styles, ".group {")
-	if !strings.Contains(group, "margin-bottom: 6px;") {
-		t.Errorf("四个分组的间隔应当统一（margin-bottom: 6px），实际块：\n%s", group)
+	if !strings.Contains(group, "margin: 0;") || !strings.Contains(group, "border-bottom: 1px solid var(--brand-red-border);") {
+		t.Errorf("四个来源应当并成一张连续列表（无外边距、行间发丝线），实际块：\n%s", group)
 	}
 	for _, wanted := range []string{
 		`label="载入文件"`, `label="数据回顾"`, `label="查看清洗后数据"`,
@@ -291,6 +301,33 @@ func TestTheImportPanelKeepsTheSourceOrderAndIcons(t *testing.T) {
 	}
 }
 
+// TestTheImportSourceRowsFormOneFlatList 固定 C1/C2：四个来源是一张连续列表，
+// 不再“卡片套卡片”；悬停只在当前行左侧亮 2px 红线，并带浅红底。
+func TestTheImportSourceRowsFormOneFlatList(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+
+	group := cssRule(t, styles, ".group {")
+	if strings.Contains(group, "background: #fff;") || strings.Contains(group, "border: 1px solid var(--card-border);") {
+		t.Errorf("来源行不再各自做成白底描边卡片，实际块：\n%s", group)
+	}
+	if last := cssRule(t, styles, ".group:last-child {"); !strings.Contains(last, "border-bottom: 0;") {
+		t.Errorf("连续列表最后一行应当收掉分隔线，实际块：\n%s", last)
+	}
+	hover := cssRule(t, styles, ".group:hover {")
+	for _, wanted := range []string{
+		"background: var(--brand-red-soft);",
+		"box-shadow: inset 2px 0 0 var(--brand-red);",
+	} {
+		if !strings.Contains(hover, wanted) {
+			t.Errorf("来源行悬停缺少 %s，实际块：\n%s", wanted, hover)
+		}
+	}
+	actions := cssRule(t, styles, ".actions {")
+	if !strings.Contains(actions, "margin-top: 0;") || !strings.Contains(actions, "gap: 2px;") {
+		t.Errorf("动作图标应当贴右侧一列，不占状态行，实际块：\n%s", actions)
+	}
+}
+
 // TestTheImportStatusUsesAntdBadge 固定导入区的状态表达：用 antd 的 Badge（状态语义色）
 // 与 Typography 的次级文字，不再自绘圆点、也不再做"仿只读输入框"的状态条。
 func TestTheImportStatusUsesAntdBadge(t *testing.T) {
@@ -302,7 +339,7 @@ func TestTheImportStatusUsesAntdBadge(t *testing.T) {
 	if !strings.Contains(panels, "type=\"secondary\"") || !strings.Contains(panels, "ellipsis={{ tooltip:") {
 		t.Error("状态文字应当是次级色 + 过长省略（antd Typography）")
 	}
-	if !strings.Contains(panels, `{current.label || "尚未导入"}`) {
+	if !strings.Contains(panels, `current.label || "尚未导入"`) {
 		t.Error("状态标签要有「尚未导入」占位")
 	}
 	if strings.Contains(panels, `className="dot`) {

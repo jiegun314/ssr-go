@@ -149,8 +149,8 @@ export function ImportPanel({
           ? `共享盘版本：${info.remoteVersion}\n最后更新：${info.publishedAt || "—"}`
           : "该来源还没有人发布到共享盘";
         return (
-          <div key={source.key}>
-            <div className="group">
+          <div className="group" key={source.key}>
+            <div className="source-main">
               <div className="title-row">
                 <Badge
                   status={importBadge(current.state)}
@@ -164,82 +164,75 @@ export function ImportPanel({
                   </Tooltip>
                 ) : null}
               </div>
-              <div className="actions">
-                {alignMode ? (
-                  <Tooltip title={alignHint}>
-                    <Typography.Text className={`status align-status-${alignKind}`}>
-                      {alignText}
-                      {info?.publishedAt ? ` · ${info.publishedAt.slice(0, 16)}` : ""}
-                    </Typography.Text>
-                  </Tooltip>
-                ) : !canView ? (
-                  <Typography.Text className="status" type="secondary">
-                    {info?.publishedAt ? `最后更新：${info.publishedAt}` : "尚未发布"}
-                  </Typography.Text>
-                ) : (
-                  <>
-                    {canImport ? (
-                      <IconButton
-                        label="载入文件"
-                        tooltip={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}
-                        size="middle"
-                        icon={<FileSpreadsheet />}
-                        disabled={locked}
-                        onClick={() => onImport(source.key)}
-                      />
-                    ) : null}
-                    {showNotify ? (
-                      <IconButton
-                        label="邮件通知"
-                        tooltip={
-                          !canImport
-                            ? "当前身份没有这个来源的导入权限"
-                            : !localExists
-                              ? "导入后可发送更新通知"
-                              : notified[source.key]
-                                ? "已发送通知（可再次发送）"
-                                : "邮件通知 Supply Chain / Admin"
-                        }
-                        size="middle"
-                        icon={notified[source.key] ? <MailCheck /> : <Mail />}
-                        disabled={!canImport || !localExists}
-                        onClick={() => onNotify(source.key)}
-                      />
-                    ) : null}
-                    {/* 状态标签在两个按钮中间（原界面就是这个顺序） */}
-                    <Typography.Text
-                      className="status"
-                      id={`status-${source.key}`}
-                      type="secondary"
-                      ellipsis={{ tooltip: current.tooltip || undefined }}
-                    >
-                      {current.label || "尚未导入"}
-                    </Typography.Text>
-                  </>
-                )}
-                {canView ? (
-                  <>
+              <Typography.Text
+                className={alignMode ? `source-meta align-status-${alignKind}` : "source-meta"}
+                id={`status-${source.key}`}
+                type="secondary"
+                ellipsis={{ tooltip: alignMode ? alignHint : current.tooltip || undefined }}
+              >
+                {alignMode
+                  ? `${alignText}${info?.publishedAt ? ` · ${info.publishedAt.slice(0, 16)}` : ""}`
+                  : !canView
+                    ? info?.publishedAt
+                      ? `最后更新：${info.publishedAt}`
+                      : "尚未发布"
+                    : current.label || "尚未导入"}
+              </Typography.Text>
+            </div>
+            <div className="actions">
+              {!alignMode && canView ? (
+                <>
+                  {canImport ? (
                     <IconButton
-                      label="数据回顾"
-                      tooltip={localExists ? "数据回顾" : "本机还没有取到数据"}
+                      label="载入文件"
+                      tooltip={locked ? "共享盘不可用，暂不能导入/发布" : "载入文件"}
                       size="middle"
-                      icon={<TableIcon />}
-                      disabled={!localExists}
-                      onClick={() => onReview(source.key)}
+                      icon={<FileSpreadsheet />}
+                      disabled={locked}
+                      onClick={() => onImport(source.key)}
                     />
-                    {/* 有清洗表的来源（RA 信息）：同一个窗口，读清洗表 —— 方便核对合并结果 */}
-                    {CLEANED_SOURCES.includes(source.key) && (
-                      <IconButton
-                        label="查看清洗后数据"
-                        size="middle"
-                        icon={<Filter />}
-                        disabled={current.state !== "imported" && current.state !== "existing"}
-                        onClick={() => onReviewCleaned(source.key)}
-                      />
-                    )}
-                  </>
-                ) : null}
-              </div>
+                  ) : null}
+                  {showNotify ? (
+                    <IconButton
+                      label="邮件通知"
+                      tooltip={
+                        !canImport
+                          ? "当前身份没有这个来源的导入权限"
+                          : !localExists
+                            ? "导入后可发送更新通知"
+                            : notified[source.key]
+                              ? "已发送通知（可再次发送）"
+                              : "邮件通知 Supply Chain / Admin"
+                      }
+                      size="middle"
+                      icon={notified[source.key] ? <MailCheck /> : <Mail />}
+                      disabled={!canImport || !localExists}
+                      onClick={() => onNotify(source.key)}
+                    />
+                  ) : null}
+                </>
+              ) : null}
+              {canView ? (
+                <>
+                  <IconButton
+                    label="数据回顾"
+                    tooltip={localExists ? "数据回顾" : "本机还没有取到数据"}
+                    size="middle"
+                    icon={<TableIcon />}
+                    disabled={!localExists}
+                    onClick={() => onReview(source.key)}
+                  />
+                  {CLEANED_SOURCES.includes(source.key) && (
+                    <IconButton
+                      label="查看清洗后数据"
+                      size="middle"
+                      icon={<Filter />}
+                      disabled={current.state !== "imported" && current.state !== "existing"}
+                      onClick={() => onReviewCleaned(source.key)}
+                    />
+                  )}
+                </>
+              ) : null}
             </div>
           </div>
         );
