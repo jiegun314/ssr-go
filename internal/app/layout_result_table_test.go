@@ -82,7 +82,7 @@ func TestTheResultTableKeepsItsHeaderVisibleWhenScrolling(t *testing.T) {
 		t.Error("结果表必须开 antd 的 sticky，长表滚动时表头要钉在顶部")
 	}
 	holder := cssBlock(t, styles, ".tblwrap .ant-table-sticky-holder {")
-	for _, wanted := range []string{"background: #fff;", "box-shadow: 0 1px 0 var(--card-border);"} {
+	for _, wanted := range []string{"background: #fff;", "box-shadow: 0 1px 0 var(--card-border), 0 4px 10px rgba(15, 23, 42, 0.05);"} {
 		if !strings.Contains(holder, wanted) {
 			t.Errorf("sticky 表头缺少 %s，实际块：\n%s", wanted, holder)
 		}
@@ -480,5 +480,51 @@ func TestTheResultToolbarIconsUseTheStandardSize(t *testing.T) {
 		if !strings.Contains(block[:end], `size="middle"`) {
 			t.Errorf("「%s」应使用 32px 标准图标档", label)
 		}
+	}
+}
+
+// TestTheResultTableUsesFlatStatusPills 固定结果表轻量化口径：
+// 状态列统一在首列、用中文胶囊 + 3px 状态条，不再整格铺状态底色；行只在 hover 时用冷灰底。
+func TestTheResultTableUsesFlatStatusPills(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	for _, wanted := range []string{
+		"const statusIndex = useMemo(",
+		"const displayColumns = useMemo(",
+		`className: index === statusIndex ? "result-status-cell" : undefined`,
+		`className={` + "`result-status result-status-${entry.status}`" + `}`,
+		`index === statusIndex ? (`,
+		`"状态"`,
+		`displayColumns.map(({ title, index }) => (index === statusIndex ? "状态" : title))`,
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("结果表状态列缺少：%s", wanted)
+		}
+	}
+	for _, want := range []string{
+		`.result-status {`,
+		`.result-status-Ready {`,
+		`.result-status-Incomplete {`,
+		`.result-status-Duplicate {`,
+		`.result-status-Conflict {`,
+		`.result-row.status-Ready > td.result-status-cell {`,
+		`.result-row.status-Incomplete > td.result-status-cell {`,
+		`.result-row.status-Duplicate > td.result-status-cell {`,
+		`.result-row.status-Conflict > td.result-status-cell {`,
+	} {
+		if !strings.Contains(styles, want) {
+			t.Errorf("结果表状态样式缺少：%s", want)
+		}
+	}
+	pill := cssBlock(t, styles, ".result-status {")
+	for _, want := range []string{"height: 20px;", "border-radius: 999px;", "font-size: 12px;"} {
+		if !strings.Contains(pill, want) {
+			t.Errorf("状态胶囊缺少 %s，实际块：\n%s", want, pill)
+		}
+	}
+	hover := cssBlock(t, styles, ".result-row:hover > td {")
+	if !strings.Contains(hover, "background: #f8fafc;") {
+		t.Errorf("结果表悬停应当用 #f8fafc，实际块：\n%s", hover)
 	}
 }

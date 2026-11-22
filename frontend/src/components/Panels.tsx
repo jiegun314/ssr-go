@@ -384,22 +384,55 @@ export function ConsolidationPanel({
     return set;
   }, [dataSource]);
 
+  // 状态列可能来自后端（真实数据固定在首列），也可能来自预览/旧调用方的任意位置。
+  // 表格里统一把状态挪到最左：3px 状态竖条只有落在行首才读得出来；导出当前视图也跟随这个顺序。
+  const statusIndex = useMemo(
+    () =>
+      columns.findIndex((title) => {
+        const normalized = title.trim().toLowerCase();
+        return normalized === "status" || normalized === "状态";
+      }),
+    [columns],
+  );
+  const displayColumns = useMemo(() => {
+    const indexed = columns.map((title, index) => ({ title, index }));
+    if (statusIndex <= 0) return indexed;
+    const [status] = indexed.splice(statusIndex, 1);
+    indexed.unshift(status);
+    return indexed;
+  }, [columns, statusIndex]);
+
   const tableColumns: ColumnsType<ConsolidationRow> = useMemo(
     () =>
-      columns.map((title, index) => ({
-        title: conflictColumns.has(index) ? (
-          <Tooltip title="此列有冲突单元格" mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
-            <span className="th-title">
-              {title}
-              <span className="conflict-dot" aria-label="此列有冲突" />
-            </span>
-          </Tooltip>
-        ) : (
-          title
-        ),
+      displayColumns.map(({ title, index }) => ({
+        className: index === statusIndex ? "result-status-cell" : undefined,
+        title:
+          index === statusIndex ? (
+            "状态"
+          ) : conflictColumns.has(index) ? (
+            <Tooltip title="此列有冲突单元格" mouseEnterDelay={CONFLICT_TOOLTIP_DELAY}>
+              <span className="th-title">
+                {title}
+                <span className="conflict-dot" aria-label="此列有冲突" />
+              </span>
+            </Tooltip>
+          ) : (
+            title
+          ),
         key: String(index),
         ellipsis: false,
         render: (_: unknown, entry: ConsolidationRow) => {
+          // 状态列用中文胶囊，不再露出后端英文常量；左侧 3px 竖条由行样式负责。
+          if (index === statusIndex) {
+            return (
+              <span
+                className={`result-status result-status-${entry.status}`}
+                title={statusLabel(entry.status)}
+              >
+                {statusLabel(entry.status)}
+              </span>
+            );
+          }
           const value = entry.cells[index];
           const note = entry.notes[index];
           // 冲突的格：提示用 antd Tooltip 而不是原生 title —— 原生 title 的延迟由系统定
@@ -429,7 +462,7 @@ export function ConsolidationPanel({
           );
         },
       })),
-    [columns, conflictColumns],
+    [displayColumns, conflictColumns, statusIndex],
   );
   const needle = appliedQuery.trim().toLowerCase();
   const visible = useMemo(
@@ -457,9 +490,13 @@ export function ConsolidationPanel({
     setExportingView(true);
     try {
       await onExportView(
-        columns,
+        displayColumns.map(({ title, index }) => (index === statusIndex ? "状态" : title)),
         visible.map((entry) =>
-          entry.cells.map((cell) => (cell === "MISSING" ? "缺失" : cell)),
+          displayColumns.map(({ index }) => {
+            if (index === statusIndex) return statusLabel(entry.status);
+            const cell = entry.cells[index];
+            return cell === "MISSING" ? "缺失" : cell;
+          }),
         ),
       );
     } finally {
@@ -708,13 +745,13 @@ export function LogPanel({ text }: { text: string }) {
       className: "log-message",
       render: (_: string, entry: LogEntry) => (
         <Flex gap={4} align="center">
-          {/* 级别：两个字 + 级别色，固定槽位内水平垂直都居中（不再靠上） */}
+          {/* 级别：一个小色点（完整级别名在悬停 / 读屏标签里），让时间 + 正文连续排列 */}
           <span
-            className={`log-level log-level-${entry.level}`}
+            className={`log-level log-level-dot log-level-${entry.level}`}
             title={LOG_LEVEL_LABELS[entry.level]}
-          >
-            {LOG_LEVEL_LABELS[entry.level]}
-          </span>
+            role="img"
+            aria-label={`级别：${LOG_LEVEL_LABELS[entry.level]}`}
+          />
           {/* 正文最多两行，超出省略；完整内容悬浮可见 */}
           <span className="log-text" title={entry.message}>
             {entry.message}

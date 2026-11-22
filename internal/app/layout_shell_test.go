@@ -291,3 +291,23 @@ func TestTheWindowNeverScrollsAsAWhole(t *testing.T) {
 		t.Errorf("根节点必须 overflow: hidden（否则 antd 弹层会把文档撑出滚动条），实际块：\n%s", root)
 	}
 }
+
+// TestMotionIsShortAndRespectsReducedMotion 固定动效口径：只做 120–180ms 的反馈，
+// 系统要求减少动态时立即结束，不让界面在低性能机器上抖动。
+func TestMotionIsShortAndRespectsReducedMotion(t *testing.T) {
+	styles := readFrontendSource(t, "src/styles.css")
+	for _, want := range []string{
+		"--motion-fast: 120ms;",
+		"--motion-base: 160ms;",
+		"--motion-slow: 180ms;",
+		"transition: background-color var(--motion-fast) ease;",
+		"transition: background-color var(--motion-base) ease",
+		"@media (prefers-reduced-motion: reduce)",
+		"transition-duration: 0.01ms !important;",
+		"animation-duration: 0.01ms !important;",
+	} {
+		if !strings.Contains(styles, want) {
+			t.Errorf("动效口径缺少：%s", want)
+		}
+	}
+}

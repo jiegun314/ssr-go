@@ -46,6 +46,11 @@ export const INNER_RADIUS = "4px";
 export const CARD_SHADOW =
   "0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06)";
 
+/** 动效时长：只用于悬停、展开、弹窗这类可感知但不拖慢操作的过渡。 */
+export const MOTION_FAST = "120ms";
+export const MOTION_BASE = "160ms";
+export const MOTION_SLOW = "180ms";
+
 /**
  * 间距刻度（8pt 网格的子集）。这里只收拢**未被 Go 契约固定**的间距声明：
  * 窗口 padding / 列间距 / 分组留白等尺寸是行为契约（layout_*_test.go），保持字面量不动，
@@ -100,6 +105,9 @@ export const CSS_TOKENS: Record<string, string> = {
   "module-radius": MODULE_RADIUS,
   "inner-radius": INNER_RADIUS,
   "card-shadow": CARD_SHADOW,
+  "motion-fast": MOTION_FAST,
+  "motion-base": MOTION_BASE,
+  "motion-slow": MOTION_SLOW,
   ...SPACE_TOKENS,
   "log-time-width": LOG_TIME_WIDTH,
   "log-level-slot": LOG_LEVEL_SLOT,

@@ -94,3 +94,30 @@ func TestTheLogWindowKeepsItsDesignContracts(t *testing.T) {
 		t.Error("不该把日志表格的分割线抹掉")
 	}
 }
+
+// TestTheLogRowsUseLevelDots 固定日志轻量化口径：行内级别是 6px 色点，
+// 完整级别名只留在 title 与 aria-label 里；时间、色点、正文连续排列。
+func TestTheLogRowsUseLevelDots(t *testing.T) {
+	panels := readFrontendSource(t, "src/components/Panels.tsx")
+	styles := readFrontendSource(t, "src/styles.css")
+
+	for _, wanted := range []string{
+		"log-level log-level-dot log-level-${entry.level}",
+		`role="img"`,
+		`aria-label={` + "`级别：${LOG_LEVEL_LABELS[entry.level]}`" + `}`,
+	} {
+		if !strings.Contains(panels, wanted) {
+			t.Errorf("日志行级别点缺少：%s", wanted)
+		}
+	}
+	dot := cssBlock(t, styles, ".log-level-dot {")
+	for _, want := range []string{"width: 6px;", "height: 6px;", "background: currentColor;", "border-radius: 50%;"} {
+		if !strings.Contains(dot, want) {
+			t.Errorf("日志级别点缺少 %s，实际块：\n%s", want, dot)
+		}
+	}
+	hover := cssBlock(t, styles, ".log-table .ant-table-tbody > tr:hover > td {")
+	if !strings.Contains(hover, "background: #f8fafc;") {
+		t.Errorf("日志行悬停应当用 #f8fafc，实际块：\n%s", hover)
+	}
+}

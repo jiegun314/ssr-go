@@ -47,6 +47,9 @@ body,
   --module-radius: 6px;
   --inner-radius: 4px;
   --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --motion-slow: 180ms;
   --space-2: 2px;
   --space-4: 4px;
   --space-6: 6px;
@@ -242,6 +245,8 @@ body {
   box-shadow: none;
   color: rgba(0, 0, 0, 0.65);
   background: transparent;
+  transition: background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease, border-color var(--motion-fast) ease;
 }
 
 .ui-icon-button.ant-btn svg {
@@ -418,7 +423,7 @@ body {
   background: #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  transition: background-color var(--motion-base) ease, border-color var(--motion-base) ease, color var(--motion-base) ease;
 }
 
 .left-toggle.ant-btn:hover,
@@ -447,7 +452,7 @@ body {
   border: 0;
   border-bottom: 1px solid var(--brand-red-border);
   border-radius: 0;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color var(--motion-base) ease, box-shadow var(--motion-base) ease;
 }
 
 .group:last-child {
@@ -669,7 +674,7 @@ body {
    补一条淡描边让它和滚动内容分开，底色保持不透明，避免行内容从表头透出来。 */
 .tblwrap .ant-table-sticky-holder {
   background: #fff;
-  box-shadow: 0 1px 0 var(--card-border);
+  box-shadow: 0 1px 0 var(--card-border), 0 4px 10px rgba(15, 23, 42, 0.05);
 }
 
 /* 结果为空时给角色化引导：极淡点阵 + 品牌浅红圆环，不做成空白表格。 */
@@ -752,31 +757,65 @@ body {
   color: rgba(0, 0, 0, 0.45);
 }
 
-/* 结果表按状态着色：只在首格用语义浅底 + 3px 状态竖条表达状态，
-   整行不再铺满颜色（高密度时太吵）；整行只在 hover 时给一层极淡底。
+/* 结果表按状态着色：状态列永远是首列（见 Panels 的 displayColumns），
+   用 3px 状态竖条 + 中文胶囊表达状态；整行只在 hover 时给一层极淡冷灰底。
    冲突格的整格高亮（.cell-conflict）不受影响。 */
-.result-row.status-Ready > td:first-child {
-  background: #f6ffed; /* colorSuccessBg */
+/* 状态胶囊 20px + 单元格上下各 8px = 统一 36px 行高，不另写死高度。 */
+.result-row > td {
+  transition: background-color var(--motion-fast) ease;
+}
+
+.result-row.status-Ready > td.result-status-cell {
   box-shadow: inset 3px 0 0 #389e0d;
 }
 
-.result-row.status-Incomplete > td:first-child {
-  background: #fff2f0; /* colorErrorBg */
+.result-row.status-Incomplete > td.result-status-cell {
   box-shadow: inset 3px 0 0 #cf1322;
 }
 
-.result-row.status-Duplicate > td:first-child {
-  background: #fffbe6; /* colorWarningBg */
+.result-row.status-Duplicate > td.result-status-cell {
   box-shadow: inset 3px 0 0 #d48806;
 }
 
-.result-row.status-Conflict > td:first-child {
-  background: #fff0f6; /* magenta-1 */
+.result-row.status-Conflict > td.result-status-cell {
   box-shadow: inset 3px 0 0 #c41d7f;
 }
 
+.result-status {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+.result-status-Ready {
+  color: #237804;
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+.result-status-Incomplete {
+  color: #a8071a;
+  background: #fff2f0;
+  border-color: #ffccc7;
+}
+.result-status-Duplicate {
+  color: #ad6800;
+  background: #fffbe6;
+  border-color: #ffe58f;
+}
+.result-status-Conflict {
+  color: #9e1068;
+  background: #fff0f6;
+  border-color: #ffadd2;
+}
+
 .result-row:hover > td {
-  background: rgba(0, 0, 0, 0.03);
+  background: #f8fafc;
 }
 
 /* 缺失格：小号「缺失」标记（不抢眼；导出时该格为空） */
@@ -967,9 +1006,9 @@ body {
   padding-inline: 4px;
 }
 
-/* 窄栏（340px）里的三样：时间段 / 级别色字 / 两行截断的正文 */
+/* 窄栏（340px）里的三样：时间段 / 级别色点 / 两行截断的正文 */
 
-/* 级别：两个字 + 级别色；固定 44px 槽位，文字在槽位里水平垂直都居中 */
+/* 基类仍供详情弹窗的文字标签使用；列表行改用下面的 .log-level-dot。 */
 .log-level {
   flex: 0 0 auto;
   display: inline-flex;
@@ -980,6 +1019,20 @@ body {
   font-size: 12px;
   line-height: 22px;
   white-space: nowrap;
+}
+
+/* 行内级别改成 6px 色点：时间 + 正文连续排列，减少每行的文字标签块。
+   完整级别名保留在 title 与 aria-label 里；详情弹窗仍用文字标签。 */
+.log-level-dot {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  min-width: 6px;
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+  background: currentColor;
+  border-radius: 50%;
 }
 
 .log-level-info {
@@ -1014,6 +1067,15 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
+  line-height: 18px;
+}
+
+.log-table .ant-table-tbody > tr > td {
+  transition: background-color var(--motion-fast) ease;
+}
+
+.log-table .ant-table-tbody > tr:hover > td {
+  background: #f8fafc;
 }
 
 /* ---------- 提示弹窗（antd Modal + Descriptions） ---------- */
@@ -1735,6 +1797,8 @@ body {
 
 .login-tile.ant-btn {
   display: flex;
+  transition: background-color var(--motion-base) ease,
+    border-color var(--motion-base) ease, box-shadow var(--motion-base) ease;
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
@@ -2306,4 +2370,17 @@ body {
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+
+/* 动效只服务反馈：系统要求减少动态时，所有过渡/动画立即结束（不改变布局）。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

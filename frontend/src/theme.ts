@@ -7,7 +7,7 @@
 
 import type { ThemeConfig } from "antd";
 
-import { BRAND_RED, DANGER_RED } from "./design-tokens";
+import { BRAND_RED, DANGER_RED, MOTION_BASE, MOTION_FAST, MOTION_SLOW } from "./design-tokens";
 
 // 颜色 token 的真源在 design-tokens.ts（与 styles.css 的 :root 变量一一对应），
 // 这里只做转出，避免同一个色值在两处各写一遍。
@@ -27,6 +27,9 @@ export const theme: ThemeConfig = {
     colorLink: BRAND_RED,
     colorError: DANGER_RED,
     fontFamily: UI_FONT,
+    motionDurationFast: MOTION_FAST,
+    motionDurationMid: MOTION_BASE,
+    motionDurationSlow: MOTION_SLOW,
   },
   components: {
     // 日志栏目的过滤条（antd Segmented）：选中项用品牌红，和参考界面的"当前栏目"一致。

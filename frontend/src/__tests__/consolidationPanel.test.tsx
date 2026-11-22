@@ -267,6 +267,53 @@ describe("数据整合结果表的冲突单元格", () => {
   });
 });
 
+// 状态列：真实数据固定首列，预览/旧调用方可能把它放在任意位置；表格统一挪到最左，
+// 用中文胶囊显示，导出当前视图也跟随这个显示顺序与显示值。
+describe("数据整合结果表的状态列", () => {
+  it("状态列即使排在最后，也移到首列并显示中文胶囊", () => {
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={["Primary DI", "status"]}
+          rows={[["DI-001", "Incomplete"]]}
+          statuses={["Incomplete"]}
+          counts={{ Incomplete: 1 }}
+        />
+      </AntApp>,
+    );
+
+    const headers = Array.from(document.querySelectorAll(".ant-table-thead th")).map(
+      (node) => node.textContent?.trim(),
+    );
+    expect(headers[0]).toBe("状态");
+    const firstCell = document.querySelector(".result-row td");
+    expect(firstCell).toHaveTextContent("缺失");
+    expect(firstCell?.querySelector(".result-status-Incomplete")).not.toBeNull();
+    expect(document.querySelector(".result-row")?.textContent).not.toContain("Incomplete");
+  });
+
+  it("导出当前视图时状态列在最左，值也翻译成中文", async () => {
+    const user = userEvent.setup();
+    const onExport = vi.fn();
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={["Primary DI", "status"]}
+          rows={[["DI-001", "Incomplete"]]}
+          statuses={["Incomplete"]}
+          counts={{ Incomplete: 1 }}
+          onExportView={onExport}
+        />
+      </AntApp>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "导出当前视图" }));
+    await waitFor(() => {
+      expect(onExport).toHaveBeenCalledWith(["状态", "Primary DI"], [["缺失", "DI-001"]]);
+    });
+  });
+});
+
 // 状态筛选片：出现冲突时是 4 个（最小窗口也要放得下，见 Go 契约里的宽度核算），
 // 每个片悬停要说清「这个状态意味着什么」。
 describe("数据整合结果表的状态筛选片", () => {

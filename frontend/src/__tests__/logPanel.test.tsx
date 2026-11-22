@@ -35,6 +35,17 @@ describe("操作日志面板", () => {
     }
   });
 
+  it("行内级别是色点，不再显示文字标签块", () => {
+    const { container } = render(<LogPanel text={LOG_TEXT} />);
+    const dots = Array.from(container.querySelectorAll(".log-level-dot"));
+    expect(dots).toHaveLength(4);
+    for (const dot of dots) {
+      expect(dot.getAttribute("aria-label")).toMatch(/^级别：(信息|成功|警告|错误)$/);
+      expect(dot.getAttribute("title")).toMatch(/^(信息|成功|警告|错误)$/);
+      expect(dot.textContent).toBe("");
+    }
+  });
+
   it("多行明细接回同一条日志（续行不新增条目）", () => {
     render(<LogPanel text={LOG_TEXT} />);
     const row = screen.getByTitle(/^导入失败：RA信息/);
