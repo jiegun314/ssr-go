@@ -72,9 +72,10 @@ func TestTheLeftColumnCanBeCollapsedFromTheDivider(t *testing.T) {
 	for _, wanted := range []string{
 		"flex: 0 0 auto;",
 		"align-self: center;",
-		"width: 12px;",        // 按钮本身尽量窄
-		"margin-inline: 2px;", // 整条分隔只占 16px
-		"border-radius: 0;",   // 12px 细分隔条保留直角
+		"width: 14px;",        // 收窄后的胶囊本体
+		"height: 38px;",       // 仍然好点
+		"margin-inline: 4px;", // 左右各留 4px 空隙，不再压住面板
+		"border-radius: 7px;", // 窄胶囊圆角
 	} {
 		if !strings.Contains(toggle, wanted) {
 			t.Errorf("分隔按钮缺少 %s，实际块：\n%s", wanted, toggle)

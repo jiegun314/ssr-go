@@ -185,9 +185,16 @@ func TestTheRadiusHierarchy(t *testing.T) {
 		!strings.Contains(corners, "border-start-end-radius: var(--inner-radius);") {
 		t.Errorf("表头圆角应当跟着结果表容器，实际块：\n%s", corners)
 	}
-	// 12px 宽的分隔按钮没有圆角语义
-	if toggle := cssRule(t, styles, ".left-toggle.ant-btn {"); !strings.Contains(toggle, "border-radius: 0;") {
-		t.Errorf("分隔按钮仍应是直角，实际块：\n%s", toggle)
+	// 按钮是窄胶囊，并且左右留出空隙；不能再贴住或压住两侧面板
+	toggle := cssRule(t, styles, ".left-toggle.ant-btn {")
+	if !strings.Contains(toggle, "border-radius: 7px;") {
+		t.Errorf("分隔按钮应当使用窄胶囊圆角，实际块：\n%s", toggle)
+	}
+	if !strings.Contains(toggle, "margin-inline: 4px;") {
+		t.Errorf("分隔按钮左右应当留出呼吸空间，实际块：\n%s", toggle)
+	}
+	if strings.Contains(toggle, "margin-inline: -") {
+		t.Errorf("分隔按钮不该用负外边距压住两侧面板，实际块：\n%s", toggle)
 	}
 }
 

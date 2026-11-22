@@ -364,17 +364,29 @@ body {
 
 /* 它就住在左右两列之间（是 .columns 的一个 flex 子项），所以位置永远贴着分隔线；
    收起左侧后两列变成一列，结果表吃满整个窗口宽度。
-   整条分隔只占 16px：12px 的按钮 + 左右各 2px，按钮本身也尽量窄。 */
+   做成窄胶囊：14px 宽、38px 高、7px 圆角；左右各留 4px 空隙，
+   让按钮浮在两块面板之间，而不是贴着/压着面板边缘。 */
 .left-toggle.ant-btn {
   flex: 0 0 auto;
   align-self: center;
-  width: 12px;
-  min-width: 12px;
-  height: 32px; /* 与 antd 控件同高，但不占用模块的横向空间 */
-  margin-inline: 2px;
+  width: 14px;
+  min-width: 14px;
+  height: 38px;
+  margin-inline: 4px; /* 14 + 4×2 = 22px 分隔带，左右各 4px 呼吸空间 */
   padding: 0;
-  border-radius: 0; /* 12px 宽的细分隔条，圆角没有意义，保留直角 */
+  border: 1px solid var(--card-border);
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   color: rgba(0, 0, 0, 0.45); /* colorTextTertiary */
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.left-toggle.ant-btn:hover,
+.left-toggle.ant-btn:focus-visible {
+  border-color: #d9d9d9;
+  background: #f7f7f7;
+  color: rgba(0, 0, 0, 0.88);
 }
 
 .columns.left-collapsed > .left {
