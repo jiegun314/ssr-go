@@ -62,7 +62,7 @@ describe("设计 token 单一来源", () => {
     expect(styles).toContain("width: var(--log-level-slot);");
     expect(styles).toContain("min-height: var(--log-min-height);");
     expect(styles).toContain("background: var(--brand-red-soft);");
-    expect(styles).toContain("border: 1px solid var(--module-border);");
+    expect(styles).toContain("border: 1px solid var(--card-border);");
     // 间距刻度至少要在未契约固定的声明里真正用起来（契约固定的尺寸保持字面量）
     expect(styles).toContain("gap: var(--space-8);");
     expect(styles).toContain("margin-bottom: var(--space-12);");

@@ -1,5 +1,5 @@
 // 登录页（P1）：按组别选择（不显示人名）；Welcome, <本机用户名>；
-// 上面一行四个方块（图标 + 组别），下面一行居中管理员；只有管理员需要密码。
+// 左右分栏：左侧品牌/流程，右侧 2×2 组别卡 + 低强调管理员入口；只有管理员需要密码。
 
 import { App as AntApp, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
@@ -37,23 +37,24 @@ const renderLogin = () => {
 };
 
 describe("登录页", () => {
-  it("显示 Welcome + 本机用户名，上面一行四个组别、下面一行管理员", () => {
+  it("显示左右分栏、Welcome 和 2×2 组别卡，管理员入口独立低调", () => {
     renderLogin();
     expect(screen.getByText("Welcome, zhangsan")).toBeInTheDocument();
+    expect(document.querySelector(".login-brand")).not.toBeNull();
+    expect(document.querySelector(".login-brand-title")?.textContent).toContain("把来源数据，收成一份可提交文件。");
 
-    const mainRow = document.querySelector(".login-row-main") as HTMLElement;
-    expect(mainRow.querySelectorAll(".login-tile")).toHaveLength(4);
+    const roleGrid = document.querySelector(".login-role-grid") as HTMLElement;
+    expect(roleGrid.querySelectorAll(".login-tile")).toHaveLength(4);
     for (const label of ["RA", "EAMA", "Global UDI Team", "Supply Chain"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
 
-    const adminRow = document.querySelector(".login-row-admin") as HTMLElement;
-    expect(adminRow.querySelectorAll(".login-tile")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Admin" })).toBeInTheDocument();
-
-    // Admin 方块是红底白字（login-tile-admin），其余组别不带这个类
-    expect(screen.getByRole("button", { name: "Admin" })).toHaveClass("login-tile-admin");
-    expect(screen.getByRole("button", { name: "RA" })).not.toHaveClass("login-tile-admin");
+    const admin = screen.getByRole("button", { name: "Admin" });
+    expect(admin).toHaveClass("login-admin-entry");
+    expect(admin).not.toHaveClass("login-tile");
+    expect(admin).not.toHaveClass("login-tile-admin");
+    expect(screen.getByText("管理员入口")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "RA" })).toHaveClass("login-tile");
   });
 
   it("点非 Admin 的组别直接登录（不需要密码）", async () => {

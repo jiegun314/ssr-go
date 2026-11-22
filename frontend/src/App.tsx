@@ -267,6 +267,32 @@ export default function App() {
 
   /** 只有 SC/Admin 能整合；其他身份的数据整合模块整卡灰掉（只读） */
   const canConsolidate = can("consolidate");
+  /** 本机是否已经有可用的导入数据（用于区分“先导入”与“先对齐”）。 */
+  const hasImportedSource = SOURCES.some(
+    (source) => imports[source.key]?.state === "imported" || imports[source.key]?.state === "existing",
+  );
+  /** 数据整合空态：按权限与当前进度给出下一步，而不是所有角色都看到同一句“暂无数据”。 */
+  const consolidationEmpty = !canConsolidate
+    ? {
+        title: "当前为只读视图",
+        description: "有整合权限的同事完成整合后，结果会在这里显示。",
+      }
+    : !hasImportedSource
+      ? {
+          title: "还没有可整合的数据",
+          description: alignMode
+            ? "等待 RA / EAMA / UDI 发布后，在「数据对齐」里取回最新版本。"
+            : "先在左侧导入 RA / UDI 数据，再开始整合。",
+        }
+      : !allAligned
+        ? {
+            title: "数据等待对齐",
+            description: "共享盘上的新版本还没有全部取到本机，先完成「数据对齐」。",
+          }
+        : {
+            title: "暂无整合结果",
+            description: "点击右上角「整合」，生成可查看的结果表。",
+          };
   const forceTitle = shareBlocked
     ? "共享盘异常：处理后再重跑"
     : !allAligned
@@ -935,6 +961,7 @@ export default function App() {
                 conflicts={conflicts}
                 rowConflicts={rowConflicts}
                 onExportView={canConsolidate ? handleExportView : undefined}
+                emptyState={consolidationEmpty}
               />
             </Card>
           </div>

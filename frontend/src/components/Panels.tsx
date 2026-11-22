@@ -37,6 +37,7 @@ import {
   FileSpreadsheet,
   Filter,
   History,
+  Layers,
   Mail,
   MailCheck,
   Search,
@@ -320,6 +321,8 @@ type ConsolidationPanelProps = {
    * 未提供时不显示导出按钮（例如没有整合/导出权限的只读身份）。
    */
   onExportView?: (columns: string[], rows: string[][]) => void | Promise<void>;
+  /** 结果为空时的角色化引导；不传则保留原来的通用“暂无数据”。 */
+  emptyState?: { title: string; description: string };
 };
 
 /** 结果表的一行：原始单元格 + 状态（状态筛选与行底色都要用，所以连下标一起包起来）。 */
@@ -342,6 +345,7 @@ export function ConsolidationPanel({
   conflicts,
   rowConflicts,
   onExportView,
+  emptyState,
 }: ConsolidationPanelProps) {
   // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（「导出当前视图」按筛选结果导出；
   // 标题栏的正式「生成文件」仍只导 Ready 行，两者互不影响）
@@ -598,9 +602,19 @@ export function ConsolidationPanel({
         </div>
       </div>
       {rows.length === 0 ? (
-        <div className="table-empty">
-          <Empty description="暂无数据" />
-        </div>
+        emptyState ? (
+          <div className="consolidation-empty" role="status">
+            <div className="consolidation-empty-art" aria-hidden="true">
+              <Layers size={28} strokeWidth={1.5} />
+            </div>
+            <div className="consolidation-empty-title">{emptyState.title}</div>
+            <p className="consolidation-empty-desc">{emptyState.description}</p>
+          </div>
+        ) : (
+          <div className="table-empty">
+            <Empty description="暂无数据" />
+          </div>
+        )
       ) : (
         <div className="tblwrap">
           <Table<ConsolidationRow>

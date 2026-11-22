@@ -103,6 +103,31 @@ describe("数据整合结果表", () => {
     expect(document.querySelector(".ant-table-tbody")).toBeNull();
   });
 
+  it("提供 emptyState 时渲染角色化引导，而不是通用暂无数据", () => {
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={COLUMNS}
+          rows={[]}
+          statuses={[]}
+          counts={{}}
+          emptyState={{
+            title: "数据等待对齐",
+            description: "共享盘上的新版本还没有全部取到本机，先完成「数据对齐」。",
+          }}
+        />
+      </AntApp>,
+    );
+    const empty = document.querySelector(".consolidation-empty") as HTMLElement;
+    expect(empty).not.toBeNull();
+    expect(empty).toHaveAttribute("role", "status");
+    expect(screen.getByText("数据等待对齐")).toBeInTheDocument();
+    expect(screen.getByText("共享盘上的新版本还没有全部取到本机，先完成「数据对齐」。")).toBeInTheDocument();
+    expect(document.querySelector(".consolidation-empty-art")).not.toBeNull();
+    expect(screen.queryByText("暂无数据")).toBeNull();
+    expect(empty.querySelector("button")).toBeNull();
+  });
+
   it("导出当前视图把查找与状态筛选后的全部行交给回调（不是当前页）", async () => {
     const user = userEvent.setup();
     const onExportView = vi.fn();

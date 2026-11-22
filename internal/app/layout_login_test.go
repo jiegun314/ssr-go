@@ -1,9 +1,7 @@
 package app
 
-// 登录页的 Admin 方块：品牌红底、白字（其余组别保持白底描边）。
-//
-// 固定口径：类名只给 Admin（role.needsPassword），颜色只用 design token --brand-red，
-// 悬停/按下仍是白字，避免"红底黑字"看不清。
+// 登录页：左右分栏，右侧 2×2 组别卡；管理员入口是分隔线下的低强调文本按钮，
+// 不再使用红底大方块。
 
 import (
 	"strings"
@@ -48,26 +46,56 @@ func TestTheLoginShowsTheSSRLogo(t *testing.T) {
 	}
 }
 
-func TestTheAdminLoginTileIsRedWithWhiteText(t *testing.T) {
+func TestTheLoginUsesASplitPanelAndQuietAdminEntry(t *testing.T) {
 	screen := readFrontendSource(t, "src/components/LoginScreen.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
 
-	if !strings.Contains(screen, "role.needsPassword ? \" login-tile-admin\" : \"\"") {
-		t.Error("只有 Admin 方块应当带 login-tile-admin 类")
-	}
-
-	rule := cssBlock(t, styles, ".login-tile-admin.ant-btn {")
 	for _, wanted := range []string{
-		"background: var(--brand-red);",
-		"border-color: var(--brand-red);",
-		"color: #fff;",
+		`<aside className="login-brand">`,
+		`<section className="login-access">`,
+		`<div className="login-role-grid">{mainRoles.map(tile)}</div>`,
+		`className="login-admin-entry"`,
+		`aria-label={adminRole.label}`,
+		`className="login-tile-copy"`,
 	} {
-		if !strings.Contains(rule, wanted) {
-			t.Errorf("Admin 方块应当红底白字，缺少：%s，实际块：\n%s", wanted, rule)
+		if !strings.Contains(screen, wanted) {
+			t.Errorf("登录页缺少分栏结构或低强调管理员入口：%s", wanted)
 		}
 	}
-	hover := cssBlock(t, styles, ".login-tile-admin.ant-btn:hover,")
-	if !strings.Contains(hover, "color: #fff;") {
-		t.Errorf("Admin 方块悬停时仍要白字，实际块：\n%s", hover)
+	for _, unwanted := range []string{"login-row-main", "login-row-admin", "login-tile-admin"} {
+		if strings.Contains(screen, unwanted) {
+			t.Errorf("登录页仍在用旧布局类名：%s", unwanted)
+		}
+	}
+
+	panel := cssBlock(t, styles, ".login-panel {")
+	for _, wanted := range []string{
+		"display: grid;",
+		"grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);",
+		"border-radius: 16px;",
+	} {
+		if !strings.Contains(panel, wanted) {
+			t.Errorf("登录面板应当是左右分栏的圆角浮层，缺少：%s，实际块：\n%s", wanted, panel)
+		}
+	}
+
+	grid := cssBlock(t, styles, ".login-role-grid {")
+	if !strings.Contains(grid, "grid-template-columns: repeat(2, minmax(0, 1fr));") {
+		t.Errorf("组别卡应当是 2×2 网格，实际块：\n%s", grid)
+	}
+
+	tile := cssBlock(t, styles, ".login-tile.ant-btn {")
+	for _, wanted := range []string{"height: 72px;", "border-radius: 10px;"} {
+		if !strings.Contains(tile, wanted) {
+			t.Errorf("组别卡应当是紧凑横向卡片，缺少：%s，实际块：\n%s", wanted, tile)
+		}
+	}
+
+	admin := cssBlock(t, styles, ".login-admin-entry.ant-btn {")
+	if !strings.Contains(admin, "background: transparent;") {
+		t.Errorf("管理员入口应当是低强调透明按钮，实际块：\n%s", admin)
+	}
+	if strings.Contains(admin, "var(--brand-red)") {
+		t.Errorf("管理员入口不应再铺品牌红，实际块：\n%s", admin)
 	}
 }
