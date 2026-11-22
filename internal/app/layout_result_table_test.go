@@ -359,9 +359,9 @@ func TestConflictCellsAreMarkedInPlace(t *testing.T) {
 }
 
 // TestTheConsolidationHeadButtonsKeepOnePrimary 固定数据整合标题栏的两个层级：
-// 「整合」是唯一的品牌红填充主按钮（24px 紧凑档，占标题栏正中）；
-// 「强制重跑 / 生成文件」是浅色标题栏上的中性灰纯图标按钮（32px 标准档，tooltip + aria-label），
-// 与工具条查找/导出、左栏导入动作保持同一档尺寸，不再用白底文字按钮。
+// 标题条是唯一的实底品牌红，红底上「整合」是白色主按钮（24px 紧凑档，占正中）；
+// 「强制重跑 / 生成文件」是红底上的白色纯图标按钮（32px 标准档，tooltip + aria-label），
+// 与工具条查找/导出、左栏导入动作保持同一档尺寸。
 func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 	app := readFrontendSource(t, "src/App.tsx")
 	styles := readFrontendSource(t, "src/styles.css")
@@ -369,9 +369,9 @@ func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 	runButton := cssRule(t, styles, ".consolidation-card .consolidation-run.ant-btn {")
 	for _, wanted := range []string{
 		"height: 24px;",
-		"background: var(--brand-red);",
-		"color: #fff;",
-		"border-color: var(--brand-red);",
+		"background: #fff;",
+		"color: var(--brand-red);",
+		"border-color: #fff;",
 	} {
 		if !strings.Contains(runButton, wanted) {
 			t.Errorf("「整合」按钮缺少 %s，实际块：\n%s", wanted, runButton)
@@ -380,12 +380,24 @@ func TestTheConsolidationHeadButtonsKeepOnePrimary(t *testing.T) {
 	if strings.Contains(runButton, "position: absolute;") {
 		t.Error("「整合」按钮不再绝对定位：标题变长会重叠，改用三列网格")
 	}
+	for _, wanted := range []string{
+		".card.consolidation-card > .ant-card-head .ant-card-head-title,",
+		".consolidation-card > .ant-card-head .consolidation-force.ant-btn,",
+		".consolidation-card > .ant-card-head .consolidation-export.ant-btn {",
+		"color: #fff;",
+		"background: rgba(255, 255, 255, 0.16);",
+	} {
+		if !strings.Contains(styles, wanted) {
+			t.Errorf("红底标题栏的反白标题/图标缺少：%s", wanted)
+		}
+	}
 	headGrid := cssBlock(t, styles, ".consolidation-card > .ant-card-head {")
 	for _, wanted := range []string{
 		"display: grid;",
 		"grid-template-columns: 1fr auto 1fr;",
 		"align-items: center;",
 		"align-content: center;",
+		"background: var(--brand-red);",
 	} {
 		if !strings.Contains(headGrid, wanted) {
 			t.Errorf("标题栏三列网格缺少 %s，实际块：\n%s", wanted, headGrid)

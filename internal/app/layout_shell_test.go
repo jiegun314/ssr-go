@@ -113,8 +113,13 @@ func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 	}
 
 	header := cssBlock(t, styles, ".card > .ant-card-head {")
-	if !strings.Contains(header, "background: #fff;") {
-		t.Errorf("模块标题条应当是白底，实际块：\n%s", header)
+	for _, wanted := range []string{
+		"background: var(--brand-red-soft);",
+		"border-bottom: 1px solid var(--brand-red-border);",
+	} {
+		if !strings.Contains(header, wanted) {
+			t.Errorf("模块标题条应当是浅红标题带（缺 %s），实际块：\n%s", wanted, header)
+		}
 	}
 	bar := cssBlock(t, styles, ".card > .ant-card-head::before {")
 	for _, wanted := range []string{"width: 3px;", "background: var(--brand-red);"} {
@@ -123,21 +128,29 @@ func TestTheModuleHeadersAndBordersSeparateTheModules(t *testing.T) {
 		}
 	}
 	title := cssBlock(t, styles, ".card:not(.log-card) > .ant-card-head .ant-card-head-title {")
-	if !strings.Contains(title, "color: rgba(0, 0, 0, 0.88);") {
-		t.Errorf("模块标题应当是深色字，实际块：\n%s", title)
+	if !strings.Contains(title, "color: var(--brand-red-deep);") {
+		t.Errorf("模块标题应当是深红字，实际块：\n%s", title)
 	}
 	accent := cssBlock(t, styles, ".consolidation-card > .ant-card-head {")
-	if !strings.Contains(accent, "color-mix(in srgb, var(--brand-red)") {
-		t.Errorf("数据整合标题条应当保留品牌红淡底，实际块：\n%s", accent)
+	for _, wanted := range []string{
+		"background: var(--brand-red);",
+		"border-bottom: 1px solid var(--brand-red-deep);",
+	} {
+		if !strings.Contains(accent, wanted) {
+			t.Errorf("数据整合标题条应当是实底品牌红（缺 %s），实际块：\n%s", wanted, accent)
+		}
+	}
+	if strings.Contains(accent, "color-mix") {
+		t.Errorf("数据整合标题条不再用 4%% 淡底，实际块：\n%s", accent)
 	}
 
 	logHead := cssBlock(t, styles, ".log-card > .ant-card-head {")
-	if !strings.Contains(logHead, "background: var(--log-head-bg);") {
-		t.Errorf("操作日志的标题条应当是更深一档的灰底，实际块：\n%s", logHead)
+	if !strings.Contains(logHead, "border-bottom-color: var(--brand-red-border);") {
+		t.Errorf("操作日志标题条应当用浅红收边，实际块：\n%s", logHead)
 	}
 	logTitle := cssBlock(t, styles, ".log-card > .ant-card-head .ant-card-head-title {")
-	if !strings.Contains(logTitle, "color: rgba(0, 0, 0, 0.88);") {
-		t.Errorf("操作日志标题应当与其他模块同色，实际块：\n%s", logTitle)
+	if !strings.Contains(logTitle, "color: var(--brand-red-deep);") {
+		t.Errorf("操作日志标题应当与其他模块同为深红，实际块：\n%s", logTitle)
 	}
 
 	card := cssRule(t, styles, ".card {")

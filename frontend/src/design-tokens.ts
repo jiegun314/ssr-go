@@ -12,6 +12,18 @@
 /** 品牌红：强生企业红（PANTONE 485 C）。主按钮 / 链接 / 强调色，白字对比度 4.87:1。 */
 export const BRAND_RED = "#DA291C";
 
+/** 深一档品牌红：浅红标题条上的标题字、主标题条下沿与书脊，避免正红小字发飘。 */
+export const BRAND_RED_DEEP = "#A3160D";
+
+/** 浅红标题底：普通模块的标题带，只在标题层铺色，正文保持纯白。 */
+export const BRAND_RED_SOFT = "#FFF3F1";
+
+/** 浅红描边：浅红标题带与白底内容之间的收边，避免再叠一条灰线。 */
+export const BRAND_RED_BORDER = "#F2D7D3";
+
+/** 品牌红悬停：红底主按钮的 hover 色，比正红深一档但不发黑。 */
+export const BRAND_RED_HOVER = "#C21F14";
+
 /** 危险红：antd 默认 colorError（#ff4d4f）白底只有 3.27:1，换成同色系 red-7。 */
 export const DANGER_RED = "#CF1322";
 
@@ -48,9 +60,6 @@ export const SPACE_TOKENS = {
   "space-16": "16px",
 } as const;
 
-/** 操作日志标题条的灰底：比模块描边浅、比 antd colorFillAlter 深一档。 */
-export const LOG_HEAD_BG = "#e8e8e8";
-
 /** 日志时间列宽：装得下 HH:MM:SS（12px 等宽数字约 54px）。 */
 export const LOG_TIME_WIDTH = "64px";
 
@@ -80,6 +89,10 @@ export const LOG_LEVEL_COLORS: Record<"info" | "success" | "warning" | "error", 
  */
 export const CSS_TOKENS: Record<string, string> = {
   "brand-red": BRAND_RED,
+  "brand-red-deep": BRAND_RED_DEEP,
+  "brand-red-soft": BRAND_RED_SOFT,
+  "brand-red-border": BRAND_RED_BORDER,
+  "brand-red-hover": BRAND_RED_HOVER,
   "danger-red": DANGER_RED,
   "module-border": MODULE_BORDER,
   "app-bg": APP_BG,
@@ -88,7 +101,6 @@ export const CSS_TOKENS: Record<string, string> = {
   "inner-radius": INNER_RADIUS,
   "card-shadow": CARD_SHADOW,
   ...SPACE_TOKENS,
-  "log-head-bg": LOG_HEAD_BG,
   "log-time-width": LOG_TIME_WIDTH,
   "log-level-slot": LOG_LEVEL_SLOT,
   "log-min-height": LOG_MIN_HEIGHT,

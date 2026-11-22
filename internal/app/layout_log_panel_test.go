@@ -34,14 +34,14 @@ func TestTheLogWindowKeepsItsDesignContracts(t *testing.T) {
 
 	for _, wanted := range []string{
 		".log-list {",
-		".log-card > .ant-card-head {", // 灰底 + 深色字的标题条
+		".log-card > .ant-card-head {", // 浅红标题带 + 深红标题
 		".log-card > .ant-card-head .ant-card-head-title {",
-		"background: var(--log-head-bg);",          // 标题条用更深一档的灰（值见 design-tokens.ts）
-		".log-toolbar .ant-segmented-item-label {", // 栏目文字排版
-		"font-size: 12px;",                         // 栏目文字比正文小一号
-		"line-height: 1;",                          // 文字按自身行高居中，不再被基线压低
-		"height: 100%;",                            // 撑满筛选项高度，纵向居中
-		".log-toolbar .ant-segmented-item {",       // 每项独立圆角 + 留缝
+		"border-bottom-color: var(--brand-red-border);", // 与其他模块同一套红色分级
+		".log-toolbar .ant-segmented-item-label {",      // 栏目文字排版
+		"font-size: 12px;",                   // 栏目文字比正文小一号
+		"line-height: 1;",                    // 文字按自身行高居中，不再被基线压低
+		"height: 100%;",                      // 撑满筛选项高度，纵向居中
+		".log-toolbar .ant-segmented-item {", // 每项独立圆角 + 留缝
 		"margin-inline: var(--space-2);",
 		"border-radius: var(--inner-radius);",
 		"padding-inline: var(--space-8);", // 比原来的 6px 松一档
