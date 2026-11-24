@@ -168,11 +168,15 @@ func TestSourcePermissions(t *testing.T) {
 	}
 }
 
-func TestNMPAAccessIsAdminOnly(t *testing.T) {
+func TestNMPAViewIsForSupplyChainAndAdmin(t *testing.T) {
 	for _, role := range []Role{RoleAdmin, RoleRA, RoleEAMA, RoleUDI, RoleSupplyChain} {
-		want := role == RoleAdmin
-		if got := Can(role, ActionNMPA); got != want {
-			t.Errorf("Can(%s, ActionNMPA) = %v; want %v", role, got, want)
+		wantView := role == RoleAdmin || role == RoleSupplyChain
+		wantManage := role == RoleAdmin
+		if got := Can(role, ActionNMPAView); got != wantView {
+			t.Errorf("Can(%s, ActionNMPAView) = %v; want %v", role, got, wantView)
+		}
+		if got := Can(role, ActionNMPA); got != wantManage {
+			t.Errorf("Can(%s, ActionNMPA) = %v; want %v", role, got, wantManage)
 		}
 	}
 }

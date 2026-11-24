@@ -59,6 +59,8 @@ export const BUSY_TEXT: Record<string, string> = {
   NMPACheck: "正在检查药监更新...",
   NMPASyncFull: "正在下载并筛选药监全量数据...",
   NMPASyncWeekly: "正在应用药监周更...",
+  NMPAExport: "正在导出药监查询结果...",
+  SelectNMPAExportTarget: "正在选择保存位置",
 };
 
 type BusyListener = (text: string | null) => void;

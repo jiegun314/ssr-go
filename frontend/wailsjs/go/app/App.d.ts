@@ -47,7 +47,9 @@ export function LoginAdmin(arg1:string,arg2:string):Promise<app.LoginResult>;
 
 export function Logout():Promise<app.LoginResult>;
 
+export function NMPAAutoCheck():Promise<app.NMPAStatus>;
 export function NMPACheck():Promise<app.NMPAStatus>;
+export function NMPAExport(arg1:string,arg2:string):Promise<app.ExportResult>;
 
 export function NMPASearch(arg1:string,arg2:number,arg3:number):Promise<app.NMPAQueryResult>;
 
@@ -56,6 +58,7 @@ export function NMPAStatus():Promise<app.NMPAStatus>;
 export function NMPASyncFull():Promise<app.NMPASyncResult>;
 
 export function NMPASyncWeekly():Promise<app.NMPASyncResult>;
+export function SelectNMPAExportTarget():Promise<app.ExportTarget>;
 
 export function OpenConfigDirectory():Promise<void>;
 

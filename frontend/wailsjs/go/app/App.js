@@ -90,8 +90,14 @@ export function Logout() {
   return window['go']['app']['App']['Logout']();
 }
 
+export function NMPAAutoCheck() {
+  return window['go']['app']['App']['NMPAAutoCheck']();
+}
 export function NMPACheck() {
   return window['go']['app']['App']['NMPACheck']();
+}
+export function NMPAExport(arg1, arg2) {
+  return window['go']['app']['App']['NMPAExport'](arg1, arg2);
 }
 
 export function NMPASearch(arg1, arg2, arg3) {
@@ -108,6 +114,9 @@ export function NMPASyncFull() {
 
 export function NMPASyncWeekly() {
   return window['go']['app']['App']['NMPASyncWeekly']();
+}
+export function SelectNMPAExportTarget() {
+  return window['go']['app']['App']['SelectNMPAExportTarget']();
 }
 
 export function OpenConfigDirectory() {

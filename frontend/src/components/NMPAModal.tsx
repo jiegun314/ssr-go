@@ -3,6 +3,7 @@ import {
   CloudDownload,
   Database,
   Download,
+  FileDown,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -10,11 +11,18 @@ import {
 import { useEffect, useState } from "react";
 
 import { call } from "../bridge";
-import type { NMPAQueryResult, NMPAStatus, NMPASyncResult } from "../types";
+import type {
+  ExportResult,
+  ExportTarget,
+  NMPAQueryResult,
+  NMPAStatus,
+  NMPASyncResult,
+} from "../types";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  canManage: boolean;
 };
 
 const PAGE_SIZE = 20;
@@ -34,12 +42,13 @@ function formatTime(value?: string): string {
 }
 
 /**
- * 药监 UDI 参考库：独立于导入/整合流程，只给 Admin 查询本企业数据。
+ * 药监 UDI 参考库：独立于导入/整合流程，Admin / Supply Chain 可查询本企业数据。
  *
  * 数据来自药监 RSS 发布包，按 setting.yaml 的统一社会信用代码过滤后写入
  * 独立的 nmpa_udi.sqlite3；这里不出现"导入到 UDI 来源"之类的动作。
+ * 自动检查只读 RSS；全量/周更仍必须由 Admin 手动执行。
  */
-export function NMPAModal({ open, onClose }: Props) {
+export function NMPAModal({ open, onClose, canManage }: Props) {
   const [status, setStatus] = useState<NMPAStatus | null>(null);
   const [query, setQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
@@ -47,6 +56,7 @@ export function NMPAModal({ open, onClose }: Props) {
   const [result, setResult] = useState<NMPAQueryResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,14 +68,22 @@ export function NMPAModal({ open, onClose }: Props) {
     setAppliedQuery("");
     setResult(null);
     setError(null);
-    void loadStatus();
+    void loadStatus(true);
     void loadSearch(1, "");
+    const timer = window.setInterval(() => void loadStatus(true), 30 * 60 * 1000);
+    return () => window.clearInterval(timer);
     // open 变化时才重新拉取；查询动作由按钮触发。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  async function loadStatus() {
-    const next = await call<NMPAStatus>("NMPAStatus");
+  async function loadStatus(auto = false) {
+    const next = auto
+      ? await call<NMPAStatus>("NMPAAutoCheck")
+      : await call<NMPAStatus>("NMPAStatus");
+    if (!next && auto) {
+      // 旧预览/旧后端没有自动检查方法时退回只读状态，不阻塞打开窗口。
+      return loadStatus(false);
+    }
     if (next) {
       setStatus(next);
       if (next.error) {
@@ -112,6 +130,30 @@ export function NMPAModal({ open, onClose }: Props) {
       }
     } finally {
       setChecking(false);
+    }
+  }
+
+  async function exportResults() {
+    setExporting(true);
+    setError(null);
+    try {
+      const target = await call<ExportTarget>("SelectNMPAExportTarget");
+      if (!target?.target) {
+        return;
+      }
+      const result = await call<ExportResult>("NMPAExport", appliedQuery, target.target);
+      if (!result) {
+        setError("导出药监查询结果失败，请查看操作日志。");
+        return;
+      }
+      if (result.failed) {
+        setError(result.message || "导出药监查询结果失败。");
+        message.error(result.message || "导出失败");
+        return;
+      }
+      message.success(result.message || "已导出");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -214,19 +256,25 @@ export function NMPAModal({ open, onClose }: Props) {
             </p>
           </div>
           <div className="nmpa-actions">
-            <Button
-              icon={<RefreshCw size={14} />}
-              loading={checking}
-              onClick={() => void checkUpdates()}
-            >
-              检查更新
-            </Button>
-            <Button icon={<CloudDownload size={14} />} onClick={syncFull}>
-              同步全量
-            </Button>
-            <Button type="primary" icon={<Download size={14} />} onClick={() => void syncWeekly()}>
-              更新周更
-            </Button>
+            {canManage ? (
+              <>
+                <Button
+                  icon={<RefreshCw size={14} />}
+                  loading={checking}
+                  onClick={() => void checkUpdates()}
+                >
+                  检查更新
+                </Button>
+                <Button icon={<CloudDownload size={14} />} onClick={syncFull}>
+                  同步全量
+                </Button>
+                <Button type="primary" icon={<Download size={14} />} onClick={() => void syncWeekly()}>
+                  更新周更
+                </Button>
+              </>
+            ) : (
+              <span className="nmpa-manage-hint">发布检查自动进行；全量与周更更新仅 Admin 可操作。</span>
+            )}
           </div>
         </div>
 
@@ -316,6 +364,14 @@ export function NMPAModal({ open, onClose }: Props) {
             />
             <Button type="primary" icon={<Search size={14} />} onClick={search} loading={loading}>
               查找
+            </Button>
+            <Button
+              icon={<FileDown size={14} />}
+              onClick={() => void exportResults()}
+              loading={exporting}
+              disabled={!result || result.total === 0}
+            >
+              导出
             </Button>
           </div>
         </div>

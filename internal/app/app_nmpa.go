@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jiegun314/ssr-go/internal/auth"
+	"github.com/jiegun314/ssr-go/internal/excelio"
 	"github.com/jiegun314/ssr-go/internal/nmpa"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // NMPARelease 是界面使用的发布包摘要（不直接暴露 nmpa 包类型给 Wails 生成器）。
@@ -82,11 +85,11 @@ func (app *App) nmpaContext() context.Context {
 	return context.Background()
 }
 
-// NMPAStatus 返回本地参考库状态（管理员）。
+// NMPAStatus 返回本地参考库状态（Admin / Supply Chain）。
 func (app *App) NMPAStatus() (NMPAStatus, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	if err := app.authorize(auth.ActionNMPA); err != nil {
+	if err := app.authorize(auth.ActionNMPAView); err != nil {
 		return NMPAStatus{}, err
 	}
 	service, err := app.nmpaServiceOrError()
@@ -97,7 +100,37 @@ func (app *App) NMPAStatus() (NMPAStatus, error) {
 	return toNMPAStatus(status), err
 }
 
-// NMPACheck 拉取药监 RSS，仅更新检查状态，不下载发布包。
+// NMPAAutoCheck 自动检查 RSS；30 分钟内已检查过就不重复请求。
+// 只更新检查状态，不下载全量/周更包，也不写审计（避免打开窗口就产生审计噪声）。
+func (app *App) NMPAAutoCheck() NMPAStatus {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if err := app.authorize(auth.ActionNMPAView); err != nil {
+		return NMPAStatus{Error: userMessage(err)}
+	}
+	service, err := app.nmpaServiceOrError()
+	if err != nil {
+		return NMPAStatus{Error: userMessage(err)}
+	}
+	status, err := service.Status()
+	if err != nil {
+		return NMPAStatus{Error: userMessage(err)}
+	}
+	if status.LastCheckAt != "" {
+		if checked, parseErr := time.ParseInLocation("2006-01-02 15:04:05", status.LastCheckAt, time.Local); parseErr == nil && time.Since(checked) < 30*time.Minute {
+			return toNMPAStatus(status)
+		}
+	}
+	status, err = service.Check(app.nmpaContext())
+	result := toNMPAStatus(status)
+	if err != nil {
+		result.Error = userMessage(err)
+		app.appendLog(LogWarning, "药监自动检查失败："+err.Error())
+	}
+	return result
+}
+
+// NMPACheck 拉取药监 RSS，仅更新检查状态，不下载发布包（仅 Admin）。
 func (app *App) NMPACheck() NMPAStatus {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -179,11 +212,11 @@ func (app *App) NMPASyncWeekly() NMPASyncResult {
 	return toNMPASyncResult(result, false)
 }
 
-// NMPASearch 查询本地参考库（管理员）。
+// NMPASearch 查询本地参考库（Admin / Supply Chain）。
 func (app *App) NMPASearch(query string, page int, pageSize int) (NMPAQueryResult, error) {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	if err := app.authorize(auth.ActionNMPA); err != nil {
+	if err := app.authorize(auth.ActionNMPAView); err != nil {
 		return NMPAQueryResult{}, err
 	}
 	service, err := app.nmpaServiceOrError()
@@ -200,8 +233,25 @@ func (app *App) NMPASearch(query string, page int, pageSize int) (NMPAQueryResul
 	if err != nil {
 		return NMPAQueryResult{}, err
 	}
-	rows := make([][]string, 0, len(result.Devices))
-	for _, device := range result.Devices {
+	return NMPAQueryResult{
+		Total:   result.Total,
+		Columns: nmpaQueryColumns(),
+		Rows:    nmpaQueryRows(result.Devices),
+	}, nil
+}
+
+var nmpaExportColumns = []string{
+	"Primary DI", "产品名称", "通用名称", "规格型号", "注册人/备案人",
+	"注册证/备案凭证编号", "产品类别", "版本状态", "包装数", "联系人",
+}
+
+func nmpaQueryColumns() []string {
+	return append([]string(nil), nmpaExportColumns...)
+}
+
+func nmpaQueryRows(devices []nmpa.Device) [][]string {
+	rows := make([][]string, 0, len(devices))
+	for _, device := range devices {
 		rows = append(rows, []string{
 			device.PrimaryDI, device.ProductName, device.DeviceGenericName, device.Specification,
 			device.RegistrantName, device.RegistrationFilingCertificateNo,
@@ -209,11 +259,68 @@ func (app *App) NMPASearch(query string, page int, pageSize int) (NMPAQueryResul
 			fmt.Sprintf("%d", device.PackageCount), fmt.Sprintf("%d", device.ContactCount),
 		})
 	}
-	return NMPAQueryResult{
-		Total:   result.Total,
-		Columns: []string{"Primary DI", "产品名称", "通用名称", "规格型号", "注册人/备案人", "注册证/备案凭证编号", "产品类别", "版本状态", "包装数", "联系人"},
-		Rows:    rows,
-	}, nil
+	return rows
+}
+
+// SelectNMPAExportTarget 打开查询结果的保存对话框。
+func (app *App) SelectNMPAExportTarget() ExportTarget {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if err := app.authorize(auth.ActionNMPAView); err != nil {
+		app.appendLog(LogWarning, "导出药监查询结果被拒绝："+err.Error())
+		return ExportTarget{}
+	}
+	defaultName := "药监UDI参考库_" + time.Now().Format("20060102_150405") + ".xlsx"
+	target, err := runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
+		Title:           "导出药监 UDI 查询结果",
+		DefaultFilename: defaultName,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Excel 文件 (*.xlsx)", Pattern: "*.xlsx"},
+		},
+	})
+	if err != nil {
+		return ExportTarget{DefaultName: defaultName}
+	}
+	return ExportTarget{DefaultName: defaultName, Target: target}
+}
+
+// NMPAExport 把当前查询条件下的全部匹配设备写成 xlsx（最多 100000 行）。
+func (app *App) NMPAExport(query string, target string) ExportResult {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if err := app.beginOperation(); err != nil {
+		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err)}
+	}
+	defer app.endOperation()
+	if err := app.authorize(auth.ActionNMPAView); err != nil {
+		return ExportResult{Failed: true, Title: "无权限", Message: userMessage(err), Log: app.logText()}
+	}
+	if target == "" {
+		return ExportResult{Log: app.logText()}
+	}
+	service, err := app.nmpaServiceOrError()
+	if err != nil {
+		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err), Log: app.logText()}
+	}
+	result, err := service.Query(strings.TrimSpace(query), 100000, 0)
+	if err != nil {
+		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err), Log: app.logText()}
+	}
+	if result.Total > 100000 {
+		return ExportResult{Failed: true, Title: "导出失败", Message: "匹配结果超过 100000 条，请先缩小查询范围。", Log: app.logText()}
+	}
+	columns := nmpaQueryColumns()
+	rows := nmpaQueryRows(result.Devices)
+	if err := excelio.WriteReviewWorkbook(target, columns, rows); err != nil {
+		app.appendLog(LogError, "导出药监查询结果失败："+err.Error())
+		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err), Log: app.logText()}
+	}
+	app.appendLog(LogSuccess, fmt.Sprintf("药监 UDI 查询结果已导出到 %s（%d 行）", target, len(rows)))
+	app.audit("nmpa_export", target, fmt.Sprintf("药监查询结果，%d 行", len(rows)), "ok")
+	return ExportResult{
+		Log: app.logText(), Title: "成功", Path: target,
+		Message: fmt.Sprintf("已导出 %d 条药监 UDI 记录到：\n%s", len(rows), target),
+	}
 }
 
 func toNMPAStatus(status nmpa.Status) NMPAStatus {

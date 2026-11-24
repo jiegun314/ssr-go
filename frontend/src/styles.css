@@ -2916,6 +2916,14 @@ body {
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
+}
+.nmpa-manage-hint {
+  max-width: 340px;
+  color: rgba(0, 0, 0, .45);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
 }
 .nmpa-alert {
   margin-top: 12px;
@@ -2989,11 +2997,16 @@ body {
 }
 .nmpa-search {
   display: flex;
+  align-items: center;
   gap: 6px;
-  width: min(440px, 55%);
+  width: min(560px, 62%);
 }
 .nmpa-search .ant-input-affix-wrapper {
   min-width: 0;
+  flex: 1 1 auto;
+}
+.nmpa-search .ant-btn {
+  flex: 0 0 auto;
 }
 .nmpa-table .ant-table {
   font-size: 12px;
@@ -3045,6 +3058,10 @@ body {
   }
   .nmpa-actions {
     justify-content: flex-start;
+  }
+  .nmpa-manage-hint {
+    max-width: none;
+    text-align: left;
   }
   .nmpa-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));

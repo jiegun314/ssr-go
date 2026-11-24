@@ -1001,7 +1001,7 @@ export default function App() {
               />
             </Tooltip>
           ) : null}
-          {can("nmpa:manage") ? (
+          {can("nmpa:view") ? (
             <Tooltip title="药监 UDI 参考库">
               <Button
                 className="status-recheck"
@@ -1114,7 +1114,7 @@ export default function App() {
         onClose={() => setAboutOpen(false)}
       />
       <HiddenModal open={hiddenOpen} onClose={closeHidden} />
-      <NMPAModal open={nmpaOpen} onClose={() => setNmpaOpen(false)} />
+      <NMPAModal open={nmpaOpen} onClose={() => setNmpaOpen(false)} canManage={can("nmpa:manage")} />
     </>
   );
 }

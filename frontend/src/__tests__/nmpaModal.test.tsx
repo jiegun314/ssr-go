@@ -43,12 +43,12 @@ const queryResult = (): NMPAQueryResult => ({
   rows: [["DI-1", "椎间融合器"]],
 });
 
-function renderModal(overrides: Partial<NMPAStatus> = {}) {
+function renderModal(overrides: Partial<NMPAStatus> = {}, canManage = true) {
   const onClose = vi.fn();
   render(
     <ConfigProvider locale={zhCN}>
       <AntApp>
-        <NMPAModal open onClose={onClose} />
+        <NMPAModal open onClose={onClose} canManage={canManage} />
       </AntApp>
     </ConfigProvider>,
   );
@@ -58,9 +58,16 @@ function renderModal(overrides: Partial<NMPAStatus> = {}) {
 beforeEach(() => {
   mockedCall.mockReset();
   mockedCall.mockImplementation(async (method: string) => {
+    if (method === "NMPAAutoCheck") return status();
     if (method === "NMPAStatus") return status();
     if (method === "NMPASearch") return queryResult();
     if (method === "NMPACheck") return status({ lastCheckAt: "2026-11-24 10:00:00" });
+    if (method === "SelectNMPAExportTarget") {
+      return { defaultName: "药监UDI参考库.xlsx", target: "/tmp/nmpa.xlsx" };
+    }
+    if (method === "NMPAExport") {
+      return { failed: false, path: "/tmp/nmpa.xlsx", message: "已导出 1 条药监 UDI 记录" };
+    }
     return undefined;
   });
 });
@@ -90,7 +97,7 @@ describe("药监 UDI 参考库", () => {
 
   it("检查更新会刷新状态", async () => {
     renderModal();
-    await waitFor(() => expect(mockedCall).toHaveBeenCalledWith("NMPAStatus"));
+    await waitFor(() => expect(mockedCall).toHaveBeenCalledWith("NMPAAutoCheck"));
     await userEvent.click(screen.getByRole("button", { name: /检查更新/ }));
     await waitFor(() => expect(mockedCall).toHaveBeenCalledWith("NMPACheck"));
     expect(await screen.findByText(/2026-11-24 10:00:00/)).toBeInTheDocument();
@@ -98,7 +105,7 @@ describe("药监 UDI 参考库", () => {
 
   it("未配置统一社会信用代码时给出明确提示", async () => {
     mockedCall.mockImplementation(async (method: string) => {
-      if (method === "NMPAStatus") {
+      if (method === "NMPAAutoCheck" || method === "NMPAStatus") {
         return status({ socialCreditCode: "", codeConfigured: false, deviceCount: 0, packageCount: 0, contactCount: 0 });
       }
       if (method === "NMPASearch") return { total: 0, columns: [], rows: [] };
@@ -107,5 +114,31 @@ describe("药监 UDI 参考库", () => {
     renderModal();
     expect(await screen.findByText("还没有配置统一社会信用代码")).toBeInTheDocument();
     expect(screen.getAllByText("未配置").length).toBeGreaterThan(0);
+  });
+
+  it("打开窗口只自动检查，不自动同步全量或周更", async () => {
+    renderModal();
+    await waitFor(() => expect(mockedCall).toHaveBeenCalledWith("NMPAAutoCheck"));
+    expect(mockedCall).not.toHaveBeenCalledWith("NMPASyncFull");
+    expect(mockedCall).not.toHaveBeenCalledWith("NMPASyncWeekly");
+  });
+
+  it("Supply Chain 只能查询和导出，看不到更新按钮", async () => {
+    renderModal({}, false);
+    await waitFor(() => expect(screen.getByText("42")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: /检查更新/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /同步全量/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/更新仅 Admin 可操作/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /导\s*出/ })).toBeInTheDocument();
+  });
+
+  it("导出当前查询结果到 xlsx", async () => {
+    renderModal();
+    await waitFor(() => expect(screen.getByText("椎间融合器")).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: /导\s*出/ }));
+    await waitFor(() => expect(mockedCall).toHaveBeenCalledWith("SelectNMPAExportTarget"));
+    await waitFor(() =>
+      expect(mockedCall).toHaveBeenCalledWith("NMPAExport", "", "/tmp/nmpa.xlsx"),
+    );
   });
 });
