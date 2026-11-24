@@ -2,11 +2,13 @@ package nmpa
 
 import (
 	"archive/zip"
+	"bufio"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // deviceXML 直接对应药监的 <device> 节点；字段用拼音名，避免和标准表字段混淆。
@@ -127,7 +129,7 @@ func parseXMLFile(file *zip.File, expected string, devices map[string]Device, to
 		return fmt.Errorf("读取 NMPA XML 失败: %w", err)
 	}
 	defer stream.Close()
-	decoder := xml.NewDecoder(stream)
+	decoder := xml.NewDecoder(&xmlControlSanitizer{reader: bufio.NewReaderSize(stream, 64*1024)})
 	for {
 		token, err := decoder.Token()
 		if err == io.EOF {
@@ -249,4 +251,54 @@ func sortDevices(devices []Device) {
 		}
 		return devices[i].ProductName < devices[j].ProductName
 	})
+}
+
+// xmlControlSanitizer 丢弃 XML 1.0 不允许的 C0 控制字符。
+//
+// 药监全量包中确实出现过 U+0002 一类的坏字节；它们只可能以单字节形式
+// 出现在 UTF-8 流里，因此按字节过滤不会破坏中文等多字节字符。
+type xmlControlSanitizer struct {
+	reader  *bufio.Reader
+	pending []byte
+}
+
+func (sanitizer *xmlControlSanitizer) Read(buffer []byte) (int, error) {
+	count := 0
+	if len(sanitizer.pending) > 0 {
+		count = copy(buffer, sanitizer.pending)
+		sanitizer.pending = sanitizer.pending[count:]
+	}
+	for count < len(buffer) {
+		value, size, err := sanitizer.reader.ReadRune()
+		if err != nil {
+			if count > 0 {
+				return count, nil
+			}
+			return 0, err
+		}
+		if !validXMLRune(value) || (value == utf8.RuneError && size == 1) {
+			continue
+		}
+		if count+size > len(buffer) {
+			var encoded [utf8.UTFMax]byte
+			length := utf8.EncodeRune(encoded[:], value)
+			sanitizer.pending = append(sanitizer.pending, encoded[:length]...)
+			return count, nil
+		}
+		count += utf8.EncodeRune(buffer[count:], value)
+	}
+	return count, nil
+}
+
+func validXMLRune(value rune) bool {
+	if value == '\t' || value == '\n' || value == '\r' {
+		return true
+	}
+	if value < 0x20 || value == 0xFFFE || value == 0xFFFF {
+		return false
+	}
+	if value >= 0xD800 && value <= 0xDFFF {
+		return false
+	}
+	return true
 }

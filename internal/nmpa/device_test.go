@@ -137,3 +137,19 @@ func TestParseArchiveRequiresCodeAndXML(t *testing.T) {
 		t.Fatal("expected missing XML error")
 	}
 }
+
+func TestParseArchiveDropsIllegalXMLControlCharacters(t *testing.T) {
+	xmlData := `<?xml version="1.0" encoding="UTF-8"?>
+<udid><devices><device>
+<zxxsdycpbs>DI-1</zxxsdycpbs><spmc>椎间` + "\x02" + `融合器` + "\uFFFE" + `</spmc>
+<tyshxydm>91310115703465170L</tyshxydm>
+</device></devices></udid>`
+	path := writeDeviceZip(t, xmlData)
+	parsed, err := ParseArchive(path, "91310115703465170L")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Devices) != 1 || parsed.Devices[0].ProductName != "椎间融合器" {
+		t.Fatalf("devices = %#v", parsed.Devices)
+	}
+}

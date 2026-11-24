@@ -40,7 +40,7 @@ type rssItem struct {
 }
 
 var releaseNamePattern = regexp.MustCompile(`^UDID_(DAY|WEEKLY|MONTH|FULL)_(?:UPDATE|RELEASE)_([0-9]{6,8}(?:_[0-9]{8})?)\.zip$`)
-var countPattern = regexp.MustCompile(`([0-9][0-9,]*)\s*(?:条|个|件)`)
+var countPattern = regexp.MustCompile(`([0-9][0-9,]*)\s*(?:条|个|件|产品标识)`)
 
 // ParseFeed 解析 RSS，并把发布包按频率分类、按日期排序。
 func ParseFeed(data []byte, sourceURL string) (*Feed, error) {
@@ -92,6 +92,11 @@ func releaseFromItem(item rssItem, base *url.URL) (Release, bool) {
 	}
 	resolved := base.ResolveReference(parsedLink)
 	name := path.Base(resolved.Path)
+	// 真实 RSS 的链接统一指向 download.html，文件名只出现在 title 中；
+	// 测试与旧格式则可能直接把文件名放在链接路径上。
+	if !releaseNamePattern.MatchString(name) {
+		name = strings.TrimSpace(item.Title)
+	}
 	match := releaseNamePattern.FindStringSubmatch(name)
 	if len(match) != 3 {
 		return Release{}, false

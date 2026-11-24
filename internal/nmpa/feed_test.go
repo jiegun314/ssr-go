@@ -57,3 +57,32 @@ func TestParseFeedRejectsGarbage(t *testing.T) {
 		t.Fatal("expected parse error")
 	}
 }
+
+func TestParseFeedUsesTheTitleWhenTheLinkIsADownloadEndpoint(t *testing.T) {
+	data := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+<title>医疗器械唯一标识数据库发布文件</title>
+<item>
+  <title>UDID_FULL_RELEASE_20261101.zip</title>
+  <description>2026年11月01日的完整下载文件包含6400134产品标识数量。链接：https://udid.nmpa.gov.cn/attachments/attachment/download.html?path=abc</description>
+  <pubDate>Sat, 31 Oct 2026 17:48:59 +0000</pubDate>
+  <link>https://udid.nmpa.gov.cn/attachments/attachment/download.html?path=abc</link>
+</item>
+<item>
+  <title>UDID_WEEKLY_UPDATE_20261116_20261122.zip</title>
+  <description>54,227 条</description>
+  <pubDate>Sun, 22 Nov 2026 18:05:00 +0000</pubDate>
+  <link>https://udid.nmpa.gov.cn/attachments/attachment/download.html?path=def</link>
+</item>
+</channel></rss>`)
+	feed, err := ParseFeed(data, FeedURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if feed.Full == nil || feed.Full.FileName != "UDID_FULL_RELEASE_20261101.zip" || feed.Full.Count != 6400134 {
+		t.Fatalf("full = %#v", feed.Full)
+	}
+	if len(feed.Weekly) != 1 || feed.Weekly[0].FileName != "UDID_WEEKLY_UPDATE_20261116_20261122.zip" {
+		t.Fatalf("weekly = %#v", feed.Weekly)
+	}
+}
