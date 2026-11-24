@@ -146,6 +146,20 @@ describe("药监 UDI 参考库", () => {
     expect(screen.getByRole("button", { name: /导\s*出/ })).toBeInTheDocument();
   });
 
+  it("设备没有包装或联系人时详情不崩溃", async () => {
+    renderModal();
+    await waitFor(() => expect(mockedCall).toHaveBeenCalledWith("NMPASearch", "", 1, 20));
+    mockedCall.mockImplementationOnce(async () => ({
+      ...detail(),
+      packages: null,
+      contacts: null,
+    }) as unknown as NMPADeviceDetail);
+    await userEvent.click(screen.getByText("椎间融合器"));
+    expect(await screen.findByText("发码机构")).toBeInTheDocument();
+    expect(screen.getByText("无包装层级数据")).toBeInTheDocument();
+    expect(screen.getByText("无联系人数据")).toBeInTheDocument();
+  });
+
   it("摘要表只保留 8 个字段，不含包装数和联系人", async () => {
     renderModal();
     expect(await screen.findByText("椎间融合器")).toBeInTheDocument();

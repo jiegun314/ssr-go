@@ -463,6 +463,9 @@ function NMPADetailDrawer({
   loading: boolean;
   onClose: () => void;
 }) {
+  const groups = detail?.groups ?? [];
+  const packages = detail?.packages ?? [];
+  const contacts = detail?.contacts ?? [];
   const packageColumns = [
     { title: "包装 DI", dataIndex: "packageDi", key: "packageDi", ellipsis: true },
     { title: "包装类型", dataIndex: "packageType", key: "packageType", width: 110 },
@@ -498,13 +501,13 @@ function NMPADetailDrawer({
           <div className="nmpa-detail-tags">
             <Tag color="blue">{detail.versionStatus || "版本未知"}</Tag>
             <Tag>{detail.productCategory || "未分类"}</Tag>
-            <span>共 {detail.groups.reduce((sum, group) => sum + group.fields.length, 0)} 个字段</span>
+            <span>共 {groups.reduce((sum, group) => sum + (group.fields?.length ?? 0), 0)} 个字段</span>
           </div>
-          {detail.groups.map((group) => (
+          {groups.map((group) => (
             <section className="nmpa-detail-group" key={group.title}>
               <h4>{group.title}</h4>
               <div className="nmpa-detail-grid">
-                {group.fields.map((field) => (
+                {(group.fields ?? []).map((field) => (
                   <div className="nmpa-detail-field" key={`${group.title}-${field.label}`}>
                     <span>{field.label}</span>
                     <strong title={field.value}>{field.value || "—"}</strong>
@@ -514,27 +517,27 @@ function NMPADetailDrawer({
             </section>
           ))}
           <section className="nmpa-detail-group">
-            <h4>包装层级 <small>{detail.packages.length} 条</small></h4>
+            <h4>包装层级 <small>{packages.length} 条</small></h4>
             <Table
               className="nmpa-detail-table"
               tableLayout="fixed"
               size="small"
               rowKey="packageDi"
               columns={packageColumns}
-              dataSource={detail.packages}
+              dataSource={packages}
               pagination={false}
               locale={{ emptyText: "无包装层级数据" }}
             />
           </section>
           <section className="nmpa-detail-group">
-            <h4>联系人 <small>{detail.contacts.length} 条</small></h4>
+            <h4>联系人 <small>{contacts.length} 条</small></h4>
             <Table
               className="nmpa-detail-table"
               tableLayout="fixed"
               size="small"
               rowKey="phone"
               columns={contactColumns}
-              dataSource={detail.contacts}
+              dataSource={contacts}
               pagination={false}
               locale={{ emptyText: "无联系人数据" }}
             />

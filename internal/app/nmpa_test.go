@@ -86,6 +86,24 @@ func TestNMPASummaryAndDetailExposeTheFullDevice(t *testing.T) {
 	}
 }
 
+func TestNMPADetailKeepsEmptyChildrenAsSlices(t *testing.T) {
+	app := newUsersApp(t)
+	seedNMPADevice(app, nmpa.Device{PrimaryDI: "DI-EMPTY", DeviceGenericName: "无包装设备"})
+	if result := app.Login("supply_chain", ""); result.Failed {
+		t.Fatalf("SC 登录失败：%+v", result)
+	}
+	detail, err := app.NMPADetail("DI-EMPTY")
+	if err != nil {
+		t.Fatalf("详情失败：%v", err)
+	}
+	if detail.Packages == nil || detail.Contacts == nil || detail.Groups == nil {
+		t.Fatalf("空子表应返回空切片而不是 nil：%+v", detail)
+	}
+	if len(detail.Packages) != 0 || len(detail.Contacts) != 0 {
+		t.Fatalf("空子表长度不对：%+v", detail)
+	}
+}
+
 func TestNMPAExportWritesFullWorkbookForSupplyChain(t *testing.T) {
 	app := newUsersApp(t)
 	seedNMPADevice(app, nmpa.Device{

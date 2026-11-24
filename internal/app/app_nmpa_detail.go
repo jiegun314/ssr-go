@@ -107,6 +107,9 @@ func nmpaDeviceDetail(device nmpa.Device) NMPADeviceDetail {
 		DisplayName:     nmpaDisplayName(device),
 		VersionStatus:   device.VersionStatus,
 		ProductCategory: device.ProductCategory,
+		Groups:          make([]NMPAFieldGroup, 0, len(nmpaFieldGroups)),
+		Packages:        make([]NMPAPackage, 0, len(device.Packages)),
+		Contacts:        make([]NMPAContact, 0, len(device.Contacts)),
 	}
 	for _, group := range nmpaFieldGroups {
 		fields := make([]NMPAField, 0, len(group.Columns))
