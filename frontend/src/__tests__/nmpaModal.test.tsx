@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NMPAModal } from "../components/NMPAModal";
 import { call } from "../bridge";
-import type { NMPAQueryResult, NMPAStatus } from "../types";
+import type { NMPADeviceDetail, NMPAQueryResult, NMPAStatus } from "../types";
 
 vi.mock("../bridge", () => ({ call: vi.fn() }));
 
@@ -39,8 +39,21 @@ const status = (overrides: Partial<NMPAStatus> = {}): NMPAStatus => ({
 
 const queryResult = (): NMPAQueryResult => ({
   total: 1,
-  columns: ["Primary DI", "产品名称"],
-  rows: [["DI-1", "椎间融合器"]],
+  columns: ["Primary DI", "产品名称", "通用名称", "规格型号", "注册人/备案人", "注册证/备案凭证编号", "产品类别", "版本状态"],
+  rows: [["DI-1", "椎间融合器", "融合器", "规格-A", "强生", "国械注准1", "骨科", "新增"]],
+});
+
+const detail = (): NMPADeviceDetail => ({
+  primaryDi: "DI-1",
+  displayName: "椎间融合器",
+  versionStatus: "新增",
+  productCategory: "骨科",
+  groups: [
+    { title: "标识与包装", fields: [{ label: "发码机构", value: "GS1" }, { label: "使用单元 DI", value: "" }] },
+    { title: "版本与更正", fields: [{ label: "记录键", value: "KEY-1" }] },
+  ],
+  packages: [{ packageDi: "PKG-1", packageType: "盒", lowerLevelPackageQuantity: "2", lowerLevelPackageIdentifier: "PKG-0" }],
+  contacts: [{ fax: "", email: "a@example.com", phone: "123" }],
 });
 
 function renderModal(overrides: Partial<NMPAStatus> = {}, canManage = true) {
@@ -62,6 +75,7 @@ beforeEach(() => {
     if (method === "NMPAStatus") return status();
     if (method === "NMPASearch") return queryResult();
     if (method === "NMPACheck") return status({ lastCheckAt: "2026-11-24 10:00:00" });
+    if (method === "NMPADetail") return detail();
     if (method === "SelectNMPAExportTarget") {
       return { defaultName: "药监UDI参考库.xlsx", target: "/tmp/nmpa.xlsx" };
     }
@@ -130,6 +144,27 @@ describe("药监 UDI 参考库", () => {
     expect(screen.queryByRole("button", { name: /同步全量/ })).not.toBeInTheDocument();
     expect(screen.getByText(/更新仅 Admin 可操作/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /导\s*出/ })).toBeInTheDocument();
+  });
+
+  it("摘要表只保留 8 个字段，不含包装数和联系人", async () => {
+    renderModal();
+    expect(await screen.findByText("椎间融合器")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "包装数" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "联系人" })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "版本状态" })).toBeInTheDocument();
+  });
+
+  it("点击行打开全部字段详情和包装、联系人", async () => {
+    renderModal();
+    await waitFor(() => expect(mockedCall).toHaveBeenCalledWith("NMPASearch", "", 1, 20));
+    await userEvent.click(screen.getByText("椎间融合器"));
+    await waitFor(() => expect(mockedCall).toHaveBeenCalledWith("NMPADetail", "DI-1"));
+    expect(await screen.findByText("发码机构")).toBeInTheDocument();
+    expect(screen.getByText("GS1")).toBeInTheDocument();
+    expect(screen.getByText("记录键")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /包装层级/ })).toBeInTheDocument();
+    expect(screen.getByText("PKG-1")).toBeInTheDocument();
+    expect(screen.getByText("a@example.com")).toBeInTheDocument();
   });
 
   it("导出当前查询结果到 xlsx", async () => {

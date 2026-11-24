@@ -3052,6 +3052,104 @@ body {
   font-size: 12px;
   color: rgba(0, 0, 0, .45);
 }
+.nmpa-table .ant-table-tbody > tr {
+  cursor: pointer;
+}
+.nmpa-drawer .ant-drawer-header {
+  border-bottom: 1px solid var(--card-border);
+}
+.nmpa-detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.25;
+}
+.nmpa-detail-title strong {
+  color: rgba(0, 0, 0, .88);
+  font-size: 16px;
+}
+.nmpa-detail-title small {
+  color: rgba(0, 0, 0, .45);
+  font-size: 12px;
+  font-weight: 400;
+}
+.nmpa-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.nmpa-detail-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(0, 0, 0, .45);
+  font-size: 12px;
+}
+.nmpa-detail-group {
+  min-width: 0;
+}
+.nmpa-detail-group h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--brand-red-deep);
+  font-size: 14px;
+  font-weight: 600;
+}
+.nmpa-detail-group h4 small {
+  color: rgba(0, 0, 0, .45);
+  font-size: 12px;
+  font-weight: 400;
+}
+.nmpa-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  border-top: 1px solid var(--card-border);
+}
+.nmpa-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+.nmpa-detail-field span {
+  color: rgba(0, 0, 0, .45);
+  font-size: 12px;
+  line-height: 18px;
+}
+.nmpa-detail-field strong {
+  overflow-wrap: anywhere;
+  color: rgba(0, 0, 0, .88);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.nmpa-detail-loading,
+.nmpa-detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  color: rgba(0, 0, 0, .45);
+  font-size: 14px;
+}
+.nmpa-detail-table .ant-table {
+  font-size: 12px;
+}
+.nmpa-detail-table .ant-table-thead > tr > th {
+  background: #fafafa;
+  color: rgba(0, 0, 0, .65);
+  font-weight: 500;
+}
+@media (max-width: 720px) {
+  .nmpa-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @media (max-width: 860px) {
   .nmpa-hero {
     flex-direction: column;

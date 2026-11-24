@@ -20,6 +20,8 @@ type Store interface {
 	Upsert([]Device, map[string]string) error
 	Counts() (int, int, int, error)
 	Search(query string, limit, offset int) (QueryResult, error)
+	Get(primaryDI string) (Device, error)
+	Export(query string) ([]Device, error)
 	Path() string
 	Size() int64
 }
@@ -323,6 +325,22 @@ func (service *Service) Query(query string, limit, offset int) (QueryResult, err
 		return QueryResult{}, fmt.Errorf("药监参考库未初始化")
 	}
 	return service.Store.Search(query, limit, offset)
+}
+
+// Device 返回单台设备详情（含包装/联系人）。
+func (service *Service) Device(primaryDI string) (Device, error) {
+	if service == nil || service.Store == nil {
+		return Device{}, fmt.Errorf("药监参考库未初始化")
+	}
+	return service.Store.Get(primaryDI)
+}
+
+// Export 返回查询命中的全部设备（含包装/联系人）。
+func (service *Service) Export(query string) ([]Device, error) {
+	if service == nil || service.Store == nil {
+		return nil, fmt.Errorf("药监参考库未初始化")
+	}
+	return service.Store.Export(query)
 }
 
 func (service *Service) download(ctx context.Context, release Release) (string, error) {

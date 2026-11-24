@@ -98,6 +98,10 @@ export function NMPACheck() {
   return window['go']['app']['App']['NMPACheck']();
 }
 
+export function NMPADetail(arg1) {
+  return window['go']['app']['App']['NMPADetail'](arg1);
+}
+
 export function NMPAExport(arg1, arg2) {
   return window['go']['app']['App']['NMPAExport'](arg1, arg2);
 }

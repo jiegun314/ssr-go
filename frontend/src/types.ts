@@ -97,6 +97,15 @@ export type NMPASyncResult = Omit<Data<app.NMPASyncResult>, "status"> & {
   status: NMPAStatus;
 };
 export type NMPAQueryResult = Data<app.NMPAQueryResult>;
+export type NMPAField = Data<app.NMPAField>;
+export type NMPAFieldGroup = Data<app.NMPAFieldGroup>;
+export type NMPAPackage = Data<app.NMPAPackage>;
+export type NMPAContact = Data<app.NMPAContact>;
+export type NMPADeviceDetail = Omit<Data<app.NMPADeviceDetail>, "groups" | "packages" | "contacts"> & {
+  groups: NMPAFieldGroup[];
+  packages: NMPAPackage[];
+  contacts: NMPAContact[];
+};
 
 /* ---------- 以下为前端自有类型（Go 侧没有对应结构体） ---------- */
 

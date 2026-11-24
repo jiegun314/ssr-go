@@ -1,4 +1,4 @@
-import { Alert, Button, Input, Modal, Pagination, Table, Tag, message } from "antd";
+import { Alert, Button, Drawer, Input, Modal, Pagination, Spin, Table, Tag, message } from "antd";
 import {
   CloudDownload,
   Database,
@@ -14,6 +14,7 @@ import { call } from "../bridge";
 import type {
   ExportResult,
   ExportTarget,
+  NMPADeviceDetail,
   NMPAQueryResult,
   NMPAStatus,
   NMPASyncResult,
@@ -57,6 +58,9 @@ export function NMPAModal({ open, onClose, canManage }: Props) {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [detail, setDetail] = useState<NMPADeviceDetail | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,6 +72,8 @@ export function NMPAModal({ open, onClose, canManage }: Props) {
     setAppliedQuery("");
     setResult(null);
     setError(null);
+    setDetail(null);
+    setDetailOpen(false);
     void loadStatus(true);
     void loadSearch(1, "");
     const timer = window.setInterval(() => void loadStatus(true), 30 * 60 * 1000);
@@ -157,6 +163,25 @@ export function NMPAModal({ open, onClose, canManage }: Props) {
     }
   }
 
+  async function openDetail(primaryDI: string) {
+    if (!primaryDI) {
+      return;
+    }
+    setDetailOpen(true);
+    setDetail(null);
+    setDetailLoading(true);
+    try {
+      const next = await call<NMPADeviceDetail>("NMPADetail", primaryDI);
+      if (next) {
+        setDetail(next);
+      } else {
+        setError("读取设备详情失败，请稍后重试。");
+      }
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
   function syncFull() {
     Modal.confirm({
       title: "同步药监全量数据？",
@@ -208,7 +233,7 @@ export function NMPAModal({ open, onClose, canManage }: Props) {
     dataIndex: String(index),
     key: String(index),
     ellipsis: { showTitle: true },
-    width: [110, 150, 110, 80, 150, 140, 85, 80, 60, 60][index] ?? 100,
+    width: [110, 150, 110, 80, 150, 140, 85, 80][index] ?? 100,
   }));
   const rows = (result?.rows ?? []).map((row, index) => {
     const item: Record<string, string> = { key: `${index}:${row[0] ?? ""}` };
@@ -222,6 +247,7 @@ export function NMPAModal({ open, onClose, canManage }: Props) {
   const weeklyLabel = status?.weeklyAvailable ? "有可用周更" : "暂无新周更";
 
   return (
+    <>
     <Modal
       className="nmpa-modal"
       open={open}
@@ -385,7 +411,10 @@ export function NMPAModal({ open, onClose, canManage }: Props) {
           dataSource={rows}
           loading={loading}
           pagination={false}
-          scroll={{ x: 980 }}
+          scroll={{ x: 905 }}
+          onRow={(record) => ({
+            onClick: () => void openDetail(record["0"] ?? ""),
+          })}
           locale={{
             emptyText: (
               <div className="nmpa-empty">
@@ -396,7 +425,7 @@ export function NMPAModal({ open, onClose, canManage }: Props) {
           }}
         />
         {result && result.total > 0 ? (
-          <div className="nmpa-table-hint">单元格内容过长时，可悬停查看完整值。</div>
+          <div className="nmpa-table-hint">点击行查看全部 47 个字段；单元格内容过长时，可悬停查看完整值。</div>
         ) : null}
         {result && result.total > 0 ? (
           <div className="nmpa-pager">
@@ -413,5 +442,107 @@ export function NMPAModal({ open, onClose, canManage }: Props) {
         ) : null}
       </div>
     </Modal>
+    <NMPADetailDrawer
+      open={detailOpen}
+      detail={detail}
+      loading={detailLoading}
+      onClose={() => setDetailOpen(false)}
+    />
+    </>
+  );
+}
+
+function NMPADetailDrawer({
+  open,
+  detail,
+  loading,
+  onClose,
+}: {
+  open: boolean;
+  detail: NMPADeviceDetail | null;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  const packageColumns = [
+    { title: "包装 DI", dataIndex: "packageDi", key: "packageDi", ellipsis: true },
+    { title: "包装类型", dataIndex: "packageType", key: "packageType", width: 110 },
+    { title: "下级数量", dataIndex: "lowerLevelPackageQuantity", key: "lowerLevelPackageQuantity", width: 90 },
+    { title: "下级包装标识", dataIndex: "lowerLevelPackageIdentifier", key: "lowerLevelPackageIdentifier", ellipsis: true },
+  ];
+  const contactColumns = [
+    { title: "传真", dataIndex: "fax", key: "fax", ellipsis: true },
+    { title: "邮箱", dataIndex: "email", key: "email", ellipsis: true },
+    { title: "电话", dataIndex: "phone", key: "phone", width: 150 },
+  ];
+  return (
+    <Drawer
+      className="nmpa-drawer"
+      open={open}
+      onClose={onClose}
+      width={760}
+      zIndex={1100}
+      title={
+        detail ? (
+          <div className="nmpa-detail-title">
+            <strong>{detail.displayName || detail.primaryDi}</strong>
+            <small>{detail.primaryDi}</small>
+          </div>
+        ) : "设备详情"
+      }
+      footer={<Button onClick={onClose}>关闭</Button>}
+    >
+      {loading ? (
+        <div className="nmpa-detail-loading"><Spin /></div>
+      ) : detail ? (
+        <div className="nmpa-detail">
+          <div className="nmpa-detail-tags">
+            <Tag color="blue">{detail.versionStatus || "版本未知"}</Tag>
+            <Tag>{detail.productCategory || "未分类"}</Tag>
+            <span>共 {detail.groups.reduce((sum, group) => sum + group.fields.length, 0)} 个字段</span>
+          </div>
+          {detail.groups.map((group) => (
+            <section className="nmpa-detail-group" key={group.title}>
+              <h4>{group.title}</h4>
+              <div className="nmpa-detail-grid">
+                {group.fields.map((field) => (
+                  <div className="nmpa-detail-field" key={`${group.title}-${field.label}`}>
+                    <span>{field.label}</span>
+                    <strong title={field.value}>{field.value || "—"}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+          <section className="nmpa-detail-group">
+            <h4>包装层级 <small>{detail.packages.length} 条</small></h4>
+            <Table
+              className="nmpa-detail-table"
+              tableLayout="fixed"
+              size="small"
+              rowKey="packageDi"
+              columns={packageColumns}
+              dataSource={detail.packages}
+              pagination={false}
+              locale={{ emptyText: "无包装层级数据" }}
+            />
+          </section>
+          <section className="nmpa-detail-group">
+            <h4>联系人 <small>{detail.contacts.length} 条</small></h4>
+            <Table
+              className="nmpa-detail-table"
+              tableLayout="fixed"
+              size="small"
+              rowKey="phone"
+              columns={contactColumns}
+              dataSource={detail.contacts}
+              pagination={false}
+              locale={{ emptyText: "无联系人数据" }}
+            />
+          </section>
+        </div>
+      ) : (
+        <div className="nmpa-detail-empty">未读取到设备详情</div>
+      )}
+    </Drawer>
   );
 }

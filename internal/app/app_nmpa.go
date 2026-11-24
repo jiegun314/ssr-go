@@ -240,23 +240,22 @@ func (app *App) NMPASearch(query string, page int, pageSize int) (NMPAQueryResul
 	}, nil
 }
 
-var nmpaExportColumns = []string{
+var nmpaSummaryColumns = []string{
 	"Primary DI", "产品名称", "通用名称", "规格型号", "注册人/备案人",
-	"注册证/备案凭证编号", "产品类别", "版本状态", "包装数", "联系人",
+	"注册证/备案凭证编号", "产品类别", "版本状态",
 }
 
 func nmpaQueryColumns() []string {
-	return append([]string(nil), nmpaExportColumns...)
+	return append([]string(nil), nmpaSummaryColumns...)
 }
 
 func nmpaQueryRows(devices []nmpa.Device) [][]string {
 	rows := make([][]string, 0, len(devices))
 	for _, device := range devices {
 		rows = append(rows, []string{
-			device.PrimaryDI, device.ProductName, device.DeviceGenericName, device.Specification,
+			device.PrimaryDI, nmpaDisplayName(device), device.DeviceGenericName, device.Specification,
 			device.RegistrantName, device.RegistrationFilingCertificateNo,
 			device.ProductCategory, device.VersionStatus,
-			fmt.Sprintf("%d", device.PackageCount), fmt.Sprintf("%d", device.ContactCount),
 		})
 	}
 	return rows
@@ -270,9 +269,9 @@ func (app *App) SelectNMPAExportTarget() ExportTarget {
 		app.appendLog(LogWarning, "导出药监查询结果被拒绝："+err.Error())
 		return ExportTarget{}
 	}
-	defaultName := "药监UDI参考库_" + time.Now().Format("20060102_150405") + ".xlsx"
+	defaultName := "药监UDI全字段_" + time.Now().Format("20060102_150405") + ".xlsx"
 	target, err := runtime.SaveFileDialog(app.context, runtime.SaveDialogOptions{
-		Title:           "导出药监 UDI 查询结果",
+		Title:           "导出药监 UDI 全字段",
 		DefaultFilename: defaultName,
 		Filters: []runtime.FileFilter{
 			{DisplayName: "Excel 文件 (*.xlsx)", Pattern: "*.xlsx"},
@@ -284,7 +283,7 @@ func (app *App) SelectNMPAExportTarget() ExportTarget {
 	return ExportTarget{DefaultName: defaultName, Target: target}
 }
 
-// NMPAExport 把当前查询条件下的全部匹配设备写成 xlsx（最多 100000 行）。
+// NMPAExport 把当前查询条件下的全部匹配数据写成三张表：设备、包装、联系人。
 func (app *App) NMPAExport(query string, target string) ExportResult {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -302,25 +301,36 @@ func (app *App) NMPAExport(query string, target string) ExportResult {
 	if err != nil {
 		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err), Log: app.logText()}
 	}
-	result, err := service.Query(strings.TrimSpace(query), 100000, 0)
+	devices, err := service.Export(strings.TrimSpace(query))
 	if err != nil {
 		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err), Log: app.logText()}
 	}
-	if result.Total > 100000 {
-		return ExportResult{Failed: true, Title: "导出失败", Message: "匹配结果超过 100000 条，请先缩小查询范围。", Log: app.logText()}
+
+	deviceRows := make([][]string, 0, len(devices))
+	packageRows := make([][]string, 0)
+	contactRows := make([][]string, 0)
+	for _, device := range devices {
+		deviceRows = append(deviceRows, nmpaDeviceValues(device))
+		for _, packing := range device.Packages {
+			packageRows = append(packageRows, []string{device.PrimaryDI, packing.PackageDI, packing.PackageType, packing.LowerLevelPackageQuantity, packing.LowerLevelPackageIdentifier})
+		}
+		for _, contact := range device.Contacts {
+			contactRows = append(contactRows, []string{device.PrimaryDI, contact.Fax, contact.Email, contact.Phone})
+		}
 	}
-	columns := nmpaQueryColumns()
-	rows := nmpaQueryRows(result.Devices)
-	if err := excelio.WriteReviewWorkbook(target, columns, rows); err != nil {
-		app.appendLog(LogError, "导出药监查询结果失败："+err.Error())
+	sheets := []excelio.WorkbookSheet{
+		{Name: "设备", Columns: nmpaAllColumns(), Rows: deviceRows},
+		{Name: "包装", Columns: []string{"Primary DI", "包装 DI", "包装类型", "下级包装数量", "下级包装标识"}, Rows: packageRows},
+		{Name: "联系人", Columns: []string{"Primary DI", "传真", "邮箱", "电话"}, Rows: contactRows},
+	}
+	if err := excelio.WriteWorkbook(target, sheets); err != nil {
+		app.appendLog(LogError, "导出药监全字段数据失败："+err.Error())
 		return ExportResult{Failed: true, Title: "导出失败", Message: userMessage(err), Log: app.logText()}
 	}
-	app.appendLog(LogSuccess, fmt.Sprintf("药监 UDI 查询结果已导出到 %s（%d 行）", target, len(rows)))
-	app.audit("nmpa_export", target, fmt.Sprintf("药监查询结果，%d 行", len(rows)), "ok")
-	return ExportResult{
-		Log: app.logText(), Title: "成功", Path: target,
-		Message: fmt.Sprintf("已导出 %d 条药监 UDI 记录到：\n%s", len(rows), target),
-	}
+	message := fmt.Sprintf("已导出 %d 台设备、%d 条包装、%d 条联系人的全字段数据到：\n%s", len(deviceRows), len(packageRows), len(contactRows), target)
+	app.appendLog(LogSuccess, fmt.Sprintf("药监 UDI 全字段已导出到 %s（%d 台设备）", target, len(deviceRows)))
+	app.audit("nmpa_export", target, fmt.Sprintf("药监全字段，%d 台设备/%d 条包装/%d 条联系人", len(deviceRows), len(packageRows), len(contactRows)), "ok")
+	return ExportResult{Log: app.logText(), Title: "成功", Path: target, Message: message}
 }
 
 func toNMPAStatus(status nmpa.Status) NMPAStatus {

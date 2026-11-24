@@ -302,7 +302,91 @@ func (store *NMPAStore) Search(query string, limit, offset int) (nmpa.QueryResul
 	return result, rows.Err()
 }
 
-func scanDevice(rows *sql.Rows) (nmpa.Device, error) {
+// Get 返回一台设备及其包装/联系人；不存在时返回明确错误。
+func (store *NMPAStore) Get(primaryDI string) (nmpa.Device, error) {
+	primaryDI = strings.TrimSpace(primaryDI)
+	if primaryDI == "" {
+		return nmpa.Device{}, fmt.Errorf("Primary DI 不能为空")
+	}
+	columns := append([]string{}, nmpa.DeviceColumns...)
+	columns = append(columns, "package_count", "contact_count")
+	querySQL := `SELECT ` + strings.Join(quoteIdentifiers(columns), ",") + ` FROM nmpa_devices WHERE primary_di = ?`
+	device, err := scanDevice(store.repository.db.QueryRow(querySQL, primaryDI))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nmpa.Device{}, fmt.Errorf("药监设备不存在: %s", primaryDI)
+		}
+		return nmpa.Device{}, err
+	}
+	devices := []nmpa.Device{device}
+	if err := store.attachChildren(devices); err != nil {
+		return nmpa.Device{}, err
+	}
+	return devices[0], nil
+}
+
+// Export 返回查询命中的全部设备及子表；调用方负责限制总行数。
+func (store *NMPAStore) Export(query string) ([]nmpa.Device, error) {
+	result, err := store.Search(query, 100000, 0)
+	if err != nil {
+		return nil, err
+	}
+	if result.Total > 100000 {
+		return nil, fmt.Errorf("匹配结果超过 100000 条，请先缩小查询范围")
+	}
+	if err := store.attachChildren(result.Devices); err != nil {
+		return nil, err
+	}
+	return result.Devices, nil
+}
+
+func (store *NMPAStore) attachChildren(devices []nmpa.Device) error {
+	if len(devices) == 0 {
+		return nil
+	}
+	byDI := make(map[string]*nmpa.Device, len(devices))
+	for index := range devices {
+		byDI[devices[index].PrimaryDI] = &devices[index]
+	}
+	packageRows, err := store.repository.db.Query(`SELECT primary_di, package_di, package_type, lower_level_package_quantity, lower_level_package_identifier FROM nmpa_packages ORDER BY id`)
+	if err != nil {
+		return fmt.Errorf("读取药监包装失败: %w", err)
+	}
+	for packageRows.Next() {
+		var primaryDI string
+		var packing nmpa.Package
+		if err := packageRows.Scan(&primaryDI, &packing.PackageDI, &packing.PackageType, &packing.LowerLevelPackageQuantity, &packing.LowerLevelPackageIdentifier); err != nil {
+			packageRows.Close()
+			return fmt.Errorf("读取药监包装失败: %w", err)
+		}
+		if device := byDI[primaryDI]; device != nil {
+			device.Packages = append(device.Packages, packing)
+		}
+	}
+	if err := packageRows.Err(); err != nil {
+		packageRows.Close()
+		return err
+	}
+	packageRows.Close()
+	contactRows, err := store.repository.db.Query(`SELECT primary_di, fax, email, phone FROM nmpa_contacts ORDER BY id`)
+	if err != nil {
+		return fmt.Errorf("读取药监联系人失败: %w", err)
+	}
+	defer contactRows.Close()
+	for contactRows.Next() {
+		var primaryDI string
+		var contact nmpa.Contact
+		if err := contactRows.Scan(&primaryDI, &contact.Fax, &contact.Email, &contact.Phone); err != nil {
+			return fmt.Errorf("读取药监联系人失败: %w", err)
+		}
+		if device := byDI[primaryDI]; device != nil {
+			device.Contacts = append(device.Contacts, contact)
+		}
+	}
+	return contactRows.Err()
+}
+
+func scanDevice(rows interface{ Scan(dest ...any) error }) (nmpa.Device, error) {
 	var device nmpa.Device
 	destinations := []any{
 		&device.PrimaryDI, &device.IssuingAgency, &device.PublishDate, &device.QuantityPerMinSalesUnit,

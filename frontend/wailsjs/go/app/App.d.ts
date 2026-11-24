@@ -51,6 +51,8 @@ export function NMPAAutoCheck():Promise<app.NMPAStatus>;
 
 export function NMPACheck():Promise<app.NMPAStatus>;
 
+export function NMPADetail(arg1:string):Promise<app.NMPADeviceDetail>;
+
 export function NMPAExport(arg1:string,arg2:string):Promise<app.ExportResult>;
 
 export function NMPASearch(arg1:string,arg2:number,arg3:number):Promise<app.NMPAQueryResult>;
