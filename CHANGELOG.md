@@ -7,6 +7,27 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.10] - 2026-11-24
+
+新增药监 UDI 参考库，并补齐设备详情与全字段导出。
+
+### 新增
+
+- 底部状态栏新增「药监 UDI 参考库」入口，Admin 与 Supply Chain 可见；Supply Chain 可查询和导出，Admin 额外可检查更新、同步全量和应用周更。
+- 数据来自药监 RSS 发布包：每月全量、每周增量；全量包按 `setting.yaml` 的 `user_defined_data.social_credit_code` 流式筛选后写入独立的 `data/nmpa_udi.sqlite3`，不写入 UDI 来源，也不参与对齐或整合。
+- 打开窗口自动检查 RSS（30 分钟节流），但不会自动更新；全量和周更仍由 Admin 手动执行，周更断档时要求先重新做全量。
+- 查询结果摘要表显示 8 个字段；点击任一行可查看 47 个设备字段、包装层级与联系人。
+- 查询结果可导出为设备 / 包装 / 联系人三张工作表的全字段 xlsx；产品名称为空时自动显示通用名称。
+
+### 修复
+
+- 修复设备没有包装或联系人时，打开详情抽屉触发整页白屏的问题（后端返回空切片，前端同时做空值兜底）。
+
+### 验证
+
+- `make check` 通过：全部 Go 测试、前端 18 个文件 117 例、`genlogcolumns --check`、`gofmt`、`go vet`；
+- 两个平台的正式产物由 CI 在打 tag 后构建并挂到 Release。
+
 ## [3.1.9] - 2026-11-22
 
 数据整合结果表增强交互，记录导出改贴底部，冲突格提示结构化。
@@ -767,7 +788,9 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.8...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.10...HEAD
+[3.1.10]: https://github.com/jiegun314/ssr-go/compare/v3.1.9...v3.1.10
+[3.1.9]: https://github.com/jiegun314/ssr-go/compare/v3.1.8...v3.1.9
 [3.1.8]: https://github.com/jiegun314/ssr-go/compare/v3.1.7...v3.1.8
 [3.1.7]: https://github.com/jiegun314/ssr-go/compare/v3.1.6...v3.1.7
 [3.1.6]: https://github.com/jiegun314/ssr-go/compare/v3.1.5...v3.1.6
