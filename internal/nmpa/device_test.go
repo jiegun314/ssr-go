@@ -153,3 +153,39 @@ func TestParseArchiveDropsIllegalXMLControlCharacters(t *testing.T) {
 		t.Fatalf("devices = %#v", parsed.Devices)
 	}
 }
+
+func TestParseArchiveReadsNestedWeeklyZips(t *testing.T) {
+	inner := `<?xml version="1.0" encoding="UTF-8"?>
+<udid><devices><device><zxxsdycpbs>DI-WEEKLY</zxxsdycpbs><tyshxydm>CODE</tyshxydm><spmc>周更产品</spmc></device></devices></udid>`
+	innerPath := writeDeviceZip(t, inner)
+	innerBytes, err := os.ReadFile(innerPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outerPath := filepath.Join(t.TempDir(), "weekly.zip")
+	outerFile, err := os.Create(outerPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer := zip.NewWriter(outerFile)
+	entry, err := writer.Create("UDID_DAY_UPDATE_20261102.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := entry.Write(innerBytes); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := outerFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := ParseArchive(outerPath, "CODE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Devices) != 1 || parsed.Devices[0].PrimaryDI != "DI-WEEKLY" {
+		t.Fatalf("devices = %#v", parsed.Devices)
+	}
+}

@@ -3,6 +3,7 @@ package nmpa
 import (
 	"archive/zip"
 	"bufio"
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -104,13 +105,11 @@ func ParseArchive(zipPath string, socialCreditCode string) (ParsedArchive, error
 	skipped := 0
 	foundXML := false
 	for _, file := range reader.File {
-		if file.FileInfo().IsDir() || !strings.HasSuffix(strings.ToLower(file.Name), ".xml") {
-			continue
-		}
-		foundXML = true
-		if err := parseXMLFile(file, expected, devices, &total, &skipped); err != nil {
+		found, err := parseArchiveEntry(file, expected, devices, &total, &skipped, 0)
+		if err != nil {
 			return ParsedArchive{}, err
 		}
+		foundXML = foundXML || found
 	}
 	if !foundXML {
 		return ParsedArchive{}, fmt.Errorf("NMPA 压缩包中没有 XML 文件")
@@ -123,12 +122,59 @@ func ParseArchive(zipPath string, socialCreditCode string) (ParsedArchive, error
 	return result, nil
 }
 
-func parseXMLFile(file *zip.File, expected string, devices map[string]Device, total, skipped *int) error {
-	stream, err := file.Open()
-	if err != nil {
-		return fmt.Errorf("读取 NMPA XML 失败: %w", err)
+func parseArchiveEntry(file *zip.File, expected string, devices map[string]Device, total, skipped *int, depth int) (bool, error) {
+	if file.FileInfo().IsDir() {
+		return false, nil
 	}
-	defer stream.Close()
+	name := strings.ToLower(file.Name)
+	if strings.HasSuffix(name, ".xml") {
+		stream, err := file.Open()
+		if err != nil {
+			return false, fmt.Errorf("读取 NMPA XML 失败: %w", err)
+		}
+		defer stream.Close()
+		if err := parseXMLStream(stream, expected, devices, total, skipped); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	if strings.HasSuffix(name, ".zip") && depth < 2 {
+		// 周更/月更包是"zip 套日更 zip"；只把内层小包读进内存，
+		// 全量包仍是直接的超大 XML，绝不整包读入。
+		const maxNestedZip = 128 << 20
+		if file.UncompressedSize64 > maxNestedZip {
+			return false, fmt.Errorf("NMPA 内层压缩包过大: %s", file.Name)
+		}
+		stream, err := file.Open()
+		if err != nil {
+			return false, fmt.Errorf("读取 NMPA 内层压缩包失败: %w", err)
+		}
+		data, readErr := io.ReadAll(io.LimitReader(stream, maxNestedZip+1))
+		stream.Close()
+		if readErr != nil {
+			return false, fmt.Errorf("读取 NMPA 内层压缩包失败: %w", readErr)
+		}
+		if len(data) > maxNestedZip {
+			return false, fmt.Errorf("NMPA 内层压缩包过大: %s", file.Name)
+		}
+		nested, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			return false, fmt.Errorf("打开 NMPA 内层压缩包失败: %w", err)
+		}
+		found := false
+		for _, child := range nested.File {
+			ok, err := parseArchiveEntry(child, expected, devices, total, skipped, depth+1)
+			if err != nil {
+				return false, err
+			}
+			found = found || ok
+		}
+		return found, nil
+	}
+	return false, nil
+}
+
+func parseXMLStream(stream io.Reader, expected string, devices map[string]Device, total, skipped *int) error {
 	decoder := xml.NewDecoder(&xmlControlSanitizer{reader: bufio.NewReaderSize(stream, 64*1024)})
 	for {
 		token, err := decoder.Token()
