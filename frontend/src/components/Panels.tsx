@@ -49,6 +49,7 @@ import {
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "./IconButton";
+import { ConsolidationDetailDrawer } from "./ConsolidationDetailDrawer";
 
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
 
@@ -479,6 +480,7 @@ export function ConsolidationPanel({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [exportingView, setExportingView] = useState(false);
+  const [detailEntry, setDetailEntry] = useState<ConsolidationRow | null>(null);
   // 列宽：从 localStorage 读取，拖拽时持久化
   const [columnWidths, setColumnWidths] = useState<Record<number, number>>(loadColumnWidths);
   // 列头筛选：多列叠加（AND），前端内存筛选
@@ -864,6 +866,7 @@ export function ConsolidationPanel({
             components={components}
             rowKey={(entry) => entry.key}
             rowClassName={(entry) => `result-row status-${entry.status}`}
+            onRow={(entry) => ({ onDoubleClick: () => setDetailEntry(entry) })}
             scroll={{ x: "max-content" }}
             locale={{
               emptyText: (
@@ -887,6 +890,7 @@ export function ConsolidationPanel({
       {/* 分页行：左侧放记录导出，右侧放分页器。没有数据时隐藏分页器，但导出控件始终保留。 */}
       <div className="table-pager">
         {recordExport}
+        <span className="result-detail-hint">双击行查看单 Code 详情</span>
         {visible.length > 0 && (
           <Pagination
             current={page}
@@ -903,6 +907,17 @@ export function ConsolidationPanel({
           />
         )}
       </div>
+      {detailEntry ? (
+        <ConsolidationDetailDrawer
+          open
+          onClose={() => setDetailEntry(null)}
+          columns={columns}
+          cells={detailEntry.cells}
+          status={detailEntry.status}
+          notes={detailEntry.notes}
+          rowConflict={detailEntry.rowConflict}
+        />
+      ) : null}
     </>
   );
 }

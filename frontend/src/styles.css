@@ -737,6 +737,10 @@ body {
    用 3px 状态竖条 + 中文胶囊表达状态；整行只在 hover 时给一层极淡冷灰底。
    冲突格的整格高亮（.cell-conflict）不受影响。 */
 /* 状态胶囊 20px + 单元格上下各 8px = 统一 36px 行高，不另写死高度。 */
+.result-row {
+  cursor: pointer;
+}
+
 .result-row > td {
   transition: background-color var(--motion-fast) ease;
 }
@@ -3170,5 +3174,136 @@ body {
   }
   .nmpa-search {
     width: 100%;
+  }
+}
+
+/* ---------- 数据整合：单 Code 详情 ---------- */
+.result-detail-hint {
+  margin-left: 2px;
+  color: rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+}
+.consolidation-drawer .ant-drawer-body {
+  padding: 16px 20px 20px;
+}
+.consolidation-detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.25;
+}
+.consolidation-detail-title strong {
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 16px;
+}
+.consolidation-detail-title small {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  font-weight: 400;
+}
+.consolidation-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.consolidation-detail-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+.consolidation-detail-alert {
+  margin: 0;
+}
+.consolidation-detail-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+.consolidation-detail-pane {
+  min-width: 0;
+  max-height: calc(100vh - 220px);
+  padding: 12px 14px 14px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--module-radius);
+}
+.consolidation-detail-pane > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.consolidation-detail-pane > header h4 {
+  margin: 0;
+  color: var(--brand-red-deep);
+  font-size: 14px;
+  font-weight: 600;
+}
+.consolidation-detail-pane > header span {
+  color: rgba(0, 0, 0, 0.42);
+  font-size: 12px;
+}
+.consolidation-detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+  border-top: 1px solid var(--card-border);
+}
+.consolidation-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+.consolidation-detail-field span {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  line-height: 18px;
+}
+.consolidation-detail-field strong {
+  overflow-wrap: anywhere;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.consolidation-detail-field.is-conflict {
+  padding-left: 8px;
+  background: color-mix(in srgb, var(--danger-red) 5%, #fff);
+  box-shadow: inset 2px 0 0 var(--danger-red);
+}
+.consolidation-detail-status strong {
+  color: var(--brand-red-deep);
+  font-weight: 600;
+}
+.consolidation-detail-nmpa .nmpa-detail {
+  gap: 14px;
+}
+.consolidation-detail-nmpa .nmpa-detail-grid {
+  gap: 0 16px;
+}
+.consolidation-detail-nmpa .nmpa-detail-field strong {
+  font-size: 14px;
+}
+@media (max-width: 1000px) {
+  .consolidation-detail-compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .consolidation-detail-pane {
+    max-height: none;
+  }
+}
+@media (max-width: 720px) {
+  .consolidation-detail-fields,
+  .consolidation-detail-nmpa .nmpa-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

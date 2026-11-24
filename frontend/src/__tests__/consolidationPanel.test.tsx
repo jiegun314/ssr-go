@@ -6,7 +6,7 @@ import { App as AntApp, ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ConsolidationPanel, RecordExportPanel } from "../components/Panels";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../tablePagination";
@@ -92,6 +92,72 @@ describe("数据整合结果表", () => {
     // 注射泵是缺失行，与"合格"筛选叠加后应为空
     expect(visibleCells()).toHaveLength(0);
     expect(screen.getByText("没有找到匹配的数据")).toBeInTheDocument();
+  });
+
+  it("双击行打开单 Code 详情，并按 Primary DI 查询药监数据", async () => {
+    const detailMock = vi.fn().mockResolvedValue({
+      primaryDi: "DI-001",
+      displayName: "超声探头",
+      versionStatus: "新增",
+      productCategory: "骨科植入物",
+      groups: [
+        {
+          title: "标识与包装",
+          fields: [{ label: "发码机构", value: "GS1" }],
+        },
+      ],
+      packages: [
+        {
+          packageDi: "PKG-001",
+          packageType: "盒",
+          lowerLevelPackageQuantity: "1",
+          lowerLevelPackageIdentifier: "DI-001",
+        },
+      ],
+      contacts: [{ fax: "", email: "qa@example.com", phone: "123" }],
+    });
+    Object.defineProperty(window, "go", {
+      configurable: true,
+      writable: true,
+      value: { app: { App: { NMPADetail: detailMock } } },
+    });
+    const user = userEvent.setup();
+    renderPanel();
+    await user.dblClick(screen.getByText("DI-001").closest("tr")!);
+
+    expect(await screen.findByText("单 Code 详情")).toBeInTheDocument();
+    expect(detailMock).toHaveBeenCalledWith("DI-001");
+    expect(await screen.findByText("发码机构")).toBeInTheDocument();
+    expect(screen.getByText("药监已匹配")).toBeInTheDocument();
+    expect(screen.getByText("PKG-001")).toBeInTheDocument();
+    expect(screen.getByText("qa@example.com")).toBeInTheDocument();
+  });
+
+  it("没有 Primary DI 时双击只显示本行字段，不查询药监数据", async () => {
+    const detailMock = vi.fn();
+    Object.defineProperty(window, "go", {
+      configurable: true,
+      writable: true,
+      value: { app: { App: { NMPADetail: detailMock } } },
+    });
+    const user = userEvent.setup();
+    render(
+      <AntApp>
+        <ConsolidationPanel
+          columns={["Product Name", "Medical Insurance Code"]}
+          rows={[["监护仪", "12345"]]}
+          statuses={["Ready"]}
+          counts={COUNTS}
+        />
+      </AntApp>,
+    );
+    await user.dblClick(screen.getByText("监护仪").closest("tr")!);
+    expect(await screen.findByText("该行没有 Primary DI，未查询药监数据。")).toBeInTheDocument();
+    expect(detailMock).not.toHaveBeenCalled();
+  });
+
+  afterEach(() => {
+    delete (window as { go?: unknown }).go;
   });
 
   it("每列表头有小漏斗，输入后按该列内容筛选", async () => {
