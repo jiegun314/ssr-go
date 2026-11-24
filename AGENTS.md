@@ -157,6 +157,13 @@
   **按钮可见性**：RA/EAMA/UDI 用户（以及单机模式）在每个来源都看到按钮，没有该来源导入权限的
   置灰；Supply Chain 与 Admin 登录时不显示按钮。配置：`email.transport: outlook`（默认）、
   `email.send_mode: send|draft`；旧值 smtp/graph/outbox 仍可读但不实现。
+- **药监 UDI 参考库（Admin，Phase 1）**：状态栏「药监 UDI 参考库」图标只对 Admin 显示，
+  打开独立窗口查询本企业设备；数据来自药监 RSS（`internal/nmpa`），走**独立**的
+  `data/nmpa_udi.sqlite3`（`nmpa_devices` / `nmpa_packages` / `nmpa_contacts` / `nmpa_meta`），
+  **不写入 `global_udi_input`、不参与对齐或整合**。全量发布包按 `setting.yaml` 的
+  `user_defined_data.social_credit_code` **流式筛选**后入库，不把全量 XML 落盘；周更按
+  `last_week_end` 顺序叠加，发现断档要求先做全量。首次使用先执行全量同步；周更、全量、
+  查询分别写审计与操作日志。界面见 `NMPAModal`，后端见 `internal/app/app_nmpa.go`。
 - **导入第一步删除失效注册证**（来源的 `drop_expired.field`，当前只用于 RA）：导入时先按
   `RA失效日期` 过滤 —— 日期早于今天的行整行丢弃（今天到期仍保留；空值/无法解析的值保留），
   原文表、清洗表、发布快照都不再包含这些行；**对齐共享盘快照时也会再过滤一次**

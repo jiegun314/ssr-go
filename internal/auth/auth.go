@@ -82,6 +82,8 @@ const (
 	ActionReviewAny Action = "review:any"
 	// 看全部审计（SC / Admin）。
 	ActionViewAuditAny Action = "audit:any"
+	// 药监 UDI 公共数据参考库：只给 Admin。
+	ActionNMPA Action = "nmpa:manage"
 )
 
 // matrix 是"角色 → 允许的动作"的唯一口径（设计文档 §12）。
@@ -97,7 +99,7 @@ var matrix = map[Role][]Action{
 		ActionImportRA, ActionImportEAMA, ActionImportUDI,
 		ActionAlign, ActionConsolidate, ActionExport, ActionClearData,
 		ActionViewSettings, ActionEditSettings, ActionManageShare, ActionSetShareRoot,
-		ActionReviewAny, ActionViewAuditAny,
+		ActionReviewAny, ActionViewAuditAny, ActionNMPA,
 	},
 }
 

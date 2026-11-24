@@ -167,3 +167,12 @@ func TestSourcePermissions(t *testing.T) {
 		t.Errorf("角色显示名不对：%q", label)
 	}
 }
+
+func TestNMPAAccessIsAdminOnly(t *testing.T) {
+	for _, role := range []Role{RoleAdmin, RoleRA, RoleEAMA, RoleUDI, RoleSupplyChain} {
+		want := role == RoleAdmin
+		if got := Can(role, ActionNMPA); got != want {
+			t.Errorf("Can(%s, ActionNMPA) = %v; want %v", role, got, want)
+		}
+	}
+}

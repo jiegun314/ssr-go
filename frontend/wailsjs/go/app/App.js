@@ -90,6 +90,26 @@ export function Logout() {
   return window['go']['app']['App']['Logout']();
 }
 
+export function NMPACheck() {
+  return window['go']['app']['App']['NMPACheck']();
+}
+
+export function NMPASearch(arg1, arg2, arg3) {
+  return window['go']['app']['App']['NMPASearch'](arg1, arg2, arg3);
+}
+
+export function NMPAStatus() {
+  return window['go']['app']['App']['NMPAStatus']();
+}
+
+export function NMPASyncFull() {
+  return window['go']['app']['App']['NMPASyncFull']();
+}
+
+export function NMPASyncWeekly() {
+  return window['go']['app']['App']['NMPASyncWeekly']();
+}
+
 export function OpenConfigDirectory() {
   return window['go']['app']['App']['OpenConfigDirectory']();
 }

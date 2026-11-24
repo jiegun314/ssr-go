@@ -16,6 +16,7 @@ import (
 	"github.com/jiegun314/ssr-go/internal/consolidation"
 	"github.com/jiegun314/ssr-go/internal/importer"
 	"github.com/jiegun314/ssr-go/internal/mail"
+	"github.com/jiegun314/ssr-go/internal/nmpa"
 	"github.com/jiegun314/ssr-go/internal/numfmt"
 	"github.com/jiegun314/ssr-go/internal/paths"
 	"github.com/jiegun314/ssr-go/internal/share"
@@ -80,6 +81,8 @@ type App struct {
 	shareStatus share.Status
 	// mailer 是本机 Outlook 发送器（测试注入假实现，避免真的弹邮件）。
 	mailer mail.Sender
+	// nmpaService 是药监 UDI 独立参考库；未初始化时相关入口会给出中文提示。
+	nmpaService *nmpa.Service
 	// lastLogSync 是上一次操作日志同步的时间（轮询时节流用）。
 	lastLogSync time.Time
 	// shareLayoutDone 表示本进程已经补齐过共享盘骨架（首次健康检查后只做一次）。
@@ -196,6 +199,23 @@ func (app *App) wireConfiguration(loader *config.Loader) (string, error) {
 	}
 	if app.wiredDatabasePath == "" {
 		app.wiredDatabasePath = databasePath
+	}
+	if app.nmpaService == nil && databasePath != "" {
+		nmpaPath := filepath.Join(filepath.Dir(databasePath), "nmpa_udi.sqlite3")
+		nmpaStore, nmpaErr := store.OpenNMPA(nmpaPath)
+		if nmpaErr != nil {
+			app.appendLog(LogWarning, "药监参考库初始化失败："+nmpaErr.Error())
+		} else {
+			app.nmpaService = nmpa.NewService(nmpaStore, func() (string, error) {
+				setting, err := loader.LoadSetting()
+				if err != nil {
+					return "", err
+				}
+				userDefined, _ := setting["user_defined_data"].(map[string]any)
+				code, _ := userDefined["social_credit_code"].(string)
+				return strings.TrimSpace(code), nil
+			})
+		}
 	}
 	importerValue, err := importer.NewImporter(loader, repository)
 	if err != nil {

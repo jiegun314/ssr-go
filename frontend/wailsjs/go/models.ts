@@ -451,6 +451,166 @@ export namespace app {
 	        this.needsPassword = source["needsPassword"];
 	    }
 	}
+	export class NMPAQueryResult {
+	    total: number;
+	    columns: string[];
+	    rows: string[][];
+	
+	    static createFrom(source: any = {}) {
+	        return new NMPAQueryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.columns = source["columns"];
+	        this.rows = source["rows"];
+	    }
+	}
+	export class NMPARelease {
+	    kind: string;
+	    fileName: string;
+	    title: string;
+	    publishedAt: string;
+	    date: string;
+	    start?: string;
+	    end?: string;
+	    count?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new NMPARelease(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.fileName = source["fileName"];
+	        this.title = source["title"];
+	        this.publishedAt = source["publishedAt"];
+	        this.date = source["date"];
+	        this.start = source["start"];
+	        this.end = source["end"];
+	        this.count = source["count"];
+	    }
+	}
+	export class NMPAStatus {
+	    socialCreditCode: string;
+	    codeConfigured: boolean;
+	    fullRelease?: NMPARelease;
+	    weeklyReleases?: NMPARelease[];
+	    lastFullFile: string;
+	    lastFullDate: string;
+	    lastFullAt: string;
+	    lastWeekEnd: string;
+	    lastWeeklyFile: string;
+	    lastSyncAt: string;
+	    lastCheckAt: string;
+	    lastError: string;
+	    deviceCount: number;
+	    packageCount: number;
+	    contactCount: number;
+	    databasePath: string;
+	    databaseBytes: number;
+	    needsFull: boolean;
+	    codeChanged: boolean;
+	    weeklyAvailable: boolean;
+	    fullDue: boolean;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NMPAStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.socialCreditCode = source["socialCreditCode"];
+	        this.codeConfigured = source["codeConfigured"];
+	        this.fullRelease = this.convertValues(source["fullRelease"], NMPARelease);
+	        this.weeklyReleases = this.convertValues(source["weeklyReleases"], NMPARelease);
+	        this.lastFullFile = source["lastFullFile"];
+	        this.lastFullDate = source["lastFullDate"];
+	        this.lastFullAt = source["lastFullAt"];
+	        this.lastWeekEnd = source["lastWeekEnd"];
+	        this.lastWeeklyFile = source["lastWeeklyFile"];
+	        this.lastSyncAt = source["lastSyncAt"];
+	        this.lastCheckAt = source["lastCheckAt"];
+	        this.lastError = source["lastError"];
+	        this.deviceCount = source["deviceCount"];
+	        this.packageCount = source["packageCount"];
+	        this.contactCount = source["contactCount"];
+	        this.databasePath = source["databasePath"];
+	        this.databaseBytes = source["databaseBytes"];
+	        this.needsFull = source["needsFull"];
+	        this.codeChanged = source["codeChanged"];
+	        this.weeklyAvailable = source["weeklyAvailable"];
+	        this.fullDue = source["fullDue"];
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class NMPASyncResult {
+	    mode: string;
+	    fileName: string;
+	    matched: number;
+	    devices: number;
+	    packages: number;
+	    contacts: number;
+	    message: string;
+	    failed: boolean;
+	    status: NMPAStatus;
+	
+	    static createFrom(source: any = {}) {
+	        return new NMPASyncResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.fileName = source["fileName"];
+	        this.matched = source["matched"];
+	        this.devices = source["devices"];
+	        this.packages = source["packages"];
+	        this.contacts = source["contacts"];
+	        this.message = source["message"];
+	        this.failed = source["failed"];
+	        this.status = this.convertValues(source["status"], NMPAStatus);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class NotificationPreview {
 	    source: string;
 	    to: string[];

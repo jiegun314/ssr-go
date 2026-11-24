@@ -56,6 +56,9 @@ export const BUSY_TEXT: Record<string, string> = {
   ConfigurationDocument: "正在加载配置...",
   SaveConfigurationFile: "正在保存配置...",
   BackupDatabase: "正在备份数据库...",
+  NMPACheck: "正在检查药监更新...",
+  NMPASyncFull: "正在下载并筛选药监全量数据...",
+  NMPASyncWeekly: "正在应用药监周更...",
 };
 
 type BusyListener = (text: string | null) => void;

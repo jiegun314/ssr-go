@@ -6,6 +6,7 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  Database,
   FileDown,
   Merge,
   RefreshCw,
@@ -34,6 +35,7 @@ import {
 } from "./components/Panels";
 import { AlignPanel } from "./components/AlignPanel";
 import { IconButton } from "./components/IconButton";
+import { NMPAModal } from "./components/NMPAModal";
 import { StatusModal } from "./components/StatusModal";
 import { recordIconClick } from "./iconClicks";
 import { LoginScreen } from "./components/LoginScreen";
@@ -115,6 +117,7 @@ export default function App() {
   const reviewSession = useRef<ReviewSession | null>(null);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [nmpaOpen, setNmpaOpen] = useState(false);
   // 非 Admin 只能改「共享盘位置」；Admin 走完整参数设定
   const [shareRootOpen, setShareRootOpen] = useState(false);
   const [shareRootInfo, setShareRootInfo] = useState<ShareRootInfo | null>(null);
@@ -998,6 +1001,18 @@ export default function App() {
               />
             </Tooltip>
           ) : null}
+          {can("nmpa:manage") ? (
+            <Tooltip title="药监 UDI 参考库">
+              <Button
+                className="status-recheck"
+                type="text"
+                size="small"
+                aria-label="药监 UDI 参考库"
+                icon={<Database size={13} />}
+                onClick={() => setNmpaOpen(true)}
+              />
+            </Tooltip>
+          ) : null}
           {share?.mode === "share" ? (
             <Tooltip title="重新检查共享盘">
               <Button
@@ -1099,6 +1114,7 @@ export default function App() {
         onClose={() => setAboutOpen(false)}
       />
       <HiddenModal open={hiddenOpen} onClose={closeHidden} />
+      <NMPAModal open={nmpaOpen} onClose={() => setNmpaOpen(false)} />
     </>
   );
 }

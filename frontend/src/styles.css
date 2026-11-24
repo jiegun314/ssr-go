@@ -2822,3 +2822,238 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── 药监 UDI 参考库（Admin） ───────────────────────────────────── */
+.nmpa-modal .ant-modal-content {
+  padding: 0;
+  overflow: hidden;
+}
+.nmpa-modal .ant-modal-header {
+  margin: 0;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--brand-red-border);
+  background: linear-gradient(180deg, #fff 0%, var(--brand-red-soft) 100%);
+}
+.nmpa-modal .ant-modal-body {
+  padding: 0;
+}
+.nmpa-modal .ant-modal-footer {
+  margin: 0;
+  padding: 12px 24px;
+  border-top: 1px solid var(--card-border);
+}
+.nmpa-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.nmpa-title-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--brand-red);
+  border: 1px solid var(--brand-red-border);
+}
+.nmpa-title strong {
+  display: block;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--brand-red-deep);
+}
+.nmpa-title small {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(0, 0, 0, .45);
+}
+.nmpa-body {
+  max-height: 70vh;
+  overflow: auto;
+  padding: 18px 24px 8px;
+}
+.nmpa-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--card-border);
+}
+.nmpa-hero p {
+  max-width: 620px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 19px;
+  color: rgba(0, 0, 0, .45);
+}
+.nmpa-hero code,
+.nmpa-code-line code {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, .045);
+  color: rgba(0, 0, 0, .72);
+  font-size: 12px;
+}
+.nmpa-code-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: rgba(0, 0, 0, .55);
+}
+.nmpa-code-label {
+  font-weight: 600;
+  color: rgba(0, 0, 0, .72);
+}
+.nmpa-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.nmpa-alert {
+  margin-top: 12px;
+  font-size: 12px;
+}
+.nmpa-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 10px;
+}
+.nmpa-metrics > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--inner-radius);
+  background: #fff;
+}
+.nmpa-metrics span,
+.nmpa-metrics small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nmpa-metrics span {
+  font-size: 12px;
+  color: rgba(0, 0, 0, .45);
+}
+.nmpa-metrics strong {
+  display: block;
+  margin: 2px 0;
+  font-size: 20px;
+  line-height: 26px;
+  color: rgba(0, 0, 0, .88);
+  font-weight: 600;
+}
+.nmpa-metrics small {
+  font-size: 11px;
+  color: rgba(0, 0, 0, .35);
+}
+.nmpa-sync-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding: 8px 10px;
+  border-radius: var(--inner-radius);
+  background: #fafafa;
+  font-size: 12px;
+  line-height: 18px;
+  color: rgba(0, 0, 0, .55);
+}
+.nmpa-search-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0 10px;
+}
+.nmpa-search-head strong {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  color: rgba(0, 0, 0, .88);
+}
+.nmpa-search-head small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, .45);
+}
+.nmpa-search {
+  display: flex;
+  gap: 6px;
+  width: min(440px, 55%);
+}
+.nmpa-search .ant-input-affix-wrapper {
+  min-width: 0;
+}
+.nmpa-table .ant-table {
+  font-size: 12px;
+}
+.nmpa-table .ant-table-thead > tr > th {
+  white-space: nowrap;
+  background: #fafafa;
+  color: rgba(0, 0, 0, .65);
+  font-weight: 600;
+}
+.nmpa-table .ant-table-tbody > tr:hover > td {
+  background: #f8fafc;
+}
+.nmpa-table .ant-table-content {
+  overflow-x: auto;
+}
+.nmpa-table .ant-table-content::-webkit-scrollbar {
+  height: 8px;
+}
+.nmpa-table .ant-table-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, .18);
+  border-radius: var(--inner-radius);
+}
+.nmpa-table-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, .45);
+}
+.nmpa-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 0;
+  color: rgba(0, 0, 0, .35);
+  font-size: 12px;
+}
+.nmpa-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 2px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, .45);
+}
+@media (max-width: 860px) {
+  .nmpa-hero {
+    flex-direction: column;
+  }
+  .nmpa-actions {
+    justify-content: flex-start;
+  }
+  .nmpa-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .nmpa-search-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .nmpa-search {
+    width: 100%;
+  }
+}

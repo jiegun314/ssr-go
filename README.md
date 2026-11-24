@@ -131,6 +131,16 @@ Excel 来源 ×4 → （配置校验：表头 / 必填 / 条件必填 / 值归�
 - 详细设计见 [`docs/design/multiuser-workflow.md`](docs/design/multiuser-workflow.md)，
   EAMA 试点手册见 [`docs/pilot/eama-pilot.md`](docs/pilot/eama-pilot.md)。
 
+### 药监 UDI 参考库（Admin）
+
+- **只做本地参考与查询**：底部状态栏的「药监 UDI 参考库」图标只对 Admin 显示，打开独立窗口
+  查询本企业设备；不写入 UDI 来源，也不参与数据对齐或整合。
+- 数据来自药监 RSS：每月全量、每周增量；全量包先按 `setting.yaml` 里的
+  `user_defined_data.social_credit_code` 流式筛选，再写入独立的 `data/nmpa_udi.sqlite3`
+  （设备 / 包装 / 联系人三张表），全量 XML 不落盘。
+- 首次使用先「同步全量」建立基线，「更新周更」按顺序叠加；周更断档时会提示先重新做全量。
+  查询支持 Primary DI、产品名称、注册证编号等关键词。
+
 ### 其它
 
 - 「关于」窗口显示图标、名称、版本、数据/参数目录、运行环境与技术栈；

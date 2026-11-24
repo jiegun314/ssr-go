@@ -87,6 +87,17 @@ export type AlignResult = Data<app.AlignResult>;
 export type CleanupResult = Data<app.CleanupResult>;
 export type DiagnosticsResult = Data<app.DiagnosticsResult>;
 
+/* ---------- 药监 UDI 参考库（Admin） ---------- */
+export type NMPARelease = Data<app.NMPARelease>;
+export type NMPAStatus = Omit<Data<app.NMPAStatus>, "fullRelease" | "weeklyReleases"> & {
+  fullRelease?: NMPARelease;
+  weeklyReleases?: NMPARelease[];
+};
+export type NMPASyncResult = Omit<Data<app.NMPASyncResult>, "status"> & {
+  status: NMPAStatus;
+};
+export type NMPAQueryResult = Data<app.NMPAQueryResult>;
+
 /* ---------- 以下为前端自有类型（Go 侧没有对应结构体） ---------- */
 
 export type AboutInfo = Data<app.AboutInfo>;
