@@ -1,7 +1,7 @@
 // 主界面：左列（数据导入 / 操作日志）+ 右列（数据整合 / 记录导出贴底）+ 底部状态栏 + 四个弹窗。
 // 布局与原来一致；四个模块的容器换成 antd 的 Card（标题排版、边框、圆角都由 antd 给）。
 
-import { Button, Card, Switch, Tag, Tooltip } from "antd";
+import { Button, Card, Spin, Switch, Tag, Tooltip } from "antd";
 import {
   Activity,
   ChevronLeft,
@@ -91,6 +91,8 @@ export default function App() {
   const [imports, setImports] = useState<Record<string, ImportState>>({});
   const [log, setLog] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  // 整合是唯一会阻塞整个工作区的长任务：单独一层遮罩，避免与导入/导出的全局载入条混在一起。
+  const [consolidating, setConsolidating] = useState(false);
   const [message, setMessage] = useState<MessageState>(null);
   // 更新通知：preview 决定确认窗开不开；notified 记住本次会话发过哪些来源
   const [notifyPreview, setNotifyPreview] = useState<NotificationPreview | null>(null);
@@ -589,13 +591,23 @@ export default function App() {
   );
 
   const handleConsolidate = useCallback(async () => {
-    const result = await call<ConsolidateResult>("Consolidate");
-    if (result) applyConsolidateResult(result);
+    setConsolidating(true);
+    try {
+      const result = await call<ConsolidateResult>("Consolidate");
+      if (result) applyConsolidateResult(result);
+    } finally {
+      setConsolidating(false);
+    }
   }, [applyConsolidateResult]);
 
   const handleConsolidateForce = useCallback(async () => {
-    const result = await call<ConsolidateResult>("ConsolidateForce");
-    if (result) applyConsolidateResult(result);
+    setConsolidating(true);
+    try {
+      const result = await call<ConsolidateResult>("ConsolidateForce");
+      if (result) applyConsolidateResult(result);
+    } finally {
+      setConsolidating(false);
+    }
   }, [applyConsolidateResult]);
 
   const handleExportDiagnostics = useCallback(async () => {
@@ -902,7 +914,7 @@ export default function App() {
                       size="small"
                       tooltip={forceTitle}
                       icon={<RefreshCw />}
-                      disabled={shareBlocked || !allAligned || busy !== null}
+                      disabled={shareBlocked || !allAligned || busy !== null || consolidating}
                       onClick={handleConsolidateForce}
                     />
                     <IconButton
@@ -934,7 +946,7 @@ export default function App() {
                         type="primary"
                         size="small"
                         icon={<Merge size={14} />}
-                        disabled={shareBlocked || !allAligned}
+                        disabled={shareBlocked || !allAligned || consolidating}
                         onClick={handleConsolidate}
                       >
                         整合
@@ -1045,7 +1057,16 @@ export default function App() {
       {/* 附加窗口的声音：loop 表示窗口开着就一直响；播放/停止见上面的点击与关闭逻辑 */}
       <audio id="puppy-voice" ref={voiceRef} src="puppy-voice.mp3" loop preload="auto" />
 
-      <LoadingOverlay text={busy} />
+      {consolidating ? (
+        <div className="consolidating-overlay" role="status" aria-live="polite" aria-label="正在整合数据">
+          <div className="consolidating-card">
+            <Spin size="large" />
+            <span>正在整合数据，请稍候…</span>
+          </div>
+        </div>
+      ) : null}
+
+      <LoadingOverlay text={consolidating ? null : busy} />
       <MessageModal state={message} onClose={() => setMessage(null)} />
       <ReviewModal
         open={reviewOpen}

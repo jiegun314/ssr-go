@@ -23,7 +23,7 @@ func TestTheAlignPanelAndVisibilityRules(t *testing.T) {
 		`canAlign`,
 		`importableSources={importableSources}`,
 		`viewableSources={viewableSources}`,
-		`disabled={shareBlocked || !allAligned}`,
+		`disabled={shareBlocked || !allAligned || consolidating}`,
 		`最后整合：`,
 		// SC 不能导入：模块改叫「数据来源」，显示取数状态
 		`const alignMode = importableSources.length === 0`,

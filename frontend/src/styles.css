@@ -88,6 +88,37 @@ body {
   padding: 12px;
 }
 
+/* 整合进行中：整个工作区压暗并停止指针交互，转圈图标固定视口正中。 */
+.consolidating-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  background: rgba(17, 24, 39, 0.22);
+  backdrop-filter: blur(1px);
+  cursor: progress;
+}
+
+.consolidating-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 180px;
+  padding: 22px 26px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--module-radius);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+  color: rgba(0, 0, 0, 0.72);
+  font-size: 14px;
+}
+
+.consolidating-card .ant-spin {
+  color: var(--brand-red);
+}
+
 /* 模块之间只留 8px：区隔交给底色差、浅阴影与标题条竖条，而不是靠大间距。
    允许收缩：表格行数很多时它俩的"固有高度"会很大，必须能收回到窗口内；
    左列内部另有分工 —— 数据导入按内容高度、日志按剩余空间（见 .left > .log-card）。 */
