@@ -7,6 +7,21 @@
 > 运行期按「构建期常量 → git → `config/setting.yaml` 的 `APP_VERSION`」回退。
 > `APP_VERSION` 只是最后的回退值，不随版本发布更新。
 
+## [3.1.11] - 2026-11-25
+
+数据整合支持查看单条记录详情，并在整合处理期间锁定主界面。
+
+### 新增
+
+- 数据整合结果表支持双击任意行打开「单 Code 详情」：左侧显示该行全部整合字段、状态和冲突上下文。
+- 行内存在 `Primary DI` 时，自动查询本机药监 UDI 库并展示 47 个设备字段、包装和联系人，便于对照；没有 `Primary DI`（空 / `MISSING` / `缺失`）时不发起药监查询。
+- 点击「整合」或「强制重跑」后显示全窗口半透明灰色遮罩，中央动态加载图标，期间锁定主界面并禁用相关按钮，完成或失败后自动恢复。
+
+### 验证
+
+- `make check` 通过：全部 Go 测试、前端 18 个文件 120 例、`genlogcolumns --check`、`gofmt`、`go vet`；
+- 两个平台的正式产物由 CI 在打 tag 后构建并挂到 Release。
+
 ## [3.1.10] - 2026-11-24
 
 新增药监 UDI 参考库，并补齐设备详情与全字段导出。
@@ -788,7 +803,8 @@ RA 输入的来源文件新增两列，导入与「参数设定」跟着更新�
 | [v0.2.5](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.5) | 2026-09-19 | 迁移后的早期可运行版本 |
 | [v0.2.1](https://github.com/jiegun314/ssr-go/releases/tag/v0.2.1) | — | 最早的打标签版本 |
 
-[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.10...HEAD
+[未发布]: https://github.com/jiegun314/ssr-go/compare/v3.1.11...HEAD
+[3.1.11]: https://github.com/jiegun314/ssr-go/compare/v3.1.10...v3.1.11
 [3.1.10]: https://github.com/jiegun314/ssr-go/compare/v3.1.9...v3.1.10
 [3.1.9]: https://github.com/jiegun314/ssr-go/compare/v3.1.8...v3.1.9
 [3.1.8]: https://github.com/jiegun314/ssr-go/compare/v3.1.7...v3.1.8
