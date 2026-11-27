@@ -142,6 +142,80 @@ export function ConsolidationDetailDrawer({
     [columns, cells, statusIndex],
   );
 
+  // 异常与阻塞字段统计
+  const missingFields = useMemo(
+    () => fields.filter(({ value }) => isMissingValue(value)),
+    [fields],
+  );
+  const conflictFields = useMemo(
+    () =>
+      fields
+        .filter(({ index }) => Boolean(notes[index]?.source))
+        .map((f) => ({ ...f, conflict: conflictText(notes[f.index]) })),
+    [fields, notes],
+  );
+  const hasIssues = missingFields.length > 0 || conflictFields.length > 0;
+
+  // 核心字段与药监比对
+  const diffItems = useMemo(() => {
+    if (!nmpaDetail) return [];
+
+    const findLocal = (keywords: string[]) => {
+      for (const f of fields) {
+        const t = f.title.toLowerCase();
+        if (keywords.some((kw) => t.includes(kw))) return f.value.trim();
+      }
+      return "";
+    };
+
+    const findNmpa = (keywords: string[]) => {
+      for (const group of nmpaDetail.groups ?? []) {
+        for (const field of group.fields ?? []) {
+          const l = (field.label ?? "").toLowerCase();
+          if (keywords.some((kw) => l.includes(kw))) return (field.value ?? "").trim();
+        }
+      }
+      return "";
+    };
+
+    const localSpec = findLocal(["catalog", "material_code", "规格", "型号"]);
+    const nmpaSpec = findNmpa(["规格", "型号"]);
+
+    const localCert = findLocal(["registration", "certificate", "注册证", "备案凭证"]);
+    const nmpaCert = findNmpa(["注册证", "备案凭证"]);
+
+    const localName = findLocal(["product name", "generic name", "产品名称", "通用名称"]);
+    const nmpaName = findNmpa(["通用名称", "产品名称"]) || nmpaDetail.displayName || "";
+
+    return [
+      {
+        label: "Primary DI",
+        local: primaryDI,
+        nmpa: nmpaDetail.primaryDi || "",
+      },
+      {
+        label: "物料代码 / 规格型号",
+        local: localSpec,
+        nmpa: nmpaSpec,
+      },
+      {
+        label: "注册证号",
+        local: localCert,
+        nmpa: nmpaCert,
+      },
+      {
+        label: "产品名称",
+        local: localName,
+        nmpa: nmpaName,
+      },
+    ].map((item) => {
+      const match =
+        item.local && item.nmpa && item.local.toUpperCase() === item.nmpa.toUpperCase();
+      const mismatch = Boolean(item.local && item.nmpa && !match);
+      return { ...item, match, mismatch };
+    });
+  }, [nmpaDetail, fields, primaryDI]);
+
   useEffect(() => {
     if (!open) return;
     setNmpaDetail(null);
@@ -198,6 +272,62 @@ export function ConsolidationDetailDrawer({
 
         {rowConflict ? (
           <Alert className="consolidation-detail-alert" type="warning" showIcon message={rowConflict} />
+        ) : null}
+
+        {hasIssues ? (
+          <div className="consolidation-detail-issues" role="alert">
+            <div className="detail-issues-header">
+              <span>⚠️ 导出阻塞原因（{missingFields.length > 0 ? `缺失 ${missingFields.length} 项` : ""}{missingFields.length > 0 && conflictFields.length > 0 ? "，" : ""}{conflictFields.length > 0 ? `冲突 ${conflictFields.length} 项` : ""}）</span>
+            </div>
+            <div className="detail-issues-tags">
+              {missingFields.map(({ title, index }) => (
+                <Tag key={index} color="error" className="issue-pill">
+                  缺失：{title}
+                </Tag>
+              ))}
+              {conflictFields.map(({ title, index, conflict }) => (
+                <Tag key={index} color="magenta" className="issue-pill">
+                  冲突：{title} {conflict ? `(${conflict})` : ""}
+                </Tag>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {nmpaDetail && diffItems.length > 0 ? (
+          <div className="detail-key-alignment">
+            <div className="detail-alignment-header">
+              <h4>核心身份与药监官方库比对</h4>
+              <small>绿色表示完全一致，橙色表示存在差异</small>
+            </div>
+            <div className="detail-alignment-grid">
+              {diffItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={`detail-alignment-row ${item.match ? "is-match" : item.mismatch ? "is-diff" : "is-missing"}`}
+                >
+                  <div className="alignment-label">{item.label}</div>
+                  <div className="alignment-local">
+                    <span className="source-tag">本地</span>
+                    <strong title={item.local}>{displayValue(item.local)}</strong>
+                  </div>
+                  <div className="alignment-nmpa">
+                    <span className="source-tag">药监</span>
+                    <strong title={item.nmpa}>{displayValue(item.nmpa)}</strong>
+                  </div>
+                  <div className="alignment-status">
+                    {item.match ? (
+                      <Tag color="success">一致</Tag>
+                    ) : item.mismatch ? (
+                      <Tag color="warning">存在差异</Tag>
+                    ) : (
+                      <Tag>未完全录入</Tag>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
 
         <div className="consolidation-detail-compare">

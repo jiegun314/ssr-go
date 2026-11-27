@@ -270,20 +270,24 @@ export function RecordExportPanel({
       format="YYYY-MM-DD"
       allowClear={false}
       aria-label={label}
+      size="small"
       onChange={(date) => onChange(date ? date.format("YYYY-MM-DD") : "")}
     />
   );
 
-  // 记录导出贴在数据整合底部分页行左侧：两个日期 + 箭头 + 图标文字「导出」按钮。
+  // 记录导出贴在数据整合底部分页行左侧：独立微模块卡片，两个日期 + 箭头 + 图标文字「导出」按钮。
   // 不再使用 Card 标题栏，也不单独占一行高度。
   return (
-    <div className="range">
-      {picker(start, onStartChange, "起始日期")}
-      <ArrowRight className="date-sep" size={14} aria-hidden="true" />
-      {picker(end, onEndChange, "结束日期")}
-      <Button icon={<History size={16} />} onClick={onReview}>
-        导出
-      </Button>
+    <div className="range-module" title="按日期导出历史整合记录">
+      <span className="range-module-label">记录导出</span>
+      <div className="range">
+        {picker(start, onStartChange, "起始日期")}
+        <ArrowRight className="date-sep" size={14} aria-hidden="true" />
+        {picker(end, onEndChange, "结束日期")}
+        <Button size="small" icon={<History size={16} />} onClick={onReview}>
+          导出
+        </Button>
+      </div>
     </div>
   );
 }
@@ -473,6 +477,8 @@ export function ConsolidationPanel({
   // 状态筛选：点某个状态片只看该状态的行，再点一次回到全部（「导出当前视图」按筛选结果导出；
   // 标题栏的正式「生成文件」仍只导 Ready 行，两者互不影响）
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  // 缺失原因二级分面筛选：针对 Incomplete 行中各缺失字段进行聚焦
+  const [missingFieldFilter, setMissingFieldFilter] = useState<number | null>(null);
   // 查找框：输入不算数，点「查找」或回车才应用（与回顾窗口口径一致）
   const [searchText, setSearchText] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
@@ -510,8 +516,7 @@ export function ConsolidationPanel({
     return set;
   }, [dataSource]);
 
-  // 状态列可能来自后端（真实数据固定在首列），也可能来自预览/旧调用方的任意位置。
-  // 表格里统一把状态挪到最左：3px 状态竖条只有落在行首才读得出来；导出当前视图也跟随这个顺序。
+  // 状态列与 Primary DI 列：横向滚动时只锁定这两列。
   const statusIndex = useMemo(
     () =>
       columns.findIndex((title) => {
@@ -520,20 +525,52 @@ export function ConsolidationPanel({
       }),
     [columns],
   );
+  const primaryDIIndex = useMemo(
+    () =>
+      columns.findIndex((title) => {
+        const normalized = title.trim().toLowerCase();
+        return (
+          normalized === "primary di" ||
+          normalized === "primary_di" ||
+          normalized === "primarydi"
+        );
+      }),
+    [columns],
+  );
   const displayColumns = useMemo(() => {
     const indexed = columns.map((title, index) => ({ title, index }));
-    if (statusIndex <= 0) return indexed;
-    const [status] = indexed.splice(statusIndex, 1);
-    indexed.unshift(status);
-    return indexed;
-  }, [columns, statusIndex]);
+    const result: { title: string; index: number }[] = [];
+    if (statusIndex >= 0) {
+      result.push({ title: columns[statusIndex], index: statusIndex });
+    }
+    if (primaryDIIndex >= 0 && primaryDIIndex !== statusIndex) {
+      result.push({ title: columns[primaryDIIndex], index: primaryDIIndex });
+    }
+    for (const item of indexed) {
+      if (item.index !== statusIndex && item.index !== primaryDIIndex) {
+        result.push(item);
+      }
+    }
+    return result;
+  }, [columns, statusIndex, primaryDIIndex]);
 
   const tableColumns: ColumnsType<ConsolidationRow> = useMemo(
     () =>
-      displayColumns.map(({ title, index }) => {
+      displayColumns.map(({ title, index }, displayIdx) => {
         const hasFilter = Boolean(columnFilters[index]);
+        // 关键列左侧冻结：横向移动只锁定“状态”和“Primary DI”两列
+        const isStickyLeft = displayIdx < (primaryDIIndex >= 0 ? 2 : 1);
+        const defaultWidth =
+          displayIdx === 0
+            ? 80
+            : displayIdx === 1 && primaryDIIndex >= 0
+              ? 160
+              : undefined;
+        const colWidth = columnWidths[index] ?? defaultWidth;
         return {
           className: index === statusIndex ? "result-status-cell" : undefined,
+          fixed: isStickyLeft ? ("left" as const) : undefined,
+          width: colWidth,
           title: (
             <span className="th-title">
               {conflictColumns.has(index) ? (
@@ -584,7 +621,7 @@ export function ConsolidationPanel({
           ),
           key: String(index),
           ellipsis: false,
-          onHeaderCell: () => ({ index, width: columnWidths[index] }),
+          onHeaderCell: () => ({ index, width: colWidth }),
           render: (_: unknown, entry: ConsolidationRow) => {
           // 状态列用中文胶囊，不再露出后端英文常量；左侧 3px 竖条由行样式负责。
           if (index === statusIndex) {
@@ -643,11 +680,39 @@ export function ConsolidationPanel({
     () => Object.entries(columnFilters).filter(([, value]) => value.trim() !== ""),
     [columnFilters],
   );
+
+  // 统计当前数据中 Incomplete 行各必填列的缺失频次（按出现次数降序）
+  const missingFacetStats = useMemo(() => {
+    const stats: Record<number, number> = {};
+    for (const entry of dataSource) {
+      if (entry.status !== "Incomplete") continue;
+      for (let c = 0; c < entry.cells.length; c++) {
+        if (c === statusIndex) continue;
+        const v = entry.cells[c];
+        if (v === "MISSING" || v === "缺失") {
+          stats[c] = (stats[c] ?? 0) + 1;
+        }
+      }
+    }
+    return Object.entries(stats)
+      .map(([colIdxStr, count]) => ({
+        index: Number(colIdxStr),
+        title: columns[Number(colIdxStr)] ?? `列${colIdxStr}`,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [dataSource, columns, statusIndex]);
+
   const visible = useMemo(
     () =>
       dataSource
         .filter((entry) => statusFilter === null || entry.status === statusFilter)
         .filter((entry) => {
+          // 缺失原因分面二级筛选
+          if (statusFilter === "Incomplete" && missingFieldFilter !== null) {
+            const cellVal = String(entry.cells[missingFieldFilter] ?? "").trim();
+            if (cellVal !== "MISSING" && cellVal !== "缺失") return false;
+          }
           const matchesNeedle =
             needle === "" ||
             entry.cells.some((cell) => String(cell ?? "").toLowerCase().includes(needle));
@@ -658,7 +723,7 @@ export function ConsolidationPanel({
           );
           return matchesNeedle && matchesFilters;
         }),
-    [dataSource, statusFilter, needle, activeFilters, getCellText],
+    [dataSource, statusFilter, missingFieldFilter, needle, activeFilters, getCellText],
   );
 
   // 只把当前页交给 Table 渲染：数据量大时这是"不卡"的关键
@@ -728,6 +793,7 @@ export function ConsolidationPanel({
   const toggleStatus = (status: string) => {
     const turningOn = statusFilter !== status;
     setStatusFilter(turningOn ? status : null);
+    setMissingFieldFilter(null);
     setPage(1);
     if (turningOn && status === "Conflict") {
       flashFirstConflict();
@@ -841,6 +907,38 @@ export function ConsolidationPanel({
 
         </div>
       </div>
+      {statusFilter === "Incomplete" && missingFacetStats.length > 0 ? (
+        <div className="facet-filter-strip" role="region" aria-label="缺失原因二级筛选">
+          <span className="facet-filter-label">缺失原因下钻：</span>
+          <div className="facet-filter-tags">
+            <span
+              className={`facet-filter-chip${missingFieldFilter === null ? " is-active" : ""}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => {
+                setMissingFieldFilter(null);
+                setPage(1);
+              }}
+            >
+              全部缺失 ({counts.Incomplete ?? 0})
+            </span>
+            {missingFacetStats.slice(0, 5).map(({ index, title, count }) => (
+              <span
+                key={index}
+                className={`facet-filter-chip${missingFieldFilter === index ? " is-active" : ""}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setMissingFieldFilter((curr) => (curr === index ? null : index));
+                  setPage(1);
+                }}
+              >
+                缺 {title} ({count})
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         emptyState ? (
           <div className="consolidation-empty" role="status">
@@ -887,17 +985,18 @@ export function ConsolidationPanel({
           />
         </div>
       )}
-      {/* 分页行：左侧放记录导出，右侧放分页器。没有数据时隐藏分页器，但导出控件始终保留。 */}
+      {/* 分页行：左侧放记录导出独立微模块，右侧放紧凑分页器。没有数据时隐藏分页器，但导出控件始终保留。 */}
       <div className="table-pager">
         {recordExport}
-        <span className="result-detail-hint">双击行查看单 Code 详情</span>
         {visible.length > 0 && (
           <Pagination
+            size="small"
             current={page}
             pageSize={pageSize}
             total={visible.length}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             showSizeChanger
+            showLessItems
             showTotal={(total) => `共 ${total} 行`}
             onChange={(nextPage, nextPageSize) => {
               // 改了每页行数就回第一页（否则当前页可能已经越界）

@@ -128,10 +128,14 @@ export function LoginScreen({ roles, username, onLogin, onAdminLogin, busy }: Lo
               <div className="login-brand-sub">SSR · UDI 数据整合平台</div>
             </div>
           </div>
-          <h1 className="login-brand-title">把来源数据，收成一份可提交文件。</h1>
-          <p className="login-brand-desc">
-            RA、EAMA、UDI 与产品类别在同一个工作区汇合，减少重复核对与手工拼接。
-          </p>
+          <div className="login-brand-desc">
+            <p className="login-brand-desc-zh">
+              SS Ready 为面向 SingleSource 的 UDI 主数据准备，提供数据校验、清洗、映射与整合能力。
+            </p>
+            <p className="login-brand-desc-en">
+              SS Ready provides data validation, cleansing, mapping and consolidation capabilities for UDI master data preparation for SingleSource.
+            </p>
+          </div>
           <div className="login-brand-steps" aria-label="工作流程">
             <span className="login-brand-step"><b>01</b>导入来源</span>
             <span className="login-brand-step"><b>02</b>对齐版本</span>

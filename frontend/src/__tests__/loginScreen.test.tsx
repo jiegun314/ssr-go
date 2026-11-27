@@ -41,7 +41,7 @@ describe("登录页", () => {
     renderLogin();
     expect(screen.getByText("Welcome, zhangsan")).toBeInTheDocument();
     expect(document.querySelector(".login-brand")).not.toBeNull();
-    expect(document.querySelector(".login-brand-title")?.textContent).toContain("把来源数据，收成一份可提交文件。");
+    expect(document.querySelector(".login-brand-desc")?.textContent).toContain("SS Ready provides data validation, cleansing");
 
     const roleGrid = document.querySelector(".login-role-grid") as HTMLElement;
     expect(roleGrid.querySelectorAll(".login-tile")).toHaveLength(4);

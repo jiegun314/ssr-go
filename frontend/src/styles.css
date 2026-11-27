@@ -354,6 +354,13 @@ body {
   color: var(--brand-red-deep);
 }
 
+.consolidation-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45);
+}
+
 .consolidation-card > .ant-card-head .ant-card-extra {
   flex: 0 0 auto;
   display: flex;
@@ -521,8 +528,31 @@ body {
 
 /* ---------- 记录导出 ---------- */
 
-/* 记录导出：两个日期并排、中间一个箭头、右侧「导出」按钮。
-   现在贴在数据整合底部分页行左侧，与分页器共享一行，不再居中。 */
+/* 记录导出微模块：独立卡片式胶囊，与右侧分页清晰隔离 */
+.range-module {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  height: 28px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--inner-radius);
+  box-sizing: border-box;
+}
+
+.range-module-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  user-select: none;
+  padding-right: 6px;
+  border-right: 1px solid #cbd5e1;
+  line-height: 16px;
+}
+
 .range {
   display: flex;
   align-items: center;
@@ -531,9 +561,21 @@ body {
 }
 
 .range .ant-picker {
-  flex: 0 1 130px;
+  flex: 0 1 120px;
   min-width: 110px;
   max-width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.range .ant-picker .ant-picker-input > input {
+  font-size: 12px;
+  height: 22px;
+}
+
+.range .ant-picker .ant-picker-suffix {
+  font-size: 12px;
 }
 
 .range .date-sep {
@@ -543,6 +585,12 @@ body {
 
 .range .ant-btn {
   flex: 0 0 auto;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 22px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* ---------- 数据整合 ---------- */
@@ -563,7 +611,7 @@ body {
 
 /* 查找框：输入即筛表格内容，窄窗口下可压缩（到 150px 为止），把宽度让给按钮与状态片 */
 .table-search {
-  flex: 0 1 240px;
+  flex: 0 1 180px;
   min-width: 150px;
 }
 
@@ -659,14 +707,88 @@ body {
   display: none;
 }
 
-/* 结果表的滚动容器：只加一条淡色描边把表格和卡片内容区分开，
-   行/表头样式仍然全部交给 antd Table（不自绘投影，也不压内边距）。 */
+/* 紧凑分页器样式：12px 字号、26px 高度、与左侧微模块严格等高 */
+.table-pager .ant-pagination {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.table-pager .ant-pagination-total-text {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  height: 26px;
+  line-height: 26px;
+  margin-inline-end: 6px;
+}
+
+.table-pager .ant-pagination-item,
+.table-pager .ant-pagination-prev,
+.table-pager .ant-pagination-next,
+.table-pager .ant-pagination-jump-prev,
+.table-pager .ant-pagination-jump-next {
+  min-width: 26px;
+  height: 26px;
+  line-height: 24px;
+  font-size: 12px;
+  margin-inline-end: 4px;
+  border-radius: var(--inner-radius);
+}
+
+.table-pager .ant-pagination-item a {
+  font-size: 12px;
+}
+
+.table-pager .ant-pagination-options {
+  margin-inline-start: 6px;
+}
+
+.table-pager .ant-pagination-options .ant-select {
+  font-size: 12px;
+}
+
+.table-pager .ant-pagination-options .ant-select-selector {
+  height: 26px !important;
+  padding: 0 6px !important;
+  font-size: 12px !important;
+  border-radius: var(--inner-radius) !important;
+}
+
+.table-pager .ant-pagination-options .ant-select-selection-item {
+  font-size: 12px !important;
+  line-height: 24px !important;
+}
+
+/* 结果表的滚动容器：只加一条淡色描边把表格和卡片内容区分开 */
 .tblwrap {
   flex: 1 1 auto;
   min-height: 180px;
   overflow: auto;
   border: 1px solid var(--card-border); /* colorBorderSecondary */
   border-radius: var(--inner-radius);
+}
+
+/* 高密度结果表：字号从 14px 统一收敛至 12px，行高 32px，单元格水平 8px、垂直 5px，等宽数字 */
+.tblwrap .ant-table {
+  font-size: 12px;
+}
+
+.tblwrap .ant-table-thead > tr > th.ant-table-cell {
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.tblwrap .ant-table-tbody > tr > td.ant-table-cell {
+  padding: 5px 8px;
+  font-size: 12px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
 }
 
 /* 表头首尾格的圆角跟着内层容器走 4px（antd 默认 8px），不要露出尖角 */
@@ -815,9 +937,9 @@ body {
   border-color: #ffccc7;
 }
 .result-status-Duplicate {
-  color: #ad6800;
-  background: #fffbe6;
-  border-color: #ffe58f;
+  color: #785b1a;
+  background: #faf8f2;
+  border-color: #e5ded0;
 }
 .result-status-Conflict {
   color: #9e1068;
@@ -827,6 +949,20 @@ body {
 
 .result-row:hover > td {
   background: #f8fafc;
+}
+
+/* 固定列背景与悬停保障：避免横向滚动时被下层内容穿透 */
+.result-row > td.ant-table-cell-fix-left {
+  background: #ffffff;
+}
+
+.result-row:hover > td.ant-table-cell-fix-left {
+  background: #f8fafc;
+}
+
+/* 最后一列固定列的右侧微阴影分界线 */
+.ant-table-cell-fix-left-last::after {
+  box-shadow: inset 10px 0 8px -8px rgba(0, 0, 0, 0.08);
 }
 
 /* 缺失格：小号「缺失」标记（不抢眼；导出时该格为空） */
@@ -2173,9 +2309,24 @@ body {
 
 .login-brand-desc {
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-brand-desc-zh {
+  margin: 0;
   font-size: 14px;
-  line-height: 1.8;
-  color: rgba(0, 0, 0, 0.56);
+  line-height: 1.6;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.login-brand-desc-en {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.48);
 }
 
 .login-brand-steps {
@@ -2476,17 +2627,18 @@ body {
 }
 
 /* ---------- 数据对齐模块（P3，只有 SC/Admin）---------- */
-/* 模块本体用 .card（浅色标题栏 + 品牌红竖条，与其它模块一致）。
-   标题栏右侧 = 发布状态（几份待对齐）+ 自动对齐开关 + 全部对齐；
-   卡片里 = 来源/状态/右上角对齐按钮 + 两行版本 + 一行发布时间。 */
+.align-card > .ant-card-head {
+  padding-inline: 8px;
+}
+
 .align-card > .ant-card-body {
-  padding: 6px 10px;
+  padding: 6px 8px;
 }
 
 .align-head-extra {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* 状态标签：直接用 antd Tag 的语义浅底（颜色由 color 属性给），不再为红底做反白 */
@@ -2497,7 +2649,7 @@ body {
 .align-auto {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .align-auto-label {
@@ -2513,7 +2665,7 @@ body {
 
 .align-grid {
   display: grid;
-  gap: var(--space-8);
+  gap: 6px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -2527,25 +2679,72 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 3px 8px 4px;
+  padding: 4px 6px;
   border: 1px solid var(--card-border);
   border-radius: var(--inner-radius);
   background: #fff;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* 标题行：来源 + 状态 + 右上角「对齐」（与标题同高，尽量不撑卡片） */
+/* 标题行：来源 + 状态图标徽标 + 右上角「对齐」 */
 .align-source-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-height: 20px;
 }
 
 .align-source-label {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 22px;
+  line-height: 20px;
   color: rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 状态小徽标图标（已对齐/待整合/未对齐/未发布） */
+.align-status-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  cursor: help;
+  transition: transform var(--motion-fast) ease;
+}
+
+.align-status-badge:hover {
+  transform: scale(1.12);
+}
+
+.align-status-badge.align-status-green {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #52c41a;
+}
+
+.align-status-badge.align-status-gold {
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  color: #faad14;
+}
+
+.align-status-badge.align-status-orange {
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  color: #fa8c16;
+}
+
+.align-status-badge.align-status-default {
+  background: #f5f5f5;
+  border: 1px solid #d9d9d9;
+  color: #8c8c8c;
 }
 
 .align-tag {
@@ -2556,6 +2755,43 @@ body {
 .align-source-run.ant-btn {
   flex: 0 0 auto;
   margin-left: auto;
+  width: 20px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
+}
+
+.align-source-run.ant-btn svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.align-source-meta {
+  font-size: 11px;
+  line-height: 16px;
+  color: rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.align-meta-visible {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* 屏幕阅读器与隐藏文本（保全无障碍与测试） */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 .align-source-line {
@@ -2789,7 +3025,7 @@ body {
 }
 
 .table-search-group .table-search {
-  flex: 0 1 240px;
+  flex: 0 1 180px;
   min-width: 150px;
 }
 
@@ -3337,4 +3573,189 @@ body {
   .consolidation-detail-nmpa .nmpa-detail-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ---------- 结果表：缺失原因二级筛选条 ---------- */
+.facet-filter-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  border-radius: var(--inner-radius);
+  font-size: 12px;
+  color: #475569;
+}
+
+.facet-filter-label {
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.facet-filter-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.facet-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all var(--motion-fast) ease;
+  user-select: none;
+}
+
+.facet-filter-chip:hover {
+  color: var(--danger-red);
+  border-color: #fca5a5;
+  background: #fff5f5;
+}
+
+.facet-filter-chip.is-active {
+  color: #ffffff;
+  background: var(--danger-red);
+  border-color: var(--danger-red);
+  font-weight: 500;
+}
+
+/* ---------- 抽屉：异常阻塞项面板 ---------- */
+.consolidation-detail-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 3px solid #ef4444;
+  border-radius: var(--inner-radius);
+}
+
+.detail-issues-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.detail-issues-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.detail-issues-tags .ant-tag {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* ---------- 抽屉：核心身份与药监官方库比对卡 ---------- */
+.detail-key-alignment {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--module-radius);
+}
+
+.detail-alignment-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.detail-alignment-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.detail-alignment-header small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.detail-alignment-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.detail-alignment-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 1fr 90px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--inner-radius);
+  font-size: 12px;
+}
+
+.detail-alignment-row.is-diff {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.detail-alignment-row.is-match {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.alignment-label {
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alignment-local,
+.alignment-nmpa {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.alignment-local strong,
+.alignment-nmpa strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.alignment-local .source-tag,
+.alignment-nmpa .source-tag {
+  display: inline-block;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 16px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.alignment-status {
+  text-align: right;
+}
+.alignment-status .ant-tag {
+  margin: 0;
 }

@@ -851,20 +851,7 @@ export default function App() {
                 onReviewCleaned={openCleanedReview}
               />
             </Card>
-            {/* 操作日志住在左列最下面：按左列剩余高度撑满，窗口越高日志越长，不留空白 */}
-            <LogPanel text={log} />
-          </div>
-          {/* 竖向分隔上的收起/展开按钮：收起后右侧结果表吃满整个窗口宽度 */}
-          <Tooltip title={leftCollapsed ? "展开左侧面板" : "收起左侧面板"}>
-            <Button
-              className="left-toggle"
-              aria-label={leftCollapsed ? "展开左侧面板" : "收起左侧面板"}
-              aria-expanded={!leftCollapsed}
-              icon={leftCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-              onClick={() => setLeftCollapsed((current) => !current)}
-            />
-          </Tooltip>
-          <div className="right">
+            {/* 数据对齐模块：放在数据导入与操作日志之间，释放右侧大表纵向空间 */}
             {canAlign && overview?.enabled ? (
               <Card
                 className="card align-card"
@@ -899,10 +886,29 @@ export default function App() {
                 <AlignPanel sources={overview.sources} aligning={aligning} onAlign={handleAlign} />
               </Card>
             ) : null}
+            {/* 操作日志住在左列最下面：按左列剩余高度撑满，窗口越高日志越长，不留空白 */}
+            <LogPanel text={log} />
+          </div>
+          {/* 竖向分隔上的收起/展开按钮：收起后右侧结果表吃满整个窗口宽度 */}
+          <Tooltip title={leftCollapsed ? "展开左侧面板" : "收起左侧面板"}>
+            <Button
+              className="left-toggle"
+              aria-label={leftCollapsed ? "展开左侧面板" : "收起左侧面板"}
+              aria-expanded={!leftCollapsed}
+              icon={leftCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+              onClick={() => setLeftCollapsed((current) => !current)}
+            />
+          </Tooltip>
+          <div className="right">
             <Card
               className={`card grow consolidation-card${canConsolidate ? "" : " consolidation-card-locked"}`}
               size="small"
-              title={<span className="consolidation-name">数据整合</span>}
+              title={
+                <span className="consolidation-name">
+                  数据整合
+                  <span className="consolidation-hint">· 双击行查看单 Code 详情</span>
+                </span>
+              }
               extra={
                 // D：标题靠左，右侧形成一条动作区：刷新 / 导出 / 白底红字「整合」。
                 // 没有整合权限时只保留「只读」标签。
